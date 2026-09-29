@@ -3,6 +3,8 @@
 Sensors design and live state-machine simulation of a CNC machine-tending cell: a CNC with a
 robot-operated door, two UR10e robots, a conveyor, and input and output pallets.
 
+**Live simulator:** https://juanlopez-gif.github.io/CNC-Cell-Simulator/ (runs in the browser, nothing to install)
+
 ![CNC Cell Simulator, Setup 1 with a faulty PE-41 sensor: the camera value is used and 2 of 3 mismatches are in the 10-minute window](simulation/sim_setup1_warning.png)
 
 This is the solution to the Week 2 Sensors Design Task, Setup 1 and Setup 2: sensor selection and
@@ -58,7 +60,7 @@ Setup 2 rejects any part with a length, width or height below 48.00 mm into a lo
 
 ## Using the simulation
 
-Open `simulation/index.html`. Choose Setup 1 or Setup 2, set the speed and watch the active state
+Open the live link above, or open `simulation/index.html` from a local copy. Choose Setup 1 or Setup 2, set the speed and watch the active state
 move on the diagrams. Try **Fault** on CP-2: every part placed on the belt gives a mismatch, the camera
 keeps the line running, and the third mismatch within 10 minutes stops the line. Then start the sensor
 verification and reset. In Setup 2, press **Next part undersized** twice to see the NOK chute and the
