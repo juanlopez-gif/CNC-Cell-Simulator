@@ -1,0 +1,119 @@
+<svg xmlns="http://www.w3.org/2000/svg" class="dg-root" viewBox="0 0 880 796" width="880" height="796" font-family="'Barlow', 'Segoe UI', Arial, sans-serif" role="img" aria-label="Work flow of one part: Setup 1"><style>
+.dg-root{font-family:'Barlow','Segoe UI',Arial,sans-serif}
+.dg-bg{fill:var(--dg-bg,#ffffff)}
+.dg-title{font-family:'Barlow Semi Condensed','Barlow','Segoe UI',sans-serif;font-weight:700;font-size:20px;fill:var(--dg-ink,#14202b)}
+.dg-sub{font-size:13px;fill:var(--dg-muted,#56636f)}
+.dg-st-rect{fill:var(--dg-st,#f2f5f8);stroke:var(--dg-line,#2f3e4d);stroke-width:1.5}
+.dg-st-title{font-family:'Barlow Semi Condensed','Barlow','Segoe UI',sans-serif;font-weight:700;font-size:14.5px;fill:var(--dg-ink,#14202b);letter-spacing:.04em}
+.dg-st-do{font-size:12.5px;fill:var(--dg-soft,#3a4754)}
+.dg-st-chip{fill:var(--dg-line,#2f3e4d)}
+.dg-st-chiptext{font-family:'IBM Plex Mono',Consolas,monospace;font-weight:600;font-size:11px;fill:var(--dg-chipink,#ffffff)}
+.dg-tr{fill:none;stroke:var(--dg-arrow,#56636f);stroke-width:1.5}
+.dg-head{fill:var(--dg-arrow,#56636f)}
+.dg-dash{stroke-dasharray:5 4}
+.dg-trk-fault .dg-tr{stroke:var(--dg-red,#c62828)} .dg-trk-fault .dg-head{fill:var(--dg-red,#c62828)}
+.dg-trk-hold .dg-tr{stroke:var(--dg-amber,#b7791f)} .dg-trk-hold .dg-head{fill:var(--dg-amber,#b7791f)}
+.dg-trk-ok .dg-tr{stroke:var(--dg-green,#1e7d45)} .dg-trk-ok .dg-head{fill:var(--dg-green,#1e7d45)}
+.dg-guard{font-size:12.5px;fill:var(--dg-ink2,#1f2a35)}
+.dg-halo{paint-order:stroke;stroke:var(--dg-bg,#ffffff);stroke-width:5px;stroke-linejoin:round}
+.dg-tag{font-family:'IBM Plex Mono',Consolas,monospace;font-size:11.5px;font-weight:500;fill:var(--dg-blue,#0b5aa6)}
+.dg-cp{font-weight:700;fill:var(--dg-cp,#7b3fb5)}
+.dg-b{font-weight:700}
+.dg-small{font-size:11.5px}
+.dg-init{fill:var(--dg-line,#2f3e4d)}
+.dg-k-wait .dg-st-rect{stroke-dasharray:5 3}
+.dg-k-fault .dg-st-rect{fill:var(--dg-red-t,#fdeceb);stroke:var(--dg-red,#c62828)} .dg-k-fault .dg-st-chip{fill:var(--dg-red,#c62828)}
+.dg-k-hold .dg-st-rect{fill:var(--dg-amber-t,#fff4de);stroke:var(--dg-amber,#b7791f)} .dg-k-hold .dg-st-chip{fill:var(--dg-amber,#b7791f)}
+.dg-k-ok .dg-st-rect{fill:var(--dg-green-t,#e7f5ec);stroke:var(--dg-green,#1e7d45)} .dg-k-ok .dg-st-chip{fill:var(--dg-green,#1e7d45)}
+.dg-k-warn .dg-st-rect{fill:var(--dg-amber-t,#fff4de);stroke:var(--dg-amber,#b7791f)} .dg-k-warn .dg-st-chip{fill:var(--dg-amber,#b7791f)}
+.dg-k-stop .dg-st-rect{fill:var(--dg-red-t,#fdeceb);stroke:var(--dg-red,#c62828)} .dg-k-stop .dg-st-chip{fill:var(--dg-red,#c62828)}
+.dg-k-op .dg-st-rect{fill:var(--dg-blue-t,#e6effa);stroke:var(--dg-blue,#0b5aa6)} .dg-k-op .dg-st-chip{fill:var(--dg-blue,#0b5aa6)}
+.dg-k-check .dg-st-rect{fill:var(--dg-cp-t,#f3ecfa);stroke:var(--dg-cp,#7b3fb5)} .dg-k-check .dg-st-chip{fill:var(--dg-cp,#7b3fb5)}
+.dg-band{stroke:none}
+.dg-band-idle{fill:var(--dg-amber-b,#fff5e0)} .dg-band-run{fill:var(--dg-blue-b,#e9f1fb)}
+.dg-band-stop{fill:var(--dg-green-b,#eaf6ee)} .dg-band-move{fill:var(--dg-gray-b,#eef1f4)}
+.dg-band-label{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:11.5px;letter-spacing:.08em;fill:var(--dg-muted,#56636f)}
+.dg-band-label.idle{fill:var(--dg-amber-d,#9a6212)} .dg-band-label.run{fill:var(--dg-blue,#0b5aa6)} .dg-band-label.stop{fill:var(--dg-green,#1e7d45)}
+.dg-note-rect{fill:var(--dg-note,#f6f7f9);stroke:var(--dg-rule,#c4ccd4);stroke-width:1}
+.dg-note{font-size:12.5px;fill:var(--dg-soft,#3a4754)}
+.dg-choice{fill:var(--dg-st,#f2f5f8);stroke:var(--dg-line,#2f3e4d);stroke-width:1.5}
+.dg-choice-t{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:13.5px;fill:var(--dg-ink,#14202b)}
+.dg-node{fill:var(--dg-st,#f2f5f8);stroke:var(--dg-line,#2f3e4d);stroke-width:1.4}
+.dg-node.ok{fill:var(--dg-green-t,#e7f5ec);stroke:var(--dg-green,#1e7d45)}
+.dg-node.warn{fill:var(--dg-amber-t,#fff4de);stroke:var(--dg-amber,#b7791f)}
+.dg-node.stop{fill:var(--dg-red-t,#fdeceb);stroke:var(--dg-red,#c62828)}
+.dg-node.check{fill:var(--dg-cp-t,#f3ecfa);stroke:var(--dg-cp,#7b3fb5)}
+.dg-node.op{fill:var(--dg-blue-t,#e6effa);stroke:var(--dg-blue,#0b5aa6)}
+.dg-node-t{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:14px;fill:var(--dg-ink,#14202b)}
+.dg-node-s{font-size:12.5px;fill:var(--dg-soft,#3a4754)}
+.dg-owner{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:10.5px;letter-spacing:.08em;fill:#ffffff}
+.dg-owner-r{fill:#2f3e4d}
+.dg-owner-r.op,.dg-owner-r.light{fill:#0b5aa6} .dg-owner-r.cnc{fill:#a0521d} .dg-owner-r.conv{fill:#2f6f5e} .dg-owner-r.r2{fill:#806000}
+.dg-owner-r.cam{fill:#7b3fb5} .dg-owner-r.gauge{fill:#a33a3a} .dg-owner-r.ok{fill:#1e7d45} .dg-owner-r.nok{fill:#c62828}
+.dg-conn{fill:var(--dg-bg,#ffffff);stroke:var(--dg-line,#2f3e4d);stroke-width:1.5}
+.dg-conn-t{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:13px;fill:var(--dg-ink,#14202b)}
+.dg-num{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:14px;fill:var(--dg-muted,#56636f)}
+.dg-active .dg-st-rect,.dg-active .dg-node,.dg-active .dg-choice{stroke:var(--dg-active,#0a66e8);stroke-width:3.2;fill:var(--dg-active-t,#dde9fc)}
+.dg-active .dg-st-chip{fill:var(--dg-active,#0a66e8)}
+.dg-flash .dg-tr{stroke:var(--dg-active,#0a66e8);stroke-width:3} .dg-flash .dg-head{fill:var(--dg-active,#0a66e8)}
+/* layout drawing */
+.ly-fence{fill:none;stroke:var(--dg-rule,#aab4be);stroke-width:1.3;stroke-dasharray:2 5}
+.ly-aisle{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:11px;letter-spacing:.14em;fill:var(--dg-muted,#56636f)}
+.ly-mach{fill:var(--ly-mach,#dfe5ea);stroke:var(--dg-line,#2f3e4d);stroke-width:1.6}
+.ly-mach-in{fill:var(--ly-mach-in,#eef2f5);stroke:var(--ly-rule2,#9aa6b1);stroke-width:1}
+.ly-pallet{fill:var(--ly-pallet,#e9dcc6);stroke:var(--ly-pallet-s,#8a6d3b);stroke-width:1.5}
+.ly-slot{fill:none;stroke:var(--ly-slot,#b39a6e);stroke-width:.9;stroke-dasharray:2 2}
+.ly-part{fill:var(--ly-raw,#a9b2ba);stroke:var(--ly-raw-s,#56626c);stroke-width:1.1}
+.ly-part.fin{fill:var(--ly-fin,#dfe8f0);stroke:var(--ly-fin-s,#43698c)}
+.ly-part.nok{stroke:var(--dg-red,#c62828);stroke-width:2.2}
+.ly-pocket{fill:none;stroke:var(--ly-fin-s,#43698c);stroke-width:.9}
+.ly-belt{fill:var(--ly-belt,#39414a)}
+.ly-frame{fill:var(--ly-frame,#8d98a3)}
+.ly-roller{stroke:var(--ly-roller,#5b646d);stroke-width:1.1}
+.ly-stop{fill:var(--dg-red,#c62828)}
+.ly-robot{fill:var(--ly-robot,#2c4a66);stroke:var(--ly-robot-s,#15283a);stroke-width:1.5}
+.ly-robot-t{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:11.5px;fill:#ffffff;letter-spacing:.04em}
+.ly-link{stroke:var(--ly-link,#5f7d99);stroke-width:13;stroke-linecap:round;fill:none}
+.ly-link2{stroke:var(--ly-link2,#7f9ab3);stroke-width:10;stroke-linecap:round;fill:none}
+.ly-joint{fill:var(--ly-joint,#243a52)}
+.ly-finger{stroke:var(--ly-joint,#243a52);stroke-width:3.2;stroke-linecap:round}
+.ly-door{fill:var(--ly-door,#6f8193);stroke:var(--dg-line,#2f3e4d);stroke-width:1}
+.ly-track{stroke:var(--ly-rule2,#9aa6b1);stroke-width:1.1;stroke-dasharray:3 3}
+.ly-handle{fill:var(--dg-line,#2f3e4d)}
+.ly-label{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:14px;fill:var(--dg-ink,#14202b);letter-spacing:.05em}
+.ly-sub{font-size:11.5px;fill:var(--dg-soft,#3a4754)}
+.ly-tag{font-family:'IBM Plex Mono',Consolas,monospace;font-size:11px;font-weight:600;fill:var(--dg-blue,#0b5aa6)}
+.ly-tag.cam{fill:var(--dg-cp,#7b3fb5)} .ly-tag.saf{fill:var(--ly-safety,#946c00)}
+.ly-sens{fill:var(--dg-bg,#ffffff);stroke:var(--dg-blue,#0b5aa6);stroke-width:1.6}
+.ly-sens.safety{stroke:var(--ly-safety,#c79400)}
+.ly-led{fill:var(--ly-led-off,#c3cad1)}
+.ly-led.on{fill:var(--ly-led-on,#1ea453)}
+.ly-led.bad{fill:var(--dg-red,#d32f2f)}
+.ly-beam{stroke:var(--ly-beam,#d33b3b);stroke-width:1.1;stroke-dasharray:2 3;opacity:.8}
+.ly-fov{fill:var(--ly-fov,rgba(123,63,181,.045));stroke:var(--dg-cp,#7b3fb5);stroke-width:1.3;stroke-dasharray:7 4}
+.ly-roi{fill:none;stroke:var(--dg-cp,#7b3fb5);stroke-width:1.1;stroke-dasharray:2 2}
+.ly-roi-t{font-family:'IBM Plex Mono',Consolas,monospace;font-size:10px;font-weight:600;fill:var(--dg-cp,#7b3fb5)}
+.ly-roi-t.on-belt{fill:#d9c5f5}
+.ly-cam{fill:var(--dg-cp,#7b3fb5)}
+.ly-nok{fill:var(--ly-nok,#fbe3e1);stroke:var(--dg-red,#c62828);stroke-width:1.6}
+.ly-nok-h{stroke:var(--dg-red,#c62828);stroke-width:.9;opacity:.35}
+.ly-gauge{fill:var(--ly-gauge,#e9eef3);stroke:var(--dg-line,#2f3e4d);stroke-width:1.5}
+.ly-datum{fill:var(--dg-line,#2f3e4d)}
+.ly-laser{fill:var(--dg-red,#c62828)}
+.ly-cab{fill:var(--ly-mach,#dfe5ea);stroke:var(--dg-line,#2f3e4d);stroke-width:1.3}
+.ly-lamp-r{fill:#d32f2f} .ly-lamp-a{fill:#f2a900} .ly-lamp-g{fill:#1e9e52} .ly-lamp-b{fill:#1565c0}
+.ly-lamp-off{opacity:.2}
+.ly-scan{fill:var(--ly-scan,rgba(199,148,0,.09));stroke:var(--ly-safety,#c79400);stroke-width:1.1;stroke-dasharray:3 3}
+.ly-flow{fill:none;stroke:#ffffff;stroke-width:1.8;opacity:.75}
+.ly-note{font-size:11.5px;font-style:italic;fill:var(--dg-muted,#56636f)}
+.ly-legend{font-size:12px;fill:var(--dg-soft,#3a4754)}
+/* timing chart */
+.gt-grid{stroke:var(--dg-rule,#d5dbe1);stroke-width:1}
+.gt-axis{font-size:11.5px;fill:var(--dg-muted,#56636f)}
+.gt-row{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:13.5px;fill:var(--dg-ink,#14202b)}
+.gt-bar-t{font-size:11.5px;fill:#ffffff;font-weight:600}
+.gt-bar-t.dark{fill:var(--dg-ink,#14202b)}
+.gt-mach{fill:#3f73b5} .gt-idle{fill:#e3a21a} .gt-door{fill:#2f3e4d} .gt-move{fill:#7d8b98} .gt-wait{fill:var(--dg-gray-b,#eef1f4);stroke:var(--dg-rule,#c4ccd4)} .gt-belt{fill:#2f6f5e} .gt-gauge{fill:#a33a3a}
+.gt-kpi{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:15px;fill:var(--dg-ink,#14202b)}
+.gt-break{fill:var(--dg-bg,#ffffff);stroke:var(--dg-muted,#56636f);stroke-width:1.2}
+</style><rect class="dg-bg" x="0" y="0" width="880" height="796"/><text class="dg-title" x="20" y="36">Work flow of one part: Setup 1</text><text class="dg-sub" x="20" y="58">Each box: who acts, what happens, and the signal that confirms the step before the next one starts.</text><g class="dg-trg"><path class="dg-tr" d="M222 148 L222 163"/><polygon class="dg-head" points="222,168 226.5,158.5 217.5,158.5"/></g><g class="dg-trg"><path class="dg-tr" d="M222 234 L222 249"/><polygon class="dg-head" points="222,254 226.5,244.5 217.5,244.5"/></g><g class="dg-trg"><path class="dg-tr" d="M222 320 L222 335"/><polygon class="dg-head" points="222,340 226.5,330.5 217.5,330.5"/></g><g class="dg-trg"><path class="dg-tr" d="M222 406 L222 421"/><polygon class="dg-head" points="222,426 226.5,416.5 217.5,416.5"/></g><g class="dg-trg"><path class="dg-tr" d="M222 492 L222 507"/><polygon class="dg-head" points="222,512 226.5,502.5 217.5,502.5"/></g><g class="dg-trg"><path class="dg-tr" d="M222 578 L222 593"/><polygon class="dg-head" points="222,598 226.5,588.5 217.5,588.5"/></g><g class="dg-trg"><path class="dg-tr" d="M658 148 L658 163"/><polygon class="dg-head" points="658,168 662.5,158.5 653.5,158.5"/></g><g class="dg-trg"><path class="dg-tr" d="M658 234 L658 249"/><polygon class="dg-head" points="658,254 662.5,244.5 653.5,244.5"/></g><g class="dg-trg"><path class="dg-tr" d="M658 320 L658 335"/><polygon class="dg-head" points="658,340 662.5,330.5 653.5,330.5"/></g><g class="dg-trg"><path class="dg-tr" d="M658 406 L658 421"/><polygon class="dg-head" points="658,426 662.5,416.5 653.5,416.5"/></g><g class="dg-trg"><path class="dg-tr" d="M658 492 L658 507"/><polygon class="dg-head" points="658,512 662.5,502.5 653.5,502.5"/></g><g class="dg-trg"><path class="dg-tr" d="M426 631 L433 631 Q440 631 440 624 L440 119.5 Q440 115 444.5 115 L449 115"/><polygon class="dg-head" points="454,115 444.5,110.5 444.5,119.5"/></g><g class="dg-trg"><path class="dg-tr" d="M658 578 L658 595"/><polygon class="dg-head" points="658,600 662.5,590.5 653.5,590.5"/></g><g class="dg-trg"><path class="dg-tr" d="M770 634 L809 634"/><polygon class="dg-head" points="814,634 804.5,629.5 804.5,638.5"/></g><g class="dg-trg dg-trk-ok"><path class="dg-tr" d="M658 668 L658 693"/><polygon class="dg-head" points="658,698 662.5,688.5 653.5,688.5"/></g><g class="dg-nodeg" data-state="F1"><rect class="dg-node " x="18" y="82" width="408" height="66" rx="6"/><rect class="dg-owner-r op" x="28" y="91" width="67.2" height="17" rx="3"/><text class="dg-owner" x="61.6" y="103.2" text-anchor="middle">OPERATOR</text><text class="dg-num" x="414" y="104" text-anchor="end">1</text><text class="dg-node-t" x="30" y="126">Load the input pallet, press "Pallet loaded"</text><text class="dg-node-s" x="30" y="144">confirm: <tspan class="dg-cp">CP-1</tspan> <tspan class="dg-tag">PX-11</tspan> + <tspan class="dg-tag">CAM-1</tspan> pallet present</text></g><g class="dg-nodeg" data-state="F2"><rect class="dg-node " x="18" y="168" width="408" height="66" rx="6"/><rect class="dg-owner-r cam" x="28" y="177" width="67.2" height="17" rx="3"/><text class="dg-owner" x="61.6" y="189.2" text-anchor="middle">CAMERA 1</text><text class="dg-num" x="414" y="190" text-anchor="end">2</text><text class="dg-node-t" x="30" y="212">Locate the next raw part (x, y, angle)</text><text class="dg-node-s" x="30" y="230">confirm: part found → pick pose to Robot 1</text></g><g class="dg-nodeg" data-state="F3"><rect class="dg-node " x="18" y="254" width="408" height="66" rx="6"/><rect class="dg-owner-r " x="28" y="263" width="60.3" height="17" rx="3"/><text class="dg-owner" x="58.2" y="275.2" text-anchor="middle">ROBOT 1</text><text class="dg-num" x="414" y="276" text-anchor="end">3</text><text class="dg-node-t" x="30" y="298">Pick the raw part from the pallet</text><text class="dg-node-s" x="30" y="316">confirm: <tspan class="dg-tag">GR-21</tspan> grip OK · <tspan class="dg-tag">CAM-1</tspan> slot empty</text></g><g class="dg-nodeg" data-state="F4"><rect class="dg-node " x="18" y="340" width="408" height="66" rx="6"/><rect class="dg-owner-r cnc" x="28" y="349" width="101.7" height="17" rx="3"/><text class="dg-owner" x="78.9" y="361.2" text-anchor="middle">ROBOT 1 + CNC</text><text class="dg-num" x="414" y="362" text-anchor="end">4</text><text class="dg-node-t" x="30" y="384">Open the CNC door (the robot slides it)</text><text class="dg-node-s" x="30" y="402">needs CNC stopped, <tspan class="dg-tag">ZS-33</tspan> unlocked → <tspan class="dg-tag">ZS-31</tspan> open</text></g><g class="dg-nodeg" data-state="F5"><rect class="dg-node " x="18" y="426" width="408" height="66" rx="6"/><rect class="dg-owner-r cnc" x="28" y="435" width="101.7" height="17" rx="3"/><text class="dg-owner" x="78.9" y="447.2" text-anchor="middle">ROBOT 1 + CNC</text><text class="dg-num" x="414" y="448" text-anchor="end">5</text><text class="dg-node-t" x="30" y="470">Load the part in the vise and clamp</text><text class="dg-node-s" x="30" y="488">confirm: <tspan class="dg-tag">ZS-35</tspan> clamped · <tspan class="dg-tag">PS-36</tspan> seated · R1 clear</text></g><g class="dg-nodeg" data-state="F6"><rect class="dg-node " x="18" y="512" width="408" height="66" rx="6"/><rect class="dg-owner-r cnc" x="28" y="521" width="101.7" height="17" rx="3"/><text class="dg-owner" x="78.9" y="533.2" text-anchor="middle">ROBOT 1 + CNC</text><text class="dg-num" x="414" y="534" text-anchor="end">6</text><text class="dg-node-t" x="30" y="556">Close the CNC door</text><text class="dg-node-s" x="30" y="574">confirm: <tspan class="dg-tag">ZS-32</tspan> closed · <tspan class="dg-tag">ZS-33</tspan> locked</text></g><g class="dg-nodeg" data-state="F7"><rect class="dg-node " x="18" y="598" width="408" height="66" rx="6"/><rect class="dg-owner-r cnc" x="28" y="607" width="32.7" height="17" rx="3"/><text class="dg-owner" x="44.4" y="619.2" text-anchor="middle">CNC</text><text class="dg-num" x="414" y="620" text-anchor="end">7</text><text class="dg-node-t" x="30" y="642">Cycle start → machining (2 min)</text><text class="dg-node-s" x="30" y="660">confirm: in cycle → cycle complete, spindle stop</text></g><g class="dg-nodeg" data-state="F8"><rect class="dg-node " x="454" y="82" width="408" height="66" rx="6"/><rect class="dg-owner-r cnc" x="464" y="91" width="101.7" height="17" rx="3"/><text class="dg-owner" x="514.9" y="103.2" text-anchor="middle">ROBOT 1 + CNC</text><text class="dg-num" x="850" y="104" text-anchor="end">8</text><text class="dg-node-t" x="466" y="126">Open the door and unload the part</text><text class="dg-node-s" x="466" y="144">confirm: <tspan class="dg-tag">ZS-31</tspan> · <tspan class="dg-tag">ZS-34</tspan> open · <tspan class="dg-tag">PS-36</tspan> OFF · <tspan class="dg-tag">GR-21</tspan></text></g><g class="dg-nodeg" data-state="F9"><rect class="dg-node " x="454" y="168" width="408" height="66" rx="6"/><rect class="dg-owner-r " x="464" y="177" width="60.3" height="17" rx="3"/><text class="dg-owner" x="494.2" y="189.2" text-anchor="middle">ROBOT 1</text><text class="dg-num" x="850" y="190" text-anchor="end">9</text><text class="dg-node-t" x="466" y="212">Place the part at the conveyor entry</text><text class="dg-node-s" x="466" y="230">needs <tspan class="dg-tag">ENC-43</tspan> = 0 · confirm: <tspan class="dg-cp">CP-2</tspan> <tspan class="dg-tag">PE-41</tspan> + <tspan class="dg-tag">CAM-1</tspan></text></g><g class="dg-nodeg" data-state="F10"><rect class="dg-node " x="454" y="254" width="408" height="66" rx="6"/><rect class="dg-owner-r conv" x="464" y="263" width="67.2" height="17" rx="3"/><text class="dg-owner" x="497.6" y="275.2" text-anchor="middle">CONVEYOR</text><text class="dg-num" x="850" y="276" text-anchor="end">10</text><text class="dg-node-t" x="466" y="298">Transport to the end stop</text><text class="dg-node-s" x="466" y="316">confirm: <tspan class="dg-tag">ENC-43</tspan> moving · stop on <tspan class="dg-tag">PE-42</tspan> · = 0</text></g><g class="dg-nodeg" data-state="F11"><rect class="dg-node " x="454" y="340" width="408" height="66" rx="6"/><rect class="dg-owner-r cam" x="464" y="349" width="67.2" height="17" rx="3"/><text class="dg-owner" x="497.6" y="361.2" text-anchor="middle">CAMERA 2</text><text class="dg-num" x="850" y="362" text-anchor="end">11</text><text class="dg-node-t" x="466" y="384">Verify the part and locate it</text><text class="dg-node-s" x="466" y="402">confirm: <tspan class="dg-cp">CP-3</tspan> <tspan class="dg-tag">PE-42</tspan> + <tspan class="dg-tag">CAM-2</tspan> · pick pose</text></g><g class="dg-nodeg" data-state="F12"><rect class="dg-node " x="454" y="426" width="408" height="66" rx="6"/><rect class="dg-owner-r r2" x="464" y="435" width="60.3" height="17" rx="3"/><text class="dg-owner" x="494.2" y="447.2" text-anchor="middle">ROBOT 2</text><text class="dg-num" x="850" y="448" text-anchor="end">12</text><text class="dg-node-t" x="466" y="470">Pick the part from the conveyor</text><text class="dg-node-s" x="466" y="488">confirm: <tspan class="dg-tag">GR-51</tspan> grip OK · <tspan class="dg-cp">CP-3</tspan> exit clear</text></g><g class="dg-nodeg" data-state="F13"><rect class="dg-node " x="454" y="512" width="408" height="66" rx="6"/><rect class="dg-owner-r r2" x="464" y="521" width="60.3" height="17" rx="3"/><text class="dg-owner" x="494.2" y="533.2" text-anchor="middle">ROBOT 2</text><text class="dg-num" x="850" y="534" text-anchor="end">13</text><text class="dg-node-t" x="466" y="556">Place the part on the output pallet</text><text class="dg-node-s" x="466" y="574">confirm: <tspan class="dg-cp">CP-4</tspan> <tspan class="dg-tag">PX-52</tspan> + <tspan class="dg-tag">CAM-2</tspan> · slot occupied</text></g><g class="dg-choiceg" data-state="Q"><polygon class="dg-choice" points="658,600 770,634 658,668 546,634"/><text class="dg-choice-t" x="658" y="631.5" text-anchor="middle">Output pallet</text><text class="dg-choice-t" x="658" y="646.5" text-anchor="middle">full (12 parts)?</text></g><circle class="dg-conn" cx="827" cy="634" r="12"/><text class="dg-conn-t" x="827" y="638.6" text-anchor="middle">A</text><circle class="dg-conn" cx="20" cy="201" r="12"/><text class="dg-conn-t" x="20" y="205.6" text-anchor="middle">A</text><g class="dg-nodeg" data-state="F14"><rect class="dg-node " x="454" y="698" width="408" height="66" rx="6"/><rect class="dg-owner-r light" x="464" y="707" width="122.4" height="17" rx="3"/><text class="dg-owner" x="525.2" y="719.2" text-anchor="middle">LIGHT + OPERATOR</text><text class="dg-num" x="850" y="720" text-anchor="end">14</text><text class="dg-node-t" x="466" y="742"><tspan class="dg-tag">LT-53</tspan> blue light ON: pallet ready for pickup</text><text class="dg-node-s" x="466" y="760">operator swaps it → <tspan class="dg-tag">PX-52</tspan> OFF → ON · count = 0</text></g><rect class="dg-note-rect" x="18" y="694" width="408" height="82" rx="6"/><text class="dg-note" x="30" y="717"><tspan class="dg-cp">CP-n</tspan> = the camera and the proximity sensor must</text><text class="dg-note" x="30" y="733">agree. If they disagree the camera value is used</text><text class="dg-note" x="30" y="749">and the mismatch is logged; 3 mismatches within</text><text class="dg-note" x="30" y="765">10 min stop the line for sensor verification.</text><text class="dg-guard dg-halo" x="670" y="593.5" text-anchor="start"><tspan x="670">count + 1</tspan></text><text class="dg-guard dg-halo" x="790" y="625.5" text-anchor="middle"><tspan x="790">No</tspan></text><text class="dg-guard dg-halo" x="827" y="665" text-anchor="middle"><tspan x="827">next part:</tspan><tspan x="827" dy="15">back to step 2</tspan></text><text class="dg-guard dg-halo" x="670" y="687.5" text-anchor="start"><tspan x="670">Yes</tspan></text></svg>

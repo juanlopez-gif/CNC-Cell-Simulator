@@ -1,0 +1,116 @@
+<div class="app">
+  <header class="bar">
+    <div class="brand">
+      <h1>CNC Cell Simulator</h1>
+      <p>Sensors design task · live state machines · camera + proximity cross-check</p>
+    </div>
+    <div class="controls">
+      <div class="seg" role="group" aria-label="Setup">
+        <button type="button" id="btnS1" aria-pressed="true">Setup 1</button>
+        <button type="button" id="btnS2" aria-pressed="false">Setup 2</button>
+      </div>
+      <button type="button" class="btn primary" id="btnRun">Pause</button>
+      <button type="button" class="btn" id="btnStep" title="Run until the next state change">Step</button>
+      <label class="speed" for="selSpeed">Speed
+        <select id="selSpeed">
+          <option value="1">1×</option>
+          <option value="5">5×</option>
+          <option value="10" selected>10×</option>
+          <option value="30">30×</option>
+          <option value="60">60×</option>
+        </select>
+      </label>
+      <button type="button" class="btn" id="btnReset">Reset</button>
+    </div>
+    <div class="status">
+      <div class="stack" aria-hidden="true"><i class="r"></i><i class="a"></i><i class="g on"></i></div>
+      <div>
+        <div class="st-text ok" id="stText">Running</div>
+        <div class="clock" id="clock">sim time 00:00:00</div>
+      </div>
+    </div>
+  </header>
+
+  <div class="banner" id="banner" hidden>
+    <div class="bt"><strong id="bnTitle"></strong><div class="bs" id="bnText"></div><ul class="vlist" id="bnList"></ul></div>
+    <div class="actions" id="bnActions"></div>
+  </div>
+
+  <section class="row1">
+    <div class="panel mimic">
+      <div class="ph"><h2>Cell · top view</h2><span class="hint">green LED = sensor ON · purple = camera fields of view</span></div>
+      <div id="mimic"></div>
+      <div class="kpis" id="kpis"></div>
+    </div>
+    <div class="col">
+      <div class="panel">
+        <div class="ph"><h2>State machines</h2><span class="hint">click one to show its diagram</span></div>
+        <div class="chips" id="chips"></div>
+      </div>
+      <div class="panel">
+        <div class="ph"><h2>Camera + proximity cross-check</h2></div>
+        <div class="tw">
+          <table class="cp" id="cpTable">
+            <thead><tr><th>Checkpoint</th><th>Proximity</th><th>Camera</th><th>Last check</th><th>Test</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="win">
+          <div class="wl"><span>Mismatches in the last 10 min: <b id="winCount">0 / 3</b></span><span>3 within 10 min → line stop</span></div>
+          <div class="wbar" id="wbar"></div>
+        </div>
+        <p class="rule">The camera and the proximity sensor must agree. If they disagree the camera value is used and the mismatch is logged. <em>Glitch</em> = one false reading. <em>Fault</em> = dirty or misaligned sensor that keeps missing the part.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="row2">
+    <div class="panel">
+      <div class="ph"><h2>Live state diagram</h2><label class="chk" for="chkFollow"><input type="checkbox" id="chkFollow" checked> follow the active state</label></div>
+      <div class="tabs" role="tablist" id="tabs">
+        <button type="button" role="tab" data-tab="R1" aria-selected="true">Robot 1 + CNC</button>
+        <button type="button" role="tab" data-tab="CONV" aria-selected="false">Conveyor</button>
+        <button type="button" role="tab" data-tab="R2" aria-selected="false">Robot 2</button>
+        <button type="button" role="tab" data-tab="XCHK" aria-selected="false">Cross-check</button>
+      </div>
+      <div class="diag" id="diag"></div>
+    </div>
+    <div class="col">
+      <div class="panel scen">
+        <div class="ph"><h2>Scenarios</h2></div>
+        <div class="grp">
+          <h3>Try this</h3>
+          <p>Press <b>Fault</b> on CP-2. Every part placed on the belt now gives a mismatch; the camera keeps the line running until the 3rd mismatch stops it for sensor verification.</p>
+        </div>
+        <div class="grp">
+          <h3>Camera</h3>
+          <div class="bs">
+            <button type="button" class="btn" id="btnBadFrame">One bad frame (CAM-1)</button>
+            <button type="button" class="btn" id="btnCamFail">Camera failure (CAM-2)</button>
+          </div>
+        </div>
+        <div class="grp">
+          <h3>Process</h3>
+          <div class="bs">
+            <button type="button" class="btn" id="btnGripMiss">Robot 1 misses a pick</button>
+            <button type="button" class="btn" id="btnUnder">Next part undersized</button>
+          </div>
+          <p id="underNote">Setup 2 only: the gauge rejects parts with any dimension below 48.00 mm.</p>
+        </div>
+        <div class="grp">
+          <h3>Operator</h3>
+          <div class="bs">
+            <button type="button" class="btn" id="btnLoadIn">Load input pallet</button>
+            <button type="button" class="btn" id="btnSwapOut">Swap output pallet</button>
+          </div>
+          <label class="chk" for="chkAuto"><input type="checkbox" id="chkAuto" checked> Auto operator (answers after 45 s)</label>
+        </div>
+      </div>
+      <div class="panel log">
+        <div class="ph"><h2>Event log</h2><label class="chk" for="chkAll"><input type="checkbox" id="chkAll"> show every check</label></div>
+        <ol id="log"></ol>
+      </div>
+    </div>
+  </section>
+  <footer>Step times are planning estimates for a UR10e cell (see the report). CNC cycle 120 s. Everything is simulated in the browser.</footer>
+</div>

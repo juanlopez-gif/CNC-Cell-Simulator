@@ -1,0 +1,9 @@
+# build output and dependencies (see source/README section in README.md)
+node_modules/
+source/node_modules/
+source/out/
+# Office / OS temp files
+~$*
+*.tmp
+Thumbs.db
+.DS_Store

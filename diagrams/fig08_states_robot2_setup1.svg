@@ -1,0 +1,119 @@
+<svg xmlns="http://www.w3.org/2000/svg" class="dg-root" viewBox="0 0 844 753" width="844" height="753" font-family="'Barlow', 'Segoe UI', Arial, sans-serif" role="img" aria-label="State diagram: Robot 2 + output pallet (Setup 1)"><style>
+.dg-root{font-family:'Barlow','Segoe UI',Arial,sans-serif}
+.dg-bg{fill:var(--dg-bg,#ffffff)}
+.dg-title{font-family:'Barlow Semi Condensed','Barlow','Segoe UI',sans-serif;font-weight:700;font-size:20px;fill:var(--dg-ink,#14202b)}
+.dg-sub{font-size:13px;fill:var(--dg-muted,#56636f)}
+.dg-st-rect{fill:var(--dg-st,#f2f5f8);stroke:var(--dg-line,#2f3e4d);stroke-width:1.5}
+.dg-st-title{font-family:'Barlow Semi Condensed','Barlow','Segoe UI',sans-serif;font-weight:700;font-size:14.5px;fill:var(--dg-ink,#14202b);letter-spacing:.04em}
+.dg-st-do{font-size:12.5px;fill:var(--dg-soft,#3a4754)}
+.dg-st-chip{fill:var(--dg-line,#2f3e4d)}
+.dg-st-chiptext{font-family:'IBM Plex Mono',Consolas,monospace;font-weight:600;font-size:11px;fill:var(--dg-chipink,#ffffff)}
+.dg-tr{fill:none;stroke:var(--dg-arrow,#56636f);stroke-width:1.5}
+.dg-head{fill:var(--dg-arrow,#56636f)}
+.dg-dash{stroke-dasharray:5 4}
+.dg-trk-fault .dg-tr{stroke:var(--dg-red,#c62828)} .dg-trk-fault .dg-head{fill:var(--dg-red,#c62828)}
+.dg-trk-hold .dg-tr{stroke:var(--dg-amber,#b7791f)} .dg-trk-hold .dg-head{fill:var(--dg-amber,#b7791f)}
+.dg-trk-ok .dg-tr{stroke:var(--dg-green,#1e7d45)} .dg-trk-ok .dg-head{fill:var(--dg-green,#1e7d45)}
+.dg-guard{font-size:12.5px;fill:var(--dg-ink2,#1f2a35)}
+.dg-halo{paint-order:stroke;stroke:var(--dg-bg,#ffffff);stroke-width:5px;stroke-linejoin:round}
+.dg-tag{font-family:'IBM Plex Mono',Consolas,monospace;font-size:11.5px;font-weight:500;fill:var(--dg-blue,#0b5aa6)}
+.dg-cp{font-weight:700;fill:var(--dg-cp,#7b3fb5)}
+.dg-b{font-weight:700}
+.dg-small{font-size:11.5px}
+.dg-init{fill:var(--dg-line,#2f3e4d)}
+.dg-k-wait .dg-st-rect{stroke-dasharray:5 3}
+.dg-k-fault .dg-st-rect{fill:var(--dg-red-t,#fdeceb);stroke:var(--dg-red,#c62828)} .dg-k-fault .dg-st-chip{fill:var(--dg-red,#c62828)}
+.dg-k-hold .dg-st-rect{fill:var(--dg-amber-t,#fff4de);stroke:var(--dg-amber,#b7791f)} .dg-k-hold .dg-st-chip{fill:var(--dg-amber,#b7791f)}
+.dg-k-ok .dg-st-rect{fill:var(--dg-green-t,#e7f5ec);stroke:var(--dg-green,#1e7d45)} .dg-k-ok .dg-st-chip{fill:var(--dg-green,#1e7d45)}
+.dg-k-warn .dg-st-rect{fill:var(--dg-amber-t,#fff4de);stroke:var(--dg-amber,#b7791f)} .dg-k-warn .dg-st-chip{fill:var(--dg-amber,#b7791f)}
+.dg-k-stop .dg-st-rect{fill:var(--dg-red-t,#fdeceb);stroke:var(--dg-red,#c62828)} .dg-k-stop .dg-st-chip{fill:var(--dg-red,#c62828)}
+.dg-k-op .dg-st-rect{fill:var(--dg-blue-t,#e6effa);stroke:var(--dg-blue,#0b5aa6)} .dg-k-op .dg-st-chip{fill:var(--dg-blue,#0b5aa6)}
+.dg-k-check .dg-st-rect{fill:var(--dg-cp-t,#f3ecfa);stroke:var(--dg-cp,#7b3fb5)} .dg-k-check .dg-st-chip{fill:var(--dg-cp,#7b3fb5)}
+.dg-band{stroke:none}
+.dg-band-idle{fill:var(--dg-amber-b,#fff5e0)} .dg-band-run{fill:var(--dg-blue-b,#e9f1fb)}
+.dg-band-stop{fill:var(--dg-green-b,#eaf6ee)} .dg-band-move{fill:var(--dg-gray-b,#eef1f4)}
+.dg-band-label{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:11.5px;letter-spacing:.08em;fill:var(--dg-muted,#56636f)}
+.dg-band-label.idle{fill:var(--dg-amber-d,#9a6212)} .dg-band-label.run{fill:var(--dg-blue,#0b5aa6)} .dg-band-label.stop{fill:var(--dg-green,#1e7d45)}
+.dg-note-rect{fill:var(--dg-note,#f6f7f9);stroke:var(--dg-rule,#c4ccd4);stroke-width:1}
+.dg-note{font-size:12.5px;fill:var(--dg-soft,#3a4754)}
+.dg-choice{fill:var(--dg-st,#f2f5f8);stroke:var(--dg-line,#2f3e4d);stroke-width:1.5}
+.dg-choice-t{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:13.5px;fill:var(--dg-ink,#14202b)}
+.dg-node{fill:var(--dg-st,#f2f5f8);stroke:var(--dg-line,#2f3e4d);stroke-width:1.4}
+.dg-node.ok{fill:var(--dg-green-t,#e7f5ec);stroke:var(--dg-green,#1e7d45)}
+.dg-node.warn{fill:var(--dg-amber-t,#fff4de);stroke:var(--dg-amber,#b7791f)}
+.dg-node.stop{fill:var(--dg-red-t,#fdeceb);stroke:var(--dg-red,#c62828)}
+.dg-node.check{fill:var(--dg-cp-t,#f3ecfa);stroke:var(--dg-cp,#7b3fb5)}
+.dg-node.op{fill:var(--dg-blue-t,#e6effa);stroke:var(--dg-blue,#0b5aa6)}
+.dg-node-t{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:14px;fill:var(--dg-ink,#14202b)}
+.dg-node-s{font-size:12.5px;fill:var(--dg-soft,#3a4754)}
+.dg-owner{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:10.5px;letter-spacing:.08em;fill:#ffffff}
+.dg-owner-r{fill:#2f3e4d}
+.dg-owner-r.op,.dg-owner-r.light{fill:#0b5aa6} .dg-owner-r.cnc{fill:#a0521d} .dg-owner-r.conv{fill:#2f6f5e} .dg-owner-r.r2{fill:#806000}
+.dg-owner-r.cam{fill:#7b3fb5} .dg-owner-r.gauge{fill:#a33a3a} .dg-owner-r.ok{fill:#1e7d45} .dg-owner-r.nok{fill:#c62828}
+.dg-conn{fill:var(--dg-bg,#ffffff);stroke:var(--dg-line,#2f3e4d);stroke-width:1.5}
+.dg-conn-t{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:13px;fill:var(--dg-ink,#14202b)}
+.dg-num{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:14px;fill:var(--dg-muted,#56636f)}
+.dg-active .dg-st-rect,.dg-active .dg-node,.dg-active .dg-choice{stroke:var(--dg-active,#0a66e8);stroke-width:3.2;fill:var(--dg-active-t,#dde9fc)}
+.dg-active .dg-st-chip{fill:var(--dg-active,#0a66e8)}
+.dg-flash .dg-tr{stroke:var(--dg-active,#0a66e8);stroke-width:3} .dg-flash .dg-head{fill:var(--dg-active,#0a66e8)}
+/* layout drawing */
+.ly-fence{fill:none;stroke:var(--dg-rule,#aab4be);stroke-width:1.3;stroke-dasharray:2 5}
+.ly-aisle{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:11px;letter-spacing:.14em;fill:var(--dg-muted,#56636f)}
+.ly-mach{fill:var(--ly-mach,#dfe5ea);stroke:var(--dg-line,#2f3e4d);stroke-width:1.6}
+.ly-mach-in{fill:var(--ly-mach-in,#eef2f5);stroke:var(--ly-rule2,#9aa6b1);stroke-width:1}
+.ly-pallet{fill:var(--ly-pallet,#e9dcc6);stroke:var(--ly-pallet-s,#8a6d3b);stroke-width:1.5}
+.ly-slot{fill:none;stroke:var(--ly-slot,#b39a6e);stroke-width:.9;stroke-dasharray:2 2}
+.ly-part{fill:var(--ly-raw,#a9b2ba);stroke:var(--ly-raw-s,#56626c);stroke-width:1.1}
+.ly-part.fin{fill:var(--ly-fin,#dfe8f0);stroke:var(--ly-fin-s,#43698c)}
+.ly-part.nok{stroke:var(--dg-red,#c62828);stroke-width:2.2}
+.ly-pocket{fill:none;stroke:var(--ly-fin-s,#43698c);stroke-width:.9}
+.ly-belt{fill:var(--ly-belt,#39414a)}
+.ly-frame{fill:var(--ly-frame,#8d98a3)}
+.ly-roller{stroke:var(--ly-roller,#5b646d);stroke-width:1.1}
+.ly-stop{fill:var(--dg-red,#c62828)}
+.ly-robot{fill:var(--ly-robot,#2c4a66);stroke:var(--ly-robot-s,#15283a);stroke-width:1.5}
+.ly-robot-t{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:11.5px;fill:#ffffff;letter-spacing:.04em}
+.ly-link{stroke:var(--ly-link,#5f7d99);stroke-width:13;stroke-linecap:round;fill:none}
+.ly-link2{stroke:var(--ly-link2,#7f9ab3);stroke-width:10;stroke-linecap:round;fill:none}
+.ly-joint{fill:var(--ly-joint,#243a52)}
+.ly-finger{stroke:var(--ly-joint,#243a52);stroke-width:3.2;stroke-linecap:round}
+.ly-door{fill:var(--ly-door,#6f8193);stroke:var(--dg-line,#2f3e4d);stroke-width:1}
+.ly-track{stroke:var(--ly-rule2,#9aa6b1);stroke-width:1.1;stroke-dasharray:3 3}
+.ly-handle{fill:var(--dg-line,#2f3e4d)}
+.ly-label{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:14px;fill:var(--dg-ink,#14202b);letter-spacing:.05em}
+.ly-sub{font-size:11.5px;fill:var(--dg-soft,#3a4754)}
+.ly-tag{font-family:'IBM Plex Mono',Consolas,monospace;font-size:11px;font-weight:600;fill:var(--dg-blue,#0b5aa6)}
+.ly-tag.cam{fill:var(--dg-cp,#7b3fb5)} .ly-tag.saf{fill:var(--ly-safety,#946c00)}
+.ly-sens{fill:var(--dg-bg,#ffffff);stroke:var(--dg-blue,#0b5aa6);stroke-width:1.6}
+.ly-sens.safety{stroke:var(--ly-safety,#c79400)}
+.ly-led{fill:var(--ly-led-off,#c3cad1)}
+.ly-led.on{fill:var(--ly-led-on,#1ea453)}
+.ly-led.bad{fill:var(--dg-red,#d32f2f)}
+.ly-beam{stroke:var(--ly-beam,#d33b3b);stroke-width:1.1;stroke-dasharray:2 3;opacity:.8}
+.ly-fov{fill:var(--ly-fov,rgba(123,63,181,.045));stroke:var(--dg-cp,#7b3fb5);stroke-width:1.3;stroke-dasharray:7 4}
+.ly-roi{fill:none;stroke:var(--dg-cp,#7b3fb5);stroke-width:1.1;stroke-dasharray:2 2}
+.ly-roi-t{font-family:'IBM Plex Mono',Consolas,monospace;font-size:10px;font-weight:600;fill:var(--dg-cp,#7b3fb5)}
+.ly-roi-t.on-belt{fill:#d9c5f5}
+.ly-cam{fill:var(--dg-cp,#7b3fb5)}
+.ly-nok{fill:var(--ly-nok,#fbe3e1);stroke:var(--dg-red,#c62828);stroke-width:1.6}
+.ly-nok-h{stroke:var(--dg-red,#c62828);stroke-width:.9;opacity:.35}
+.ly-gauge{fill:var(--ly-gauge,#e9eef3);stroke:var(--dg-line,#2f3e4d);stroke-width:1.5}
+.ly-datum{fill:var(--dg-line,#2f3e4d)}
+.ly-laser{fill:var(--dg-red,#c62828)}
+.ly-cab{fill:var(--ly-mach,#dfe5ea);stroke:var(--dg-line,#2f3e4d);stroke-width:1.3}
+.ly-lamp-r{fill:#d32f2f} .ly-lamp-a{fill:#f2a900} .ly-lamp-g{fill:#1e9e52} .ly-lamp-b{fill:#1565c0}
+.ly-lamp-off{opacity:.2}
+.ly-scan{fill:var(--ly-scan,rgba(199,148,0,.09));stroke:var(--ly-safety,#c79400);stroke-width:1.1;stroke-dasharray:3 3}
+.ly-flow{fill:none;stroke:#ffffff;stroke-width:1.8;opacity:.75}
+.ly-note{font-size:11.5px;font-style:italic;fill:var(--dg-muted,#56636f)}
+.ly-legend{font-size:12px;fill:var(--dg-soft,#3a4754)}
+/* timing chart */
+.gt-grid{stroke:var(--dg-rule,#d5dbe1);stroke-width:1}
+.gt-axis{font-size:11.5px;fill:var(--dg-muted,#56636f)}
+.gt-row{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:13.5px;fill:var(--dg-ink,#14202b)}
+.gt-bar-t{font-size:11.5px;fill:#ffffff;font-weight:600}
+.gt-bar-t.dark{fill:var(--dg-ink,#14202b)}
+.gt-mach{fill:#3f73b5} .gt-idle{fill:#e3a21a} .gt-door{fill:#2f3e4d} .gt-move{fill:#7d8b98} .gt-wait{fill:var(--dg-gray-b,#eef1f4);stroke:var(--dg-rule,#c4ccd4)} .gt-belt{fill:#2f6f5e} .gt-gauge{fill:#a33a3a}
+.gt-kpi{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:15px;fill:var(--dg-ink,#14202b)}
+.gt-break{fill:var(--dg-bg,#ffffff);stroke:var(--dg-muted,#56636f);stroke-width:1.2}
+</style><rect class="dg-bg" x="0" y="0" width="844" height="753"/><text class="dg-title" x="20" y="36">State diagram: Robot 2 + output pallet (Setup 1)</text><text class="dg-sub" x="20" y="58">The blue light <tspan class="dg-tag">LT-53</tspan> is the "pallet ready for pickup" signal required by the assignment.</text><g class="dg-trg"><path class="dg-tr" d="M290 93 L290 130"/><polygon class="dg-head" points="290,135 294.5,125.5 285.5,125.5"/></g><g class="dg-trg"><path class="dg-tr" d="M290 205 L290 241"/><polygon class="dg-head" points="290,246 294.5,236.5 285.5,236.5"/></g><g class="dg-trg"><path class="dg-tr" d="M290 301 L290 337"/><polygon class="dg-head" points="290,342 294.5,332.5 285.5,332.5"/></g><g class="dg-trg"><path class="dg-tr" d="M290 412 L290 463"/><polygon class="dg-head" points="290,468 294.5,458.5 285.5,458.5"/></g><g class="dg-trg"><path class="dg-tr" d="M290 538 L290 572"/><polygon class="dg-head" points="290,577 294.5,567.5 285.5,567.5"/></g><g class="dg-trg"><path class="dg-tr" d="M202 610 L47 610 Q38 610 38 601 L38 282.5 Q38 273.5 47 273.5 L105 273.5"/><polygon class="dg-head" points="110,273.5 100.5,269 100.5,278"/></g><g class="dg-trg dg-trk-ok"><path class="dg-tr" d="M378 610 L569 610"/><polygon class="dg-head" points="574,610 564.5,605.5 564.5,614.5"/></g><g class="dg-trg"><path class="dg-tr" d="M699 568 L699 559 Q699 550 690 550 L529 550 Q520 550 520 541 L520 282.5 Q520 273.5 511 273.5 L475 273.5"/><polygon class="dg-head" points="470,273.5 479.5,278 479.5,269"/></g><g class="dg-trg dg-trk-fault"><path class="dg-tr dg-dash" d="M540 170 L569 170"/><polygon class="dg-head" points="574,170 564.5,165.5 564.5,174.5"/></g><g class="dg-trg dg-trk-hold"><path class="dg-tr dg-dash" d="M540 256 L569 256"/><polygon class="dg-head" points="574,256 564.5,251.5 564.5,260.5"/></g><circle class="dg-init" cx="290" cy="86" r="7.5"/><g class="dg-state" data-state="D0"><rect class="dg-st-rect" x="110" y="135" width="360" height="70" rx="9"/><rect class="dg-st-chip" x="120" y="144" width="27.2" height="19" rx="4"/><text class="dg-st-chiptext" x="133.6" y="157.5" text-anchor="middle">D0</text><text class="dg-st-title" x="155.2" y="158.5">START-UP CHECKS</text><text class="dg-st-do" x="122" y="180">Home · <tspan class="dg-cp">CP-4</tspan> pallet present (<tspan class="dg-tag">PX-52</tspan> + <tspan class="dg-tag">CAM-2</tspan>)</text><text class="dg-st-do" x="122" y="195"><tspan class="dg-tag">CAM-2</tspan> reads the slot map, sets the count</text></g><g class="dg-state" data-state="D1"><rect class="dg-st-rect" x="110" y="246" width="360" height="55" rx="9"/><rect class="dg-st-chip" x="120" y="255" width="27.2" height="19" rx="4"/><text class="dg-st-chiptext" x="133.6" y="268.5" text-anchor="middle">D1</text><text class="dg-st-title" x="155.2" y="269.5">WAIT FOR PART</text><text class="dg-st-do" x="122" y="291">Robot at home, clear of the conveyor</text></g><g class="dg-state" data-state="D2"><rect class="dg-st-rect" x="110" y="342" width="360" height="70" rx="9"/><rect class="dg-st-chip" x="120" y="351" width="27.2" height="19" rx="4"/><text class="dg-st-chiptext" x="133.6" y="364.5" text-anchor="middle">D2</text><text class="dg-st-title" x="155.2" y="365.5">PICK FROM CONVEYOR</text><text class="dg-st-do" x="122" y="387">Belt stopped (<tspan class="dg-tag">ENC-43</tspan> = 0) · move to the</text><text class="dg-st-do" x="122" y="402">pick pose · grip · lift · retract</text></g><g class="dg-state" data-state="D3"><rect class="dg-st-rect" x="110" y="468" width="360" height="70" rx="9"/><rect class="dg-st-chip" x="120" y="477" width="27.2" height="19" rx="4"/><text class="dg-st-chiptext" x="133.6" y="490.5" text-anchor="middle">D3</text><text class="dg-st-title" x="155.2" y="491.5">PLACE ON OUTPUT PALLET</text><text class="dg-st-do" x="122" y="513"><tspan class="dg-cp">CP-4</tspan> pallet present (<tspan class="dg-tag">PX-52</tspan> + <tspan class="dg-tag">CAM-2</tspan>) ·</text><text class="dg-st-do" x="122" y="528"><tspan class="dg-tag">CAM-2</tspan> next free slot · place · release</text></g><g class="dg-choiceg" data-state="Q1"><polygon class="dg-choice" points="290,577 378,610 290,643 202,610"/><text class="dg-choice-t" x="290" y="607.5" text-anchor="middle">Output pallet</text><text class="dg-choice-t" x="290" y="622.5" text-anchor="middle">full?</text></g><g class="dg-state dg-k-op" data-state="D4"><rect class="dg-st-rect" x="574" y="568" width="250" height="85" rx="9"/><rect class="dg-st-chip" x="584" y="577" width="27.2" height="19" rx="4"/><text class="dg-st-chiptext" x="597.6" y="590.5" text-anchor="middle">D4</text><text class="dg-st-title" x="619.2" y="591.5">PALLET FULL - WAIT FOR SWAP</text><text class="dg-st-do" x="586" y="613"><tspan class="dg-tag">LT-53</tspan> blue light ON · wait for</text><text class="dg-st-do" x="586" y="628">the swap: <tspan class="dg-tag">PX-52</tspan> OFF → ON and</text><text class="dg-st-do" x="586" y="643"><tspan class="dg-tag">CAM-2</tspan> sees an empty pallet</text></g><g class="dg-state dg-k-fault" data-state="F"><rect class="dg-st-rect" x="574" y="135" width="250" height="70" rx="9"/><rect class="dg-st-chip" x="584" y="144" width="19.6" height="19" rx="4"/><text class="dg-st-chiptext" x="593.8" y="157.5" text-anchor="middle">F</text><text class="dg-st-title" x="611.6" y="158.5">FAULT</text><text class="dg-st-do" x="586" y="180">From any state: timeout or a</text><text class="dg-st-do" x="586" y="195">missing confirmation · red light</text></g><g class="dg-state dg-k-hold" data-state="H"><rect class="dg-st-rect" x="574" y="221" width="250" height="70" rx="9"/><rect class="dg-st-chip" x="584" y="230" width="19.6" height="19" rx="4"/><text class="dg-st-chiptext" x="593.8" y="243.5" text-anchor="middle">H</text><text class="dg-st-title" x="611.6" y="244.5">HOLD (LINE STOP)</text><text class="dg-st-do" x="586" y="266">LINE STOP: finish the step,</text><text class="dg-st-do" x="586" y="281">park, wait for the reset</text></g><rect class="dg-note-rect" x="20" y="669" width="804" height="66" rx="6"/><text class="dg-note" x="32" y="692"><tspan class="dg-b">F FAULT</tspan> and <tspan class="dg-b">H HOLD</tspan> can be entered from any state. FAULT = a confirmation is missing or a timeout</text><text class="dg-note" x="32" y="708">expired (the alarm names the sensor, no automatic robot retries). HOLD = LINE STOP from the cross-check</text><text class="dg-note" x="32" y="724">supervisor: the current step is finished, the robot parks, and it resumes at the same step after the reset.</text><text class="dg-guard dg-halo" x="290" y="118.5" text-anchor="middle"><tspan x="290">Auto mode ON</tspan></text><text class="dg-guard dg-halo" x="290" y="230" text-anchor="middle"><tspan x="290">Robot home · pallet present · free slots</tspan></text><text class="dg-guard dg-halo" x="290" y="326" text-anchor="middle"><tspan x="290">Conveyor in C5: "pick allowed" + pick pose (<tspan class="dg-tag">CAM-2</tspan>)</tspan></text><text class="dg-guard dg-halo" x="290" y="437" text-anchor="middle"><tspan x="290"><tspan class="dg-tag">GR-51</tspan> grip OK · <tspan class="dg-cp">CP-3</tspan> exit clear</tspan><tspan x="290" dy="15">R2 clear of conveyor</tspan></text><text class="dg-guard dg-halo" x="290" y="562" text-anchor="middle"><tspan x="290"><tspan class="dg-tag">CAM-2</tspan>: slot occupied · count + 1</tspan></text><text class="dg-guard dg-halo" x="126" y="601.5" text-anchor="middle"><tspan x="126">No: count &lt; 12</tspan></text><text class="dg-guard dg-halo" x="472" y="575" text-anchor="middle"><tspan x="472">Yes: count = 12</tspan><tspan x="472" dy="15"><tspan class="dg-tag">CAM-2</tspan>: all slots full</tspan></text><text class="dg-guard dg-halo" x="520" y="436.3" text-anchor="middle" transform="rotate(-90 520 431.8)"><tspan x="520">pallet swapped → count = 0 · <tspan class="dg-tag">LT-53</tspan> OFF</tspan></text></svg>

@@ -1,0 +1,119 @@
+<svg xmlns="http://www.w3.org/2000/svg" class="dg-root" viewBox="0 0 900 588" width="900" height="588" font-family="'Barlow', 'Segoe UI', Arial, sans-serif" role="img" aria-label="Control architecture: four state machines in the cell PLC"><style>
+.dg-root{font-family:'Barlow','Segoe UI',Arial,sans-serif}
+.dg-bg{fill:var(--dg-bg,#ffffff)}
+.dg-title{font-family:'Barlow Semi Condensed','Barlow','Segoe UI',sans-serif;font-weight:700;font-size:20px;fill:var(--dg-ink,#14202b)}
+.dg-sub{font-size:13px;fill:var(--dg-muted,#56636f)}
+.dg-st-rect{fill:var(--dg-st,#f2f5f8);stroke:var(--dg-line,#2f3e4d);stroke-width:1.5}
+.dg-st-title{font-family:'Barlow Semi Condensed','Barlow','Segoe UI',sans-serif;font-weight:700;font-size:14.5px;fill:var(--dg-ink,#14202b);letter-spacing:.04em}
+.dg-st-do{font-size:12.5px;fill:var(--dg-soft,#3a4754)}
+.dg-st-chip{fill:var(--dg-line,#2f3e4d)}
+.dg-st-chiptext{font-family:'IBM Plex Mono',Consolas,monospace;font-weight:600;font-size:11px;fill:var(--dg-chipink,#ffffff)}
+.dg-tr{fill:none;stroke:var(--dg-arrow,#56636f);stroke-width:1.5}
+.dg-head{fill:var(--dg-arrow,#56636f)}
+.dg-dash{stroke-dasharray:5 4}
+.dg-trk-fault .dg-tr{stroke:var(--dg-red,#c62828)} .dg-trk-fault .dg-head{fill:var(--dg-red,#c62828)}
+.dg-trk-hold .dg-tr{stroke:var(--dg-amber,#b7791f)} .dg-trk-hold .dg-head{fill:var(--dg-amber,#b7791f)}
+.dg-trk-ok .dg-tr{stroke:var(--dg-green,#1e7d45)} .dg-trk-ok .dg-head{fill:var(--dg-green,#1e7d45)}
+.dg-guard{font-size:12.5px;fill:var(--dg-ink2,#1f2a35)}
+.dg-halo{paint-order:stroke;stroke:var(--dg-bg,#ffffff);stroke-width:5px;stroke-linejoin:round}
+.dg-tag{font-family:'IBM Plex Mono',Consolas,monospace;font-size:11.5px;font-weight:500;fill:var(--dg-blue,#0b5aa6)}
+.dg-cp{font-weight:700;fill:var(--dg-cp,#7b3fb5)}
+.dg-b{font-weight:700}
+.dg-small{font-size:11.5px}
+.dg-init{fill:var(--dg-line,#2f3e4d)}
+.dg-k-wait .dg-st-rect{stroke-dasharray:5 3}
+.dg-k-fault .dg-st-rect{fill:var(--dg-red-t,#fdeceb);stroke:var(--dg-red,#c62828)} .dg-k-fault .dg-st-chip{fill:var(--dg-red,#c62828)}
+.dg-k-hold .dg-st-rect{fill:var(--dg-amber-t,#fff4de);stroke:var(--dg-amber,#b7791f)} .dg-k-hold .dg-st-chip{fill:var(--dg-amber,#b7791f)}
+.dg-k-ok .dg-st-rect{fill:var(--dg-green-t,#e7f5ec);stroke:var(--dg-green,#1e7d45)} .dg-k-ok .dg-st-chip{fill:var(--dg-green,#1e7d45)}
+.dg-k-warn .dg-st-rect{fill:var(--dg-amber-t,#fff4de);stroke:var(--dg-amber,#b7791f)} .dg-k-warn .dg-st-chip{fill:var(--dg-amber,#b7791f)}
+.dg-k-stop .dg-st-rect{fill:var(--dg-red-t,#fdeceb);stroke:var(--dg-red,#c62828)} .dg-k-stop .dg-st-chip{fill:var(--dg-red,#c62828)}
+.dg-k-op .dg-st-rect{fill:var(--dg-blue-t,#e6effa);stroke:var(--dg-blue,#0b5aa6)} .dg-k-op .dg-st-chip{fill:var(--dg-blue,#0b5aa6)}
+.dg-k-check .dg-st-rect{fill:var(--dg-cp-t,#f3ecfa);stroke:var(--dg-cp,#7b3fb5)} .dg-k-check .dg-st-chip{fill:var(--dg-cp,#7b3fb5)}
+.dg-band{stroke:none}
+.dg-band-idle{fill:var(--dg-amber-b,#fff5e0)} .dg-band-run{fill:var(--dg-blue-b,#e9f1fb)}
+.dg-band-stop{fill:var(--dg-green-b,#eaf6ee)} .dg-band-move{fill:var(--dg-gray-b,#eef1f4)}
+.dg-band-label{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:11.5px;letter-spacing:.08em;fill:var(--dg-muted,#56636f)}
+.dg-band-label.idle{fill:var(--dg-amber-d,#9a6212)} .dg-band-label.run{fill:var(--dg-blue,#0b5aa6)} .dg-band-label.stop{fill:var(--dg-green,#1e7d45)}
+.dg-note-rect{fill:var(--dg-note,#f6f7f9);stroke:var(--dg-rule,#c4ccd4);stroke-width:1}
+.dg-note{font-size:12.5px;fill:var(--dg-soft,#3a4754)}
+.dg-choice{fill:var(--dg-st,#f2f5f8);stroke:var(--dg-line,#2f3e4d);stroke-width:1.5}
+.dg-choice-t{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:13.5px;fill:var(--dg-ink,#14202b)}
+.dg-node{fill:var(--dg-st,#f2f5f8);stroke:var(--dg-line,#2f3e4d);stroke-width:1.4}
+.dg-node.ok{fill:var(--dg-green-t,#e7f5ec);stroke:var(--dg-green,#1e7d45)}
+.dg-node.warn{fill:var(--dg-amber-t,#fff4de);stroke:var(--dg-amber,#b7791f)}
+.dg-node.stop{fill:var(--dg-red-t,#fdeceb);stroke:var(--dg-red,#c62828)}
+.dg-node.check{fill:var(--dg-cp-t,#f3ecfa);stroke:var(--dg-cp,#7b3fb5)}
+.dg-node.op{fill:var(--dg-blue-t,#e6effa);stroke:var(--dg-blue,#0b5aa6)}
+.dg-node-t{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:14px;fill:var(--dg-ink,#14202b)}
+.dg-node-s{font-size:12.5px;fill:var(--dg-soft,#3a4754)}
+.dg-owner{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:10.5px;letter-spacing:.08em;fill:#ffffff}
+.dg-owner-r{fill:#2f3e4d}
+.dg-owner-r.op,.dg-owner-r.light{fill:#0b5aa6} .dg-owner-r.cnc{fill:#a0521d} .dg-owner-r.conv{fill:#2f6f5e} .dg-owner-r.r2{fill:#806000}
+.dg-owner-r.cam{fill:#7b3fb5} .dg-owner-r.gauge{fill:#a33a3a} .dg-owner-r.ok{fill:#1e7d45} .dg-owner-r.nok{fill:#c62828}
+.dg-conn{fill:var(--dg-bg,#ffffff);stroke:var(--dg-line,#2f3e4d);stroke-width:1.5}
+.dg-conn-t{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:13px;fill:var(--dg-ink,#14202b)}
+.dg-num{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:14px;fill:var(--dg-muted,#56636f)}
+.dg-active .dg-st-rect,.dg-active .dg-node,.dg-active .dg-choice{stroke:var(--dg-active,#0a66e8);stroke-width:3.2;fill:var(--dg-active-t,#dde9fc)}
+.dg-active .dg-st-chip{fill:var(--dg-active,#0a66e8)}
+.dg-flash .dg-tr{stroke:var(--dg-active,#0a66e8);stroke-width:3} .dg-flash .dg-head{fill:var(--dg-active,#0a66e8)}
+/* layout drawing */
+.ly-fence{fill:none;stroke:var(--dg-rule,#aab4be);stroke-width:1.3;stroke-dasharray:2 5}
+.ly-aisle{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:11px;letter-spacing:.14em;fill:var(--dg-muted,#56636f)}
+.ly-mach{fill:var(--ly-mach,#dfe5ea);stroke:var(--dg-line,#2f3e4d);stroke-width:1.6}
+.ly-mach-in{fill:var(--ly-mach-in,#eef2f5);stroke:var(--ly-rule2,#9aa6b1);stroke-width:1}
+.ly-pallet{fill:var(--ly-pallet,#e9dcc6);stroke:var(--ly-pallet-s,#8a6d3b);stroke-width:1.5}
+.ly-slot{fill:none;stroke:var(--ly-slot,#b39a6e);stroke-width:.9;stroke-dasharray:2 2}
+.ly-part{fill:var(--ly-raw,#a9b2ba);stroke:var(--ly-raw-s,#56626c);stroke-width:1.1}
+.ly-part.fin{fill:var(--ly-fin,#dfe8f0);stroke:var(--ly-fin-s,#43698c)}
+.ly-part.nok{stroke:var(--dg-red,#c62828);stroke-width:2.2}
+.ly-pocket{fill:none;stroke:var(--ly-fin-s,#43698c);stroke-width:.9}
+.ly-belt{fill:var(--ly-belt,#39414a)}
+.ly-frame{fill:var(--ly-frame,#8d98a3)}
+.ly-roller{stroke:var(--ly-roller,#5b646d);stroke-width:1.1}
+.ly-stop{fill:var(--dg-red,#c62828)}
+.ly-robot{fill:var(--ly-robot,#2c4a66);stroke:var(--ly-robot-s,#15283a);stroke-width:1.5}
+.ly-robot-t{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:11.5px;fill:#ffffff;letter-spacing:.04em}
+.ly-link{stroke:var(--ly-link,#5f7d99);stroke-width:13;stroke-linecap:round;fill:none}
+.ly-link2{stroke:var(--ly-link2,#7f9ab3);stroke-width:10;stroke-linecap:round;fill:none}
+.ly-joint{fill:var(--ly-joint,#243a52)}
+.ly-finger{stroke:var(--ly-joint,#243a52);stroke-width:3.2;stroke-linecap:round}
+.ly-door{fill:var(--ly-door,#6f8193);stroke:var(--dg-line,#2f3e4d);stroke-width:1}
+.ly-track{stroke:var(--ly-rule2,#9aa6b1);stroke-width:1.1;stroke-dasharray:3 3}
+.ly-handle{fill:var(--dg-line,#2f3e4d)}
+.ly-label{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:14px;fill:var(--dg-ink,#14202b);letter-spacing:.05em}
+.ly-sub{font-size:11.5px;fill:var(--dg-soft,#3a4754)}
+.ly-tag{font-family:'IBM Plex Mono',Consolas,monospace;font-size:11px;font-weight:600;fill:var(--dg-blue,#0b5aa6)}
+.ly-tag.cam{fill:var(--dg-cp,#7b3fb5)} .ly-tag.saf{fill:var(--ly-safety,#946c00)}
+.ly-sens{fill:var(--dg-bg,#ffffff);stroke:var(--dg-blue,#0b5aa6);stroke-width:1.6}
+.ly-sens.safety{stroke:var(--ly-safety,#c79400)}
+.ly-led{fill:var(--ly-led-off,#c3cad1)}
+.ly-led.on{fill:var(--ly-led-on,#1ea453)}
+.ly-led.bad{fill:var(--dg-red,#d32f2f)}
+.ly-beam{stroke:var(--ly-beam,#d33b3b);stroke-width:1.1;stroke-dasharray:2 3;opacity:.8}
+.ly-fov{fill:var(--ly-fov,rgba(123,63,181,.045));stroke:var(--dg-cp,#7b3fb5);stroke-width:1.3;stroke-dasharray:7 4}
+.ly-roi{fill:none;stroke:var(--dg-cp,#7b3fb5);stroke-width:1.1;stroke-dasharray:2 2}
+.ly-roi-t{font-family:'IBM Plex Mono',Consolas,monospace;font-size:10px;font-weight:600;fill:var(--dg-cp,#7b3fb5)}
+.ly-roi-t.on-belt{fill:#d9c5f5}
+.ly-cam{fill:var(--dg-cp,#7b3fb5)}
+.ly-nok{fill:var(--ly-nok,#fbe3e1);stroke:var(--dg-red,#c62828);stroke-width:1.6}
+.ly-nok-h{stroke:var(--dg-red,#c62828);stroke-width:.9;opacity:.35}
+.ly-gauge{fill:var(--ly-gauge,#e9eef3);stroke:var(--dg-line,#2f3e4d);stroke-width:1.5}
+.ly-datum{fill:var(--dg-line,#2f3e4d)}
+.ly-laser{fill:var(--dg-red,#c62828)}
+.ly-cab{fill:var(--ly-mach,#dfe5ea);stroke:var(--dg-line,#2f3e4d);stroke-width:1.3}
+.ly-lamp-r{fill:#d32f2f} .ly-lamp-a{fill:#f2a900} .ly-lamp-g{fill:#1e9e52} .ly-lamp-b{fill:#1565c0}
+.ly-lamp-off{opacity:.2}
+.ly-scan{fill:var(--ly-scan,rgba(199,148,0,.09));stroke:var(--ly-safety,#c79400);stroke-width:1.1;stroke-dasharray:3 3}
+.ly-flow{fill:none;stroke:#ffffff;stroke-width:1.8;opacity:.75}
+.ly-note{font-size:11.5px;font-style:italic;fill:var(--dg-muted,#56636f)}
+.ly-legend{font-size:12px;fill:var(--dg-soft,#3a4754)}
+/* timing chart */
+.gt-grid{stroke:var(--dg-rule,#d5dbe1);stroke-width:1}
+.gt-axis{font-size:11.5px;fill:var(--dg-muted,#56636f)}
+.gt-row{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:13.5px;fill:var(--dg-ink,#14202b)}
+.gt-bar-t{font-size:11.5px;fill:#ffffff;font-weight:600}
+.gt-bar-t.dark{fill:var(--dg-ink,#14202b)}
+.gt-mach{fill:#3f73b5} .gt-idle{fill:#e3a21a} .gt-door{fill:#2f3e4d} .gt-move{fill:#7d8b98} .gt-wait{fill:var(--dg-gray-b,#eef1f4);stroke:var(--dg-rule,#c4ccd4)} .gt-belt{fill:#2f6f5e} .gt-gauge{fill:#a33a3a}
+.gt-kpi{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:15px;fill:var(--dg-ink,#14202b)}
+.gt-break{fill:var(--dg-bg,#ffffff);stroke:var(--dg-muted,#56636f);stroke-width:1.2}
+</style><rect class="dg-bg" x="0" y="0" width="900" height="588"/><text class="dg-title" x="20" y="36">Control architecture: four state machines in the cell PLC</text><text class="dg-sub" x="20" y="58">Each state machine moves only on its own sensors plus the handshake signals written on the arrows.</text><rect x="22" y="248" width="856" height="324" rx="12" fill="none" stroke="var(--dg-rule,#aab4be)" stroke-width="1.4" stroke-dasharray="6 5"/><text class="dg-band-label" x="38" y="562">CELL PLC-01 · runs the 4 state machines</text><g class="dg-trg"><path class="dg-tr" d="M120 274 L120 161"/><polygon class="dg-head" points="120,156 115.5,165.5 124.5,165.5"/></g><g class="dg-trg"><path class="dg-tr" d="M200 156 L200 269"/><polygon class="dg-head" points="200,274 204.5,264.5 195.5,264.5"/></g><g class="dg-trg"><path class="dg-tr" d="M280 304 L355 304"/><polygon class="dg-head" points="360,304 350.5,299.5 350.5,308.5"/></g><g class="dg-trg"><path class="dg-tr" d="M360 336 L285 336"/><polygon class="dg-head" points="280,336 289.5,340.5 289.5,331.5"/></g><g class="dg-trg"><path class="dg-tr" d="M540 304 L615 304"/><polygon class="dg-head" points="620,304 610.5,299.5 610.5,308.5"/></g><g class="dg-trg"><path class="dg-tr" d="M620 336 L545 336"/><polygon class="dg-head" points="540,336 549.5,340.5 549.5,331.5"/></g><g class="dg-trg"><path class="dg-tr" d="M700 156 L700 269"/><polygon class="dg-head" points="700,274 704.5,264.5 695.5,264.5"/></g><g class="dg-trg"><path class="dg-tr" d="M780 274 L780 161"/><polygon class="dg-head" points="780,156 775.5,165.5 784.5,165.5"/></g><g class="dg-trg"><path class="dg-tr" d="M138 366 L138 457"/><polygon class="dg-head" points="138,462 142.5,452.5 133.5,452.5"/></g><g class="dg-trg dg-trk-hold"><path class="dg-tr dg-dash" d="M182 462 L182 371"/><polygon class="dg-head" points="182,366 177.5,375.5 186.5,375.5"/></g><g class="dg-trg"><path class="dg-tr" d="M428 366 L428 457"/><polygon class="dg-head" points="428,462 432.5,452.5 423.5,452.5"/></g><g class="dg-trg dg-trk-hold"><path class="dg-tr dg-dash" d="M472 462 L472 371"/><polygon class="dg-head" points="472,366 467.5,375.5 476.5,375.5"/></g><g class="dg-trg"><path class="dg-tr" d="M718 366 L718 457"/><polygon class="dg-head" points="718,462 722.5,452.5 713.5,452.5"/></g><g class="dg-trg dg-trk-hold"><path class="dg-tr dg-dash" d="M762 462 L762 371"/><polygon class="dg-head" points="762,366 757.5,375.5 766.5,375.5"/></g><g class="dg-nodeg" data-state="CNC"><rect class="dg-node " x="40" y="82" width="240" height="74" rx="6"/><text class="dg-node-t" x="160" y="108.5" text-anchor="middle">CNC + DOOR KIT</text><text class="dg-node-s" x="160" y="124" text-anchor="middle">robot interface · <tspan class="dg-tag">ZS-31</tspan> <tspan class="dg-tag">ZS-32</tspan> <tspan class="dg-tag">ZS-33</tspan></text><text class="dg-node-s" x="160" y="139.5" text-anchor="middle">vise <tspan class="dg-tag">ZS-34</tspan> <tspan class="dg-tag">ZS-35</tspan> · <tspan class="dg-tag">PS-36</tspan></text></g><g class="dg-nodeg" data-state="OP"><rect class="dg-node op" x="620" y="82" width="240" height="74" rx="6"/><text class="dg-node-t" x="740" y="108.5" text-anchor="middle">OPERATOR / HMI</text><text class="dg-node-s" x="740" y="124" text-anchor="middle">loads input pallet (<tspan class="dg-tag">PX-11</tspan>, <tspan class="dg-cp">CP-1</tspan>)</text><text class="dg-node-s" x="740" y="139.5" text-anchor="middle">swaps output pallet · resets</text></g><g class="dg-nodeg" data-state="SM1"><rect class="dg-node " x="40" y="274" width="240" height="92" rx="6"/><text class="dg-node-t" x="160" y="301.8" text-anchor="middle">SM-1  ROBOT 1 + CNC</text><text class="dg-node-s" x="160" y="317.3" text-anchor="middle">states A0–A8 (Setup 1)</text><text class="dg-node-s" x="160" y="332.8" text-anchor="middle">or B0–B7 (Setup 2)</text><text class="dg-node-s" x="160" y="348.3" text-anchor="middle"><tspan class="dg-tag">PX-11</tspan> <tspan class="dg-tag">CAM-1</tspan> <tspan class="dg-tag">GR-21</tspan></text></g><g class="dg-nodeg" data-state="SM2"><rect class="dg-node " x="360" y="274" width="180" height="92" rx="6"/><text class="dg-node-t" x="450" y="301.8" text-anchor="middle">SM-2  CONVEYOR</text><text class="dg-node-s" x="450" y="317.3" text-anchor="middle">states C1–C5</text><text class="dg-node-s" x="450" y="332.8" text-anchor="middle"><tspan class="dg-tag">PE-41</tspan> <tspan class="dg-tag">PE-42</tspan></text><text class="dg-node-s" x="450" y="348.3" text-anchor="middle"><tspan class="dg-tag">ENC-43</tspan></text></g><g class="dg-nodeg" data-state="SM3"><rect class="dg-node " x="620" y="274" width="240" height="92" rx="6"/><text class="dg-node-t" x="740" y="301.8" text-anchor="middle">SM-3  ROBOT 2 + PALLET</text><text class="dg-node-s" x="740" y="317.3" text-anchor="middle">states D0–D4 (Setup 1)</text><text class="dg-node-s" x="740" y="332.8" text-anchor="middle">or E0–E7 (Setup 2)</text><text class="dg-node-s" x="740" y="348.3" text-anchor="middle"><tspan class="dg-tag">CAM-2</tspan> <tspan class="dg-tag">GR-51</tspan> <tspan class="dg-tag">PX-52</tspan></text></g><g class="dg-nodeg" data-state="SM4"><rect class="dg-node " x="40" y="462" width="820" height="76" rx="6"/><text class="dg-node-t" x="450" y="489.5" text-anchor="middle">SM-4  CROSS-CHECK SUPERVISOR  (states X1–X4)</text><text class="dg-node-s" x="450" y="505" text-anchor="middle">compares proximity vs camera at CP-1 … CP-5 · counts mismatches in a 10-min window</text><text class="dg-node-s" x="450" y="520.5" text-anchor="middle">commands LINE STOP after 3 mismatches in 10 min</text></g><text class="dg-guard dg-halo" x="114" y="204.5" text-anchor="end"><tspan x="114">cycle start,</tspan><tspan x="114" dy="15">door + vise</tspan><tspan x="114" dy="15">requests</tspan></text><text class="dg-guard dg-halo" x="206" y="204.5" text-anchor="start"><tspan x="206">cycle complete,</tspan><tspan x="206" dy="15">spindle stopped,</tspan><tspan x="206" dy="15">door + vise state</tspan></text><text class="dg-guard dg-halo" x="320" y="277" text-anchor="middle"><tspan x="320">part placed</tspan><tspan x="320" dy="15">R1 clear</tspan></text><text class="dg-guard dg-halo" x="320" y="357" text-anchor="middle"><tspan x="320">belt</tspan><tspan x="320" dy="15">stopped</tspan></text><text class="dg-guard dg-halo" x="580" y="277" text-anchor="middle"><tspan x="580">pick allowed</tspan><tspan x="580" dy="15">+ pick pose</tspan></text><text class="dg-guard dg-halo" x="580" y="357" text-anchor="middle"><tspan x="580">part picked</tspan><tspan x="580" dy="15">R2 clear</tspan></text><text class="dg-guard dg-halo" x="694" y="204.5" text-anchor="end"><tspan x="694">pallet</tspan><tspan x="694" dy="15">swapped</tspan><tspan x="694" dy="15">(<tspan class="dg-tag">PX-52</tspan>)</tspan></text><text class="dg-guard dg-halo" x="786" y="212" text-anchor="start"><tspan x="786"><tspan class="dg-tag">LT-53</tspan></tspan><tspan x="786" dy="15">pallet full</tspan></text><text class="dg-guard dg-halo" x="132" y="418.5" text-anchor="end"><tspan x="132">CP results</tspan></text><text class="dg-guard dg-halo" x="768" y="411" text-anchor="start"><tspan x="768">LINE STOP</tspan><tspan x="768" dy="15">/ resume</tspan></text></svg>

@@ -1,0 +1,119 @@
+<svg xmlns="http://www.w3.org/2000/svg" class="dg-root" viewBox="0 0 860 1019" width="860" height="1019" font-family="'Barlow', 'Segoe UI', Arial, sans-serif" role="img" aria-label="Camera + proximity cross-check (runs at every checkpoint CP-1 … CP-5)"><style>
+.dg-root{font-family:'Barlow','Segoe UI',Arial,sans-serif}
+.dg-bg{fill:var(--dg-bg,#ffffff)}
+.dg-title{font-family:'Barlow Semi Condensed','Barlow','Segoe UI',sans-serif;font-weight:700;font-size:20px;fill:var(--dg-ink,#14202b)}
+.dg-sub{font-size:13px;fill:var(--dg-muted,#56636f)}
+.dg-st-rect{fill:var(--dg-st,#f2f5f8);stroke:var(--dg-line,#2f3e4d);stroke-width:1.5}
+.dg-st-title{font-family:'Barlow Semi Condensed','Barlow','Segoe UI',sans-serif;font-weight:700;font-size:14.5px;fill:var(--dg-ink,#14202b);letter-spacing:.04em}
+.dg-st-do{font-size:12.5px;fill:var(--dg-soft,#3a4754)}
+.dg-st-chip{fill:var(--dg-line,#2f3e4d)}
+.dg-st-chiptext{font-family:'IBM Plex Mono',Consolas,monospace;font-weight:600;font-size:11px;fill:var(--dg-chipink,#ffffff)}
+.dg-tr{fill:none;stroke:var(--dg-arrow,#56636f);stroke-width:1.5}
+.dg-head{fill:var(--dg-arrow,#56636f)}
+.dg-dash{stroke-dasharray:5 4}
+.dg-trk-fault .dg-tr{stroke:var(--dg-red,#c62828)} .dg-trk-fault .dg-head{fill:var(--dg-red,#c62828)}
+.dg-trk-hold .dg-tr{stroke:var(--dg-amber,#b7791f)} .dg-trk-hold .dg-head{fill:var(--dg-amber,#b7791f)}
+.dg-trk-ok .dg-tr{stroke:var(--dg-green,#1e7d45)} .dg-trk-ok .dg-head{fill:var(--dg-green,#1e7d45)}
+.dg-guard{font-size:12.5px;fill:var(--dg-ink2,#1f2a35)}
+.dg-halo{paint-order:stroke;stroke:var(--dg-bg,#ffffff);stroke-width:5px;stroke-linejoin:round}
+.dg-tag{font-family:'IBM Plex Mono',Consolas,monospace;font-size:11.5px;font-weight:500;fill:var(--dg-blue,#0b5aa6)}
+.dg-cp{font-weight:700;fill:var(--dg-cp,#7b3fb5)}
+.dg-b{font-weight:700}
+.dg-small{font-size:11.5px}
+.dg-init{fill:var(--dg-line,#2f3e4d)}
+.dg-k-wait .dg-st-rect{stroke-dasharray:5 3}
+.dg-k-fault .dg-st-rect{fill:var(--dg-red-t,#fdeceb);stroke:var(--dg-red,#c62828)} .dg-k-fault .dg-st-chip{fill:var(--dg-red,#c62828)}
+.dg-k-hold .dg-st-rect{fill:var(--dg-amber-t,#fff4de);stroke:var(--dg-amber,#b7791f)} .dg-k-hold .dg-st-chip{fill:var(--dg-amber,#b7791f)}
+.dg-k-ok .dg-st-rect{fill:var(--dg-green-t,#e7f5ec);stroke:var(--dg-green,#1e7d45)} .dg-k-ok .dg-st-chip{fill:var(--dg-green,#1e7d45)}
+.dg-k-warn .dg-st-rect{fill:var(--dg-amber-t,#fff4de);stroke:var(--dg-amber,#b7791f)} .dg-k-warn .dg-st-chip{fill:var(--dg-amber,#b7791f)}
+.dg-k-stop .dg-st-rect{fill:var(--dg-red-t,#fdeceb);stroke:var(--dg-red,#c62828)} .dg-k-stop .dg-st-chip{fill:var(--dg-red,#c62828)}
+.dg-k-op .dg-st-rect{fill:var(--dg-blue-t,#e6effa);stroke:var(--dg-blue,#0b5aa6)} .dg-k-op .dg-st-chip{fill:var(--dg-blue,#0b5aa6)}
+.dg-k-check .dg-st-rect{fill:var(--dg-cp-t,#f3ecfa);stroke:var(--dg-cp,#7b3fb5)} .dg-k-check .dg-st-chip{fill:var(--dg-cp,#7b3fb5)}
+.dg-band{stroke:none}
+.dg-band-idle{fill:var(--dg-amber-b,#fff5e0)} .dg-band-run{fill:var(--dg-blue-b,#e9f1fb)}
+.dg-band-stop{fill:var(--dg-green-b,#eaf6ee)} .dg-band-move{fill:var(--dg-gray-b,#eef1f4)}
+.dg-band-label{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:11.5px;letter-spacing:.08em;fill:var(--dg-muted,#56636f)}
+.dg-band-label.idle{fill:var(--dg-amber-d,#9a6212)} .dg-band-label.run{fill:var(--dg-blue,#0b5aa6)} .dg-band-label.stop{fill:var(--dg-green,#1e7d45)}
+.dg-note-rect{fill:var(--dg-note,#f6f7f9);stroke:var(--dg-rule,#c4ccd4);stroke-width:1}
+.dg-note{font-size:12.5px;fill:var(--dg-soft,#3a4754)}
+.dg-choice{fill:var(--dg-st,#f2f5f8);stroke:var(--dg-line,#2f3e4d);stroke-width:1.5}
+.dg-choice-t{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:13.5px;fill:var(--dg-ink,#14202b)}
+.dg-node{fill:var(--dg-st,#f2f5f8);stroke:var(--dg-line,#2f3e4d);stroke-width:1.4}
+.dg-node.ok{fill:var(--dg-green-t,#e7f5ec);stroke:var(--dg-green,#1e7d45)}
+.dg-node.warn{fill:var(--dg-amber-t,#fff4de);stroke:var(--dg-amber,#b7791f)}
+.dg-node.stop{fill:var(--dg-red-t,#fdeceb);stroke:var(--dg-red,#c62828)}
+.dg-node.check{fill:var(--dg-cp-t,#f3ecfa);stroke:var(--dg-cp,#7b3fb5)}
+.dg-node.op{fill:var(--dg-blue-t,#e6effa);stroke:var(--dg-blue,#0b5aa6)}
+.dg-node-t{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:14px;fill:var(--dg-ink,#14202b)}
+.dg-node-s{font-size:12.5px;fill:var(--dg-soft,#3a4754)}
+.dg-owner{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:10.5px;letter-spacing:.08em;fill:#ffffff}
+.dg-owner-r{fill:#2f3e4d}
+.dg-owner-r.op,.dg-owner-r.light{fill:#0b5aa6} .dg-owner-r.cnc{fill:#a0521d} .dg-owner-r.conv{fill:#2f6f5e} .dg-owner-r.r2{fill:#806000}
+.dg-owner-r.cam{fill:#7b3fb5} .dg-owner-r.gauge{fill:#a33a3a} .dg-owner-r.ok{fill:#1e7d45} .dg-owner-r.nok{fill:#c62828}
+.dg-conn{fill:var(--dg-bg,#ffffff);stroke:var(--dg-line,#2f3e4d);stroke-width:1.5}
+.dg-conn-t{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:13px;fill:var(--dg-ink,#14202b)}
+.dg-num{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:14px;fill:var(--dg-muted,#56636f)}
+.dg-active .dg-st-rect,.dg-active .dg-node,.dg-active .dg-choice{stroke:var(--dg-active,#0a66e8);stroke-width:3.2;fill:var(--dg-active-t,#dde9fc)}
+.dg-active .dg-st-chip{fill:var(--dg-active,#0a66e8)}
+.dg-flash .dg-tr{stroke:var(--dg-active,#0a66e8);stroke-width:3} .dg-flash .dg-head{fill:var(--dg-active,#0a66e8)}
+/* layout drawing */
+.ly-fence{fill:none;stroke:var(--dg-rule,#aab4be);stroke-width:1.3;stroke-dasharray:2 5}
+.ly-aisle{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:11px;letter-spacing:.14em;fill:var(--dg-muted,#56636f)}
+.ly-mach{fill:var(--ly-mach,#dfe5ea);stroke:var(--dg-line,#2f3e4d);stroke-width:1.6}
+.ly-mach-in{fill:var(--ly-mach-in,#eef2f5);stroke:var(--ly-rule2,#9aa6b1);stroke-width:1}
+.ly-pallet{fill:var(--ly-pallet,#e9dcc6);stroke:var(--ly-pallet-s,#8a6d3b);stroke-width:1.5}
+.ly-slot{fill:none;stroke:var(--ly-slot,#b39a6e);stroke-width:.9;stroke-dasharray:2 2}
+.ly-part{fill:var(--ly-raw,#a9b2ba);stroke:var(--ly-raw-s,#56626c);stroke-width:1.1}
+.ly-part.fin{fill:var(--ly-fin,#dfe8f0);stroke:var(--ly-fin-s,#43698c)}
+.ly-part.nok{stroke:var(--dg-red,#c62828);stroke-width:2.2}
+.ly-pocket{fill:none;stroke:var(--ly-fin-s,#43698c);stroke-width:.9}
+.ly-belt{fill:var(--ly-belt,#39414a)}
+.ly-frame{fill:var(--ly-frame,#8d98a3)}
+.ly-roller{stroke:var(--ly-roller,#5b646d);stroke-width:1.1}
+.ly-stop{fill:var(--dg-red,#c62828)}
+.ly-robot{fill:var(--ly-robot,#2c4a66);stroke:var(--ly-robot-s,#15283a);stroke-width:1.5}
+.ly-robot-t{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:11.5px;fill:#ffffff;letter-spacing:.04em}
+.ly-link{stroke:var(--ly-link,#5f7d99);stroke-width:13;stroke-linecap:round;fill:none}
+.ly-link2{stroke:var(--ly-link2,#7f9ab3);stroke-width:10;stroke-linecap:round;fill:none}
+.ly-joint{fill:var(--ly-joint,#243a52)}
+.ly-finger{stroke:var(--ly-joint,#243a52);stroke-width:3.2;stroke-linecap:round}
+.ly-door{fill:var(--ly-door,#6f8193);stroke:var(--dg-line,#2f3e4d);stroke-width:1}
+.ly-track{stroke:var(--ly-rule2,#9aa6b1);stroke-width:1.1;stroke-dasharray:3 3}
+.ly-handle{fill:var(--dg-line,#2f3e4d)}
+.ly-label{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:14px;fill:var(--dg-ink,#14202b);letter-spacing:.05em}
+.ly-sub{font-size:11.5px;fill:var(--dg-soft,#3a4754)}
+.ly-tag{font-family:'IBM Plex Mono',Consolas,monospace;font-size:11px;font-weight:600;fill:var(--dg-blue,#0b5aa6)}
+.ly-tag.cam{fill:var(--dg-cp,#7b3fb5)} .ly-tag.saf{fill:var(--ly-safety,#946c00)}
+.ly-sens{fill:var(--dg-bg,#ffffff);stroke:var(--dg-blue,#0b5aa6);stroke-width:1.6}
+.ly-sens.safety{stroke:var(--ly-safety,#c79400)}
+.ly-led{fill:var(--ly-led-off,#c3cad1)}
+.ly-led.on{fill:var(--ly-led-on,#1ea453)}
+.ly-led.bad{fill:var(--dg-red,#d32f2f)}
+.ly-beam{stroke:var(--ly-beam,#d33b3b);stroke-width:1.1;stroke-dasharray:2 3;opacity:.8}
+.ly-fov{fill:var(--ly-fov,rgba(123,63,181,.045));stroke:var(--dg-cp,#7b3fb5);stroke-width:1.3;stroke-dasharray:7 4}
+.ly-roi{fill:none;stroke:var(--dg-cp,#7b3fb5);stroke-width:1.1;stroke-dasharray:2 2}
+.ly-roi-t{font-family:'IBM Plex Mono',Consolas,monospace;font-size:10px;font-weight:600;fill:var(--dg-cp,#7b3fb5)}
+.ly-roi-t.on-belt{fill:#d9c5f5}
+.ly-cam{fill:var(--dg-cp,#7b3fb5)}
+.ly-nok{fill:var(--ly-nok,#fbe3e1);stroke:var(--dg-red,#c62828);stroke-width:1.6}
+.ly-nok-h{stroke:var(--dg-red,#c62828);stroke-width:.9;opacity:.35}
+.ly-gauge{fill:var(--ly-gauge,#e9eef3);stroke:var(--dg-line,#2f3e4d);stroke-width:1.5}
+.ly-datum{fill:var(--dg-line,#2f3e4d)}
+.ly-laser{fill:var(--dg-red,#c62828)}
+.ly-cab{fill:var(--ly-mach,#dfe5ea);stroke:var(--dg-line,#2f3e4d);stroke-width:1.3}
+.ly-lamp-r{fill:#d32f2f} .ly-lamp-a{fill:#f2a900} .ly-lamp-g{fill:#1e9e52} .ly-lamp-b{fill:#1565c0}
+.ly-lamp-off{opacity:.2}
+.ly-scan{fill:var(--ly-scan,rgba(199,148,0,.09));stroke:var(--ly-safety,#c79400);stroke-width:1.1;stroke-dasharray:3 3}
+.ly-flow{fill:none;stroke:#ffffff;stroke-width:1.8;opacity:.75}
+.ly-note{font-size:11.5px;font-style:italic;fill:var(--dg-muted,#56636f)}
+.ly-legend{font-size:12px;fill:var(--dg-soft,#3a4754)}
+/* timing chart */
+.gt-grid{stroke:var(--dg-rule,#d5dbe1);stroke-width:1}
+.gt-axis{font-size:11.5px;fill:var(--dg-muted,#56636f)}
+.gt-row{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:13.5px;fill:var(--dg-ink,#14202b)}
+.gt-bar-t{font-size:11.5px;fill:#ffffff;font-weight:600}
+.gt-bar-t.dark{fill:var(--dg-ink,#14202b)}
+.gt-mach{fill:#3f73b5} .gt-idle{fill:#e3a21a} .gt-door{fill:#2f3e4d} .gt-move{fill:#7d8b98} .gt-wait{fill:var(--dg-gray-b,#eef1f4);stroke:var(--dg-rule,#c4ccd4)} .gt-belt{fill:#2f6f5e} .gt-gauge{fill:#a33a3a}
+.gt-kpi{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:15px;fill:var(--dg-ink,#14202b)}
+.gt-break{fill:var(--dg-bg,#ffffff);stroke:var(--dg-muted,#56636f);stroke-width:1.2}
+</style><rect class="dg-bg" x="0" y="0" width="860" height="1019"/><text class="dg-title" x="20" y="36">Camera + proximity cross-check (runs at every checkpoint CP-1 … CP-5)</text><text class="dg-sub" x="20" y="58">Both sources must agree. If they disagree the camera decides; 3 disagreements within 10 minutes stop the line.</text><g class="dg-trg"><path class="dg-tr" d="M440 152 L440 177"/><polygon class="dg-head" points="440,182 444.5,172.5 435.5,172.5"/></g><g class="dg-trg"><path class="dg-tr" d="M440 252 L440 277"/><polygon class="dg-head" points="440,282 444.5,272.5 435.5,272.5"/></g><g class="dg-trg dg-trk-fault"><path class="dg-tr" d="M318 322 L245 322"/><polygon class="dg-head" points="240,322 249.5,326.5 249.5,317.5"/></g><g class="dg-trg"><path class="dg-tr" d="M129 350 L129 375"/><polygon class="dg-head" points="129,380 133.5,370.5 124.5,370.5"/></g><g class="dg-trg dg-trk-fault"><path class="dg-tr" d="M129 446 L129 477"/><polygon class="dg-head" points="129,482 133.5,472.5 124.5,472.5"/></g><g class="dg-trg"><path class="dg-tr" d="M440 362 L440 438"/><polygon class="dg-head" points="440,443 444.5,433.5 435.5,433.5"/></g><g class="dg-trg"><path class="dg-tr" d="M214 413 L432 413"/><polygon class="dg-head" points="437,413 427.5,408.5 427.5,417.5"/></g><g class="dg-trg dg-trk-ok"><path class="dg-tr" d="M571 487 L627 487"/><polygon class="dg-head" points="632,487 622.5,482.5 622.5,491.5"/></g><g class="dg-trg dg-trk-fault"><path class="dg-tr" d="M440 531 L440 566"/><polygon class="dg-head" points="440,571 444.5,561.5 435.5,561.5"/></g><g class="dg-trg"><path class="dg-tr" d="M440 661 L440 686"/><polygon class="dg-head" points="440,691 444.5,681.5 435.5,681.5"/></g><g class="dg-trg"><path class="dg-tr" d="M440 749 L440 774"/><polygon class="dg-head" points="440,779 444.5,769.5 435.5,769.5"/></g><g class="dg-trg"><path class="dg-tr" d="M578 825 L627 825"/><polygon class="dg-head" points="632,825 622.5,820.5 622.5,829.5"/></g><g class="dg-trg dg-trk-fault"><path class="dg-tr" d="M440 871 L440 906"/><polygon class="dg-head" points="440,911 444.5,901.5 435.5,901.5"/></g><g class="dg-nodeg" data-state="N1"><rect class="dg-node check" x="280" y="82" width="320" height="70" rx="24"/><text class="dg-node-t" x="440" y="106.5" text-anchor="middle">CHECKPOINT CP-n REACHED</text><text class="dg-node-s" x="440" y="122" text-anchor="middle">scene static: robot out of the ROI,</text><text class="dg-node-s" x="440" y="137.5" text-anchor="middle">belt stopped · wait 0.3 s</text></g><g class="dg-nodeg" data-state="N2"><rect class="dg-node " x="280" y="182" width="320" height="70" rx="6"/><text class="dg-node-t" x="440" y="206.5" text-anchor="middle">READ BOTH SOURCES</text><text class="dg-node-s" x="440" y="222" text-anchor="middle">proximity sensor (debounced 50 ms)</text><text class="dg-node-s" x="440" y="237.5" text-anchor="middle">camera snapshot of the same ROI</text></g><g class="dg-choiceg" data-state="Q1"><polygon class="dg-choice" points="440,282 562,322 440,362 318,322"/><text class="dg-choice-t" x="440" y="319.5" text-anchor="middle">Camera image</text><text class="dg-choice-t" x="440" y="334.5" text-anchor="middle">valid?</text></g><g class="dg-nodeg" data-state="R1"><rect class="dg-node " x="18" y="294" width="222" height="56" rx="6"/><text class="dg-node-t" x="129" y="319.3" text-anchor="middle">RE-TRIGGER ONCE</text><text class="dg-node-s" x="129" y="334.8" text-anchor="middle">new image of the same ROI</text></g><g class="dg-choiceg" data-state="Q1B"><polygon class="dg-choice" points="129,380 214,413 129,446 44,413"/><text class="dg-choice-t" x="129" y="418" text-anchor="middle">Valid now?</text></g><g class="dg-nodeg" data-state="CF"><rect class="dg-node stop" x="18" y="482" width="222" height="86" rx="24"/><text class="dg-node-t" x="129" y="506.8" text-anchor="middle">CAMERA FAULT</text><text class="dg-node-t" x="129" y="522.3" text-anchor="middle">→ LINE STOP</text><text class="dg-node-s" x="129" y="537.8" text-anchor="middle">the camera is the reference,</text><text class="dg-node-s" x="129" y="553.3" text-anchor="middle">so the line never runs blind</text></g><g class="dg-choiceg" data-state="Q2"><polygon class="dg-choice" points="440,443 571,487 440,531 309,487"/><text class="dg-choice-t" x="440" y="484.5" text-anchor="middle">Proximity</text><text class="dg-choice-t" x="440" y="499.5" text-anchor="middle">= Camera?</text></g><g class="dg-nodeg" data-state="AG"><rect class="dg-node ok" x="632" y="451" width="212" height="72" rx="24"/><text class="dg-node-t" x="738" y="476.5" text-anchor="middle">AGREE</text><text class="dg-node-s" x="738" y="492" text-anchor="middle">use the value, the</text><text class="dg-node-s" x="738" y="507.5" text-anchor="middle">sequence continues</text></g><g class="dg-nodeg" data-state="MM"><rect class="dg-node warn" x="280" y="571" width="320" height="90" rx="6"/><text class="dg-node-t" x="440" y="597.8" text-anchor="middle">MISMATCH</text><text class="dg-node-t" x="440" y="613.3" text-anchor="middle">USE THE CAMERA VALUE</text><text class="dg-node-s" x="440" y="628.8" text-anchor="middle">log time, CP and both readings</text><text class="dg-node-s" x="440" y="644.3" text-anchor="middle">amber light · HMI names the sensor</text></g><g class="dg-nodeg" data-state="WN"><rect class="dg-node " x="280" y="691" width="320" height="58" rx="6"/><text class="dg-node-t" x="440" y="717.3" text-anchor="middle">ADD TO THE 10-MIN WINDOW</text><text class="dg-node-s" x="440" y="732.8" text-anchor="middle">events older than 10 min drop out</text></g><g class="dg-choiceg" data-state="Q3"><polygon class="dg-choice" points="440,779 578,825 440,871 302,825"/><text class="dg-choice-t" x="440" y="822.5" text-anchor="middle">≥ 3 mismatches</text><text class="dg-choice-t" x="440" y="837.5" text-anchor="middle">in the last 10 min?</text></g><g class="dg-nodeg" data-state="CN"><rect class="dg-node warn" x="632" y="789" width="212" height="72" rx="24"/><text class="dg-node-t" x="738" y="814.5" text-anchor="middle">CONTINUE</text><text class="dg-node-s" x="738" y="830" text-anchor="middle">with the camera value,</text><text class="dg-node-s" x="738" y="845.5" text-anchor="middle">warning stays active</text></g><g class="dg-nodeg" data-state="LS"><rect class="dg-node stop" x="280" y="911" width="320" height="88" rx="24"/><text class="dg-node-t" x="440" y="936.8" text-anchor="middle">LINE STOP</text><text class="dg-node-t" x="440" y="952.3" text-anchor="middle">SENSOR VERIFICATION</text><text class="dg-node-s" x="440" y="967.8" text-anchor="middle">controlled stop · red light</text><text class="dg-node-s" x="440" y="983.3" text-anchor="middle">(see the supervisor states)</text></g><text class="dg-guard dg-halo dg-small" x="576" y="311.5" text-anchor="start"><tspan x="576">valid = frame received,</tspan><tspan x="576" dy="15">exposure OK, calibration</tspan><tspan x="576" dy="15">marks found</tspan></text><text class="dg-guard dg-halo" x="279" y="313.5" text-anchor="middle"><tspan x="279">No</tspan></text><text class="dg-guard dg-halo" x="143" y="468.5" text-anchor="start"><tspan x="143">No</tspan></text><text class="dg-guard dg-halo" x="454" y="382.5" text-anchor="start"><tspan x="454">Yes</tspan></text><text class="dg-guard dg-halo" x="317" y="404.5" text-anchor="middle"><tspan x="317">Yes</tspan></text><text class="dg-guard dg-halo" x="601.5" y="478.5" text-anchor="middle"><tspan x="601.5">Yes</tspan></text><text class="dg-guard dg-halo" x="454" y="555.5" text-anchor="start"><tspan x="454">No</tspan></text><text class="dg-guard dg-halo" x="605" y="816.5" text-anchor="middle"><tspan x="605">No</tspan></text><text class="dg-guard dg-halo" x="454" y="895.5" text-anchor="start"><tspan x="454">Yes</tspan></text></svg>

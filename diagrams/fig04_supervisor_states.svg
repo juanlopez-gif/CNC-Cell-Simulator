@@ -1,0 +1,119 @@
+<svg xmlns="http://www.w3.org/2000/svg" class="dg-root" viewBox="0 0 860 536" width="860" height="536" font-family="'Barlow', 'Segoe UI', Arial, sans-serif" role="img" aria-label="State diagram: cross-check supervisor (camera vs proximity)"><style>
+.dg-root{font-family:'Barlow','Segoe UI',Arial,sans-serif}
+.dg-bg{fill:var(--dg-bg,#ffffff)}
+.dg-title{font-family:'Barlow Semi Condensed','Barlow','Segoe UI',sans-serif;font-weight:700;font-size:20px;fill:var(--dg-ink,#14202b)}
+.dg-sub{font-size:13px;fill:var(--dg-muted,#56636f)}
+.dg-st-rect{fill:var(--dg-st,#f2f5f8);stroke:var(--dg-line,#2f3e4d);stroke-width:1.5}
+.dg-st-title{font-family:'Barlow Semi Condensed','Barlow','Segoe UI',sans-serif;font-weight:700;font-size:14.5px;fill:var(--dg-ink,#14202b);letter-spacing:.04em}
+.dg-st-do{font-size:12.5px;fill:var(--dg-soft,#3a4754)}
+.dg-st-chip{fill:var(--dg-line,#2f3e4d)}
+.dg-st-chiptext{font-family:'IBM Plex Mono',Consolas,monospace;font-weight:600;font-size:11px;fill:var(--dg-chipink,#ffffff)}
+.dg-tr{fill:none;stroke:var(--dg-arrow,#56636f);stroke-width:1.5}
+.dg-head{fill:var(--dg-arrow,#56636f)}
+.dg-dash{stroke-dasharray:5 4}
+.dg-trk-fault .dg-tr{stroke:var(--dg-red,#c62828)} .dg-trk-fault .dg-head{fill:var(--dg-red,#c62828)}
+.dg-trk-hold .dg-tr{stroke:var(--dg-amber,#b7791f)} .dg-trk-hold .dg-head{fill:var(--dg-amber,#b7791f)}
+.dg-trk-ok .dg-tr{stroke:var(--dg-green,#1e7d45)} .dg-trk-ok .dg-head{fill:var(--dg-green,#1e7d45)}
+.dg-guard{font-size:12.5px;fill:var(--dg-ink2,#1f2a35)}
+.dg-halo{paint-order:stroke;stroke:var(--dg-bg,#ffffff);stroke-width:5px;stroke-linejoin:round}
+.dg-tag{font-family:'IBM Plex Mono',Consolas,monospace;font-size:11.5px;font-weight:500;fill:var(--dg-blue,#0b5aa6)}
+.dg-cp{font-weight:700;fill:var(--dg-cp,#7b3fb5)}
+.dg-b{font-weight:700}
+.dg-small{font-size:11.5px}
+.dg-init{fill:var(--dg-line,#2f3e4d)}
+.dg-k-wait .dg-st-rect{stroke-dasharray:5 3}
+.dg-k-fault .dg-st-rect{fill:var(--dg-red-t,#fdeceb);stroke:var(--dg-red,#c62828)} .dg-k-fault .dg-st-chip{fill:var(--dg-red,#c62828)}
+.dg-k-hold .dg-st-rect{fill:var(--dg-amber-t,#fff4de);stroke:var(--dg-amber,#b7791f)} .dg-k-hold .dg-st-chip{fill:var(--dg-amber,#b7791f)}
+.dg-k-ok .dg-st-rect{fill:var(--dg-green-t,#e7f5ec);stroke:var(--dg-green,#1e7d45)} .dg-k-ok .dg-st-chip{fill:var(--dg-green,#1e7d45)}
+.dg-k-warn .dg-st-rect{fill:var(--dg-amber-t,#fff4de);stroke:var(--dg-amber,#b7791f)} .dg-k-warn .dg-st-chip{fill:var(--dg-amber,#b7791f)}
+.dg-k-stop .dg-st-rect{fill:var(--dg-red-t,#fdeceb);stroke:var(--dg-red,#c62828)} .dg-k-stop .dg-st-chip{fill:var(--dg-red,#c62828)}
+.dg-k-op .dg-st-rect{fill:var(--dg-blue-t,#e6effa);stroke:var(--dg-blue,#0b5aa6)} .dg-k-op .dg-st-chip{fill:var(--dg-blue,#0b5aa6)}
+.dg-k-check .dg-st-rect{fill:var(--dg-cp-t,#f3ecfa);stroke:var(--dg-cp,#7b3fb5)} .dg-k-check .dg-st-chip{fill:var(--dg-cp,#7b3fb5)}
+.dg-band{stroke:none}
+.dg-band-idle{fill:var(--dg-amber-b,#fff5e0)} .dg-band-run{fill:var(--dg-blue-b,#e9f1fb)}
+.dg-band-stop{fill:var(--dg-green-b,#eaf6ee)} .dg-band-move{fill:var(--dg-gray-b,#eef1f4)}
+.dg-band-label{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:11.5px;letter-spacing:.08em;fill:var(--dg-muted,#56636f)}
+.dg-band-label.idle{fill:var(--dg-amber-d,#9a6212)} .dg-band-label.run{fill:var(--dg-blue,#0b5aa6)} .dg-band-label.stop{fill:var(--dg-green,#1e7d45)}
+.dg-note-rect{fill:var(--dg-note,#f6f7f9);stroke:var(--dg-rule,#c4ccd4);stroke-width:1}
+.dg-note{font-size:12.5px;fill:var(--dg-soft,#3a4754)}
+.dg-choice{fill:var(--dg-st,#f2f5f8);stroke:var(--dg-line,#2f3e4d);stroke-width:1.5}
+.dg-choice-t{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:13.5px;fill:var(--dg-ink,#14202b)}
+.dg-node{fill:var(--dg-st,#f2f5f8);stroke:var(--dg-line,#2f3e4d);stroke-width:1.4}
+.dg-node.ok{fill:var(--dg-green-t,#e7f5ec);stroke:var(--dg-green,#1e7d45)}
+.dg-node.warn{fill:var(--dg-amber-t,#fff4de);stroke:var(--dg-amber,#b7791f)}
+.dg-node.stop{fill:var(--dg-red-t,#fdeceb);stroke:var(--dg-red,#c62828)}
+.dg-node.check{fill:var(--dg-cp-t,#f3ecfa);stroke:var(--dg-cp,#7b3fb5)}
+.dg-node.op{fill:var(--dg-blue-t,#e6effa);stroke:var(--dg-blue,#0b5aa6)}
+.dg-node-t{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:14px;fill:var(--dg-ink,#14202b)}
+.dg-node-s{font-size:12.5px;fill:var(--dg-soft,#3a4754)}
+.dg-owner{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:10.5px;letter-spacing:.08em;fill:#ffffff}
+.dg-owner-r{fill:#2f3e4d}
+.dg-owner-r.op,.dg-owner-r.light{fill:#0b5aa6} .dg-owner-r.cnc{fill:#a0521d} .dg-owner-r.conv{fill:#2f6f5e} .dg-owner-r.r2{fill:#806000}
+.dg-owner-r.cam{fill:#7b3fb5} .dg-owner-r.gauge{fill:#a33a3a} .dg-owner-r.ok{fill:#1e7d45} .dg-owner-r.nok{fill:#c62828}
+.dg-conn{fill:var(--dg-bg,#ffffff);stroke:var(--dg-line,#2f3e4d);stroke-width:1.5}
+.dg-conn-t{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:13px;fill:var(--dg-ink,#14202b)}
+.dg-num{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:14px;fill:var(--dg-muted,#56636f)}
+.dg-active .dg-st-rect,.dg-active .dg-node,.dg-active .dg-choice{stroke:var(--dg-active,#0a66e8);stroke-width:3.2;fill:var(--dg-active-t,#dde9fc)}
+.dg-active .dg-st-chip{fill:var(--dg-active,#0a66e8)}
+.dg-flash .dg-tr{stroke:var(--dg-active,#0a66e8);stroke-width:3} .dg-flash .dg-head{fill:var(--dg-active,#0a66e8)}
+/* layout drawing */
+.ly-fence{fill:none;stroke:var(--dg-rule,#aab4be);stroke-width:1.3;stroke-dasharray:2 5}
+.ly-aisle{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:11px;letter-spacing:.14em;fill:var(--dg-muted,#56636f)}
+.ly-mach{fill:var(--ly-mach,#dfe5ea);stroke:var(--dg-line,#2f3e4d);stroke-width:1.6}
+.ly-mach-in{fill:var(--ly-mach-in,#eef2f5);stroke:var(--ly-rule2,#9aa6b1);stroke-width:1}
+.ly-pallet{fill:var(--ly-pallet,#e9dcc6);stroke:var(--ly-pallet-s,#8a6d3b);stroke-width:1.5}
+.ly-slot{fill:none;stroke:var(--ly-slot,#b39a6e);stroke-width:.9;stroke-dasharray:2 2}
+.ly-part{fill:var(--ly-raw,#a9b2ba);stroke:var(--ly-raw-s,#56626c);stroke-width:1.1}
+.ly-part.fin{fill:var(--ly-fin,#dfe8f0);stroke:var(--ly-fin-s,#43698c)}
+.ly-part.nok{stroke:var(--dg-red,#c62828);stroke-width:2.2}
+.ly-pocket{fill:none;stroke:var(--ly-fin-s,#43698c);stroke-width:.9}
+.ly-belt{fill:var(--ly-belt,#39414a)}
+.ly-frame{fill:var(--ly-frame,#8d98a3)}
+.ly-roller{stroke:var(--ly-roller,#5b646d);stroke-width:1.1}
+.ly-stop{fill:var(--dg-red,#c62828)}
+.ly-robot{fill:var(--ly-robot,#2c4a66);stroke:var(--ly-robot-s,#15283a);stroke-width:1.5}
+.ly-robot-t{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:11.5px;fill:#ffffff;letter-spacing:.04em}
+.ly-link{stroke:var(--ly-link,#5f7d99);stroke-width:13;stroke-linecap:round;fill:none}
+.ly-link2{stroke:var(--ly-link2,#7f9ab3);stroke-width:10;stroke-linecap:round;fill:none}
+.ly-joint{fill:var(--ly-joint,#243a52)}
+.ly-finger{stroke:var(--ly-joint,#243a52);stroke-width:3.2;stroke-linecap:round}
+.ly-door{fill:var(--ly-door,#6f8193);stroke:var(--dg-line,#2f3e4d);stroke-width:1}
+.ly-track{stroke:var(--ly-rule2,#9aa6b1);stroke-width:1.1;stroke-dasharray:3 3}
+.ly-handle{fill:var(--dg-line,#2f3e4d)}
+.ly-label{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:14px;fill:var(--dg-ink,#14202b);letter-spacing:.05em}
+.ly-sub{font-size:11.5px;fill:var(--dg-soft,#3a4754)}
+.ly-tag{font-family:'IBM Plex Mono',Consolas,monospace;font-size:11px;font-weight:600;fill:var(--dg-blue,#0b5aa6)}
+.ly-tag.cam{fill:var(--dg-cp,#7b3fb5)} .ly-tag.saf{fill:var(--ly-safety,#946c00)}
+.ly-sens{fill:var(--dg-bg,#ffffff);stroke:var(--dg-blue,#0b5aa6);stroke-width:1.6}
+.ly-sens.safety{stroke:var(--ly-safety,#c79400)}
+.ly-led{fill:var(--ly-led-off,#c3cad1)}
+.ly-led.on{fill:var(--ly-led-on,#1ea453)}
+.ly-led.bad{fill:var(--dg-red,#d32f2f)}
+.ly-beam{stroke:var(--ly-beam,#d33b3b);stroke-width:1.1;stroke-dasharray:2 3;opacity:.8}
+.ly-fov{fill:var(--ly-fov,rgba(123,63,181,.045));stroke:var(--dg-cp,#7b3fb5);stroke-width:1.3;stroke-dasharray:7 4}
+.ly-roi{fill:none;stroke:var(--dg-cp,#7b3fb5);stroke-width:1.1;stroke-dasharray:2 2}
+.ly-roi-t{font-family:'IBM Plex Mono',Consolas,monospace;font-size:10px;font-weight:600;fill:var(--dg-cp,#7b3fb5)}
+.ly-roi-t.on-belt{fill:#d9c5f5}
+.ly-cam{fill:var(--dg-cp,#7b3fb5)}
+.ly-nok{fill:var(--ly-nok,#fbe3e1);stroke:var(--dg-red,#c62828);stroke-width:1.6}
+.ly-nok-h{stroke:var(--dg-red,#c62828);stroke-width:.9;opacity:.35}
+.ly-gauge{fill:var(--ly-gauge,#e9eef3);stroke:var(--dg-line,#2f3e4d);stroke-width:1.5}
+.ly-datum{fill:var(--dg-line,#2f3e4d)}
+.ly-laser{fill:var(--dg-red,#c62828)}
+.ly-cab{fill:var(--ly-mach,#dfe5ea);stroke:var(--dg-line,#2f3e4d);stroke-width:1.3}
+.ly-lamp-r{fill:#d32f2f} .ly-lamp-a{fill:#f2a900} .ly-lamp-g{fill:#1e9e52} .ly-lamp-b{fill:#1565c0}
+.ly-lamp-off{opacity:.2}
+.ly-scan{fill:var(--ly-scan,rgba(199,148,0,.09));stroke:var(--ly-safety,#c79400);stroke-width:1.1;stroke-dasharray:3 3}
+.ly-flow{fill:none;stroke:#ffffff;stroke-width:1.8;opacity:.75}
+.ly-note{font-size:11.5px;font-style:italic;fill:var(--dg-muted,#56636f)}
+.ly-legend{font-size:12px;fill:var(--dg-soft,#3a4754)}
+/* timing chart */
+.gt-grid{stroke:var(--dg-rule,#d5dbe1);stroke-width:1}
+.gt-axis{font-size:11.5px;fill:var(--dg-muted,#56636f)}
+.gt-row{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:13.5px;fill:var(--dg-ink,#14202b)}
+.gt-bar-t{font-size:11.5px;fill:#ffffff;font-weight:600}
+.gt-bar-t.dark{fill:var(--dg-ink,#14202b)}
+.gt-mach{fill:#3f73b5} .gt-idle{fill:#e3a21a} .gt-door{fill:#2f3e4d} .gt-move{fill:#7d8b98} .gt-wait{fill:var(--dg-gray-b,#eef1f4);stroke:var(--dg-rule,#c4ccd4)} .gt-belt{fill:#2f6f5e} .gt-gauge{fill:#a33a3a}
+.gt-kpi{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:15px;fill:var(--dg-ink,#14202b)}
+.gt-break{fill:var(--dg-bg,#ffffff);stroke:var(--dg-muted,#56636f);stroke-width:1.2}
+</style><rect class="dg-bg" x="0" y="0" width="860" height="536"/><text class="dg-title" x="20" y="36">State diagram: cross-check supervisor (camera vs proximity)</text><text class="dg-sub" x="20" y="58">Runs in parallel with the other state machines and counts disagreements in a 10-minute sliding window.</text><g class="dg-trg"><path class="dg-tr" d="M30 98 L30 139 Q30 147 38 147 L55 147"/><polygon class="dg-head" points="60,147 50.5,142.5 50.5,151.5"/></g><g class="dg-trg"><path class="dg-tr" d="M360 133 L495 133"/><polygon class="dg-head" points="500,133 490.5,128.5 490.5,137.5"/></g><g class="dg-trg"><path class="dg-tr" d="M500 161 L365 161"/><polygon class="dg-head" points="360,161 369.5,165.5 369.5,156.5"/></g><g class="dg-trg"><path class="dg-tr" d="M750 112 L750 97 Q750 88 759 88 L813 88 Q822 88 822 97 L822 138.5 Q822 147 813.5 147 L805 147"/><polygon class="dg-head" points="800,147 809.5,151.5 809.5,142.5"/></g><g class="dg-trg dg-trk-fault"><path class="dg-tr" d="M650 182 L650 357"/><polygon class="dg-head" points="650,362 654.5,352.5 645.5,352.5"/></g><g class="dg-trg dg-trk-fault"><path class="dg-tr" d="M280 182 L280 289 Q280 298 289 298 L551 298 Q560 298 560 307 L560 357"/><polygon class="dg-head" points="560,362 564.5,352.5 555.5,352.5"/></g><g class="dg-trg"><path class="dg-tr" d="M500 397 L365 397"/><polygon class="dg-head" points="360,397 369.5,401.5 369.5,392.5"/></g><g class="dg-trg dg-trk-ok"><path class="dg-tr" d="M140 362 L140 187"/><polygon class="dg-head" points="140,182 135.5,191.5 144.5,191.5"/></g><g class="dg-trg"><path class="dg-tr" d="M110 432 L110 451 Q110 460 119 460 L191 460 Q200 460 200 451 L200 437"/><polygon class="dg-head" points="200,432 195.5,441.5 204.5,441.5"/></g><g class="dg-state dg-k-ok" data-state="X1"><rect class="dg-st-rect" x="60" y="112" width="300" height="70" rx="9"/><rect class="dg-st-chip" x="70" y="121" width="27.2" height="19" rx="4"/><text class="dg-st-chiptext" x="83.6" y="134.5" text-anchor="middle">X1</text><text class="dg-st-title" x="105.2" y="135.5">NORMAL</text><text class="dg-st-do" x="72" y="157">All checkpoints agree</text><text class="dg-st-do" x="72" y="172">stack light <tspan class="dg-tag">LT-01</tspan> green</text></g><g class="dg-state dg-k-warn" data-state="X2"><rect class="dg-st-rect" x="500" y="112" width="300" height="70" rx="9"/><rect class="dg-st-chip" x="510" y="121" width="27.2" height="19" rx="4"/><text class="dg-st-chiptext" x="523.6" y="134.5" text-anchor="middle">X2</text><text class="dg-st-title" x="545.2" y="135.5">MISMATCH WARNING</text><text class="dg-st-do" x="512" y="157">1–2 mismatches in the last 10 min</text><text class="dg-st-do" x="512" y="172">camera value used · amber flashing</text></g><g class="dg-state dg-k-stop" data-state="X3"><rect class="dg-st-rect" x="500" y="362" width="300" height="70" rx="9"/><rect class="dg-st-chip" x="510" y="371" width="27.2" height="19" rx="4"/><text class="dg-st-chiptext" x="523.6" y="384.5" text-anchor="middle">X3</text><text class="dg-st-title" x="545.2" y="385.5">LINE STOP</text><text class="dg-st-do" x="512" y="407">Controlled stop: CNC ends its cycle,</text><text class="dg-st-do" x="512" y="422">robots park, belt stops · red light</text></g><g class="dg-state dg-k-check" data-state="X4"><rect class="dg-st-rect" x="60" y="362" width="300" height="70" rx="9"/><rect class="dg-st-chip" x="70" y="371" width="27.2" height="19" rx="4"/><text class="dg-st-chiptext" x="83.6" y="384.5" text-anchor="middle">X4</text><text class="dg-st-title" x="105.2" y="385.5">SENSOR VERIFICATION</text><text class="dg-st-do" x="72" y="407">Technician cleans and aligns sensors,</text><text class="dg-st-do" x="72" y="422">tests each CP, checks camera calibration</text></g><circle class="dg-init" cx="30" cy="90" r="7.5"/><rect class="dg-note-rect" x="500" y="454" width="300" height="66" rx="6"/><text class="dg-note" x="512" y="477"><tspan class="dg-b">The camera never overrides safety:</tspan></text><text class="dg-note" x="512" y="493">door interlock, E-stops and scanners</text><text class="dg-note" x="512" y="509">stay hardwired to the safety relay.</text><text class="dg-guard dg-halo" x="430" y="121.5" text-anchor="middle"><tspan x="430">mismatch at any CP</tspan></text><text class="dg-guard dg-halo" x="430" y="188" text-anchor="middle"><tspan x="430">no mismatch for</tspan><tspan x="430" dy="15">10 min (window empty)</tspan></text><text class="dg-guard dg-halo" x="760" y="80.5" text-anchor="middle"><tspan x="760">mismatch, count &lt; 3</tspan></text><text class="dg-guard dg-halo" x="650" y="269" text-anchor="middle"><tspan x="650">3rd mismatch</tspan><tspan x="650" dy="15">within 10 min</tspan></text><text class="dg-guard dg-halo" x="420" y="302.5" text-anchor="middle"><tspan x="420">camera fault (after 1 retry)</tspan></text><text class="dg-guard dg-halo" x="430" y="424" text-anchor="middle"><tspan x="430">all stopped · technician</tspan><tspan x="430" dy="15">starts the check</tspan></text><text class="dg-guard dg-halo" x="140" y="251.5" text-anchor="middle"><tspan x="140">all CP tests pass ·</tspan><tspan x="140" dy="15">operator reset →</tspan><tspan x="140" dy="15">counter cleared</tspan></text><text class="dg-guard dg-halo" x="155" y="480.5" text-anchor="middle"><tspan x="155">test fails → repair or replace the sensor, re-test</tspan></text></svg>

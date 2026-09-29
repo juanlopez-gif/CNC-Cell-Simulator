@@ -1,0 +1,14 @@
+{
+  "name": "week2-sensors-design",
+  "private": true,
+  "description": "Build scripts for the diagrams, the simulator and the Word report",
+  "scripts": {
+    "diagrams": "node render.js out",
+    "sim": "node build_sim.js",
+    "report": "node build_report.js"
+  },
+  "dependencies": {
+    "docx": "^9.8.1",
+    "puppeteer-core": "^25.12.0"
+  }
+}

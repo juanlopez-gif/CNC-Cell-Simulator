@@ -1,0 +1,119 @@
+<svg xmlns="http://www.w3.org/2000/svg" class="dg-root" viewBox="0 0 844 1293" width="844" height="1293" font-family="'Barlow', 'Segoe UI', Arial, sans-serif" role="img" aria-label="State diagram: Robot 1 + CNC (Setup 1, single gripper)"><style>
+.dg-root{font-family:'Barlow','Segoe UI',Arial,sans-serif}
+.dg-bg{fill:var(--dg-bg,#ffffff)}
+.dg-title{font-family:'Barlow Semi Condensed','Barlow','Segoe UI',sans-serif;font-weight:700;font-size:20px;fill:var(--dg-ink,#14202b)}
+.dg-sub{font-size:13px;fill:var(--dg-muted,#56636f)}
+.dg-st-rect{fill:var(--dg-st,#f2f5f8);stroke:var(--dg-line,#2f3e4d);stroke-width:1.5}
+.dg-st-title{font-family:'Barlow Semi Condensed','Barlow','Segoe UI',sans-serif;font-weight:700;font-size:14.5px;fill:var(--dg-ink,#14202b);letter-spacing:.04em}
+.dg-st-do{font-size:12.5px;fill:var(--dg-soft,#3a4754)}
+.dg-st-chip{fill:var(--dg-line,#2f3e4d)}
+.dg-st-chiptext{font-family:'IBM Plex Mono',Consolas,monospace;font-weight:600;font-size:11px;fill:var(--dg-chipink,#ffffff)}
+.dg-tr{fill:none;stroke:var(--dg-arrow,#56636f);stroke-width:1.5}
+.dg-head{fill:var(--dg-arrow,#56636f)}
+.dg-dash{stroke-dasharray:5 4}
+.dg-trk-fault .dg-tr{stroke:var(--dg-red,#c62828)} .dg-trk-fault .dg-head{fill:var(--dg-red,#c62828)}
+.dg-trk-hold .dg-tr{stroke:var(--dg-amber,#b7791f)} .dg-trk-hold .dg-head{fill:var(--dg-amber,#b7791f)}
+.dg-trk-ok .dg-tr{stroke:var(--dg-green,#1e7d45)} .dg-trk-ok .dg-head{fill:var(--dg-green,#1e7d45)}
+.dg-guard{font-size:12.5px;fill:var(--dg-ink2,#1f2a35)}
+.dg-halo{paint-order:stroke;stroke:var(--dg-bg,#ffffff);stroke-width:5px;stroke-linejoin:round}
+.dg-tag{font-family:'IBM Plex Mono',Consolas,monospace;font-size:11.5px;font-weight:500;fill:var(--dg-blue,#0b5aa6)}
+.dg-cp{font-weight:700;fill:var(--dg-cp,#7b3fb5)}
+.dg-b{font-weight:700}
+.dg-small{font-size:11.5px}
+.dg-init{fill:var(--dg-line,#2f3e4d)}
+.dg-k-wait .dg-st-rect{stroke-dasharray:5 3}
+.dg-k-fault .dg-st-rect{fill:var(--dg-red-t,#fdeceb);stroke:var(--dg-red,#c62828)} .dg-k-fault .dg-st-chip{fill:var(--dg-red,#c62828)}
+.dg-k-hold .dg-st-rect{fill:var(--dg-amber-t,#fff4de);stroke:var(--dg-amber,#b7791f)} .dg-k-hold .dg-st-chip{fill:var(--dg-amber,#b7791f)}
+.dg-k-ok .dg-st-rect{fill:var(--dg-green-t,#e7f5ec);stroke:var(--dg-green,#1e7d45)} .dg-k-ok .dg-st-chip{fill:var(--dg-green,#1e7d45)}
+.dg-k-warn .dg-st-rect{fill:var(--dg-amber-t,#fff4de);stroke:var(--dg-amber,#b7791f)} .dg-k-warn .dg-st-chip{fill:var(--dg-amber,#b7791f)}
+.dg-k-stop .dg-st-rect{fill:var(--dg-red-t,#fdeceb);stroke:var(--dg-red,#c62828)} .dg-k-stop .dg-st-chip{fill:var(--dg-red,#c62828)}
+.dg-k-op .dg-st-rect{fill:var(--dg-blue-t,#e6effa);stroke:var(--dg-blue,#0b5aa6)} .dg-k-op .dg-st-chip{fill:var(--dg-blue,#0b5aa6)}
+.dg-k-check .dg-st-rect{fill:var(--dg-cp-t,#f3ecfa);stroke:var(--dg-cp,#7b3fb5)} .dg-k-check .dg-st-chip{fill:var(--dg-cp,#7b3fb5)}
+.dg-band{stroke:none}
+.dg-band-idle{fill:var(--dg-amber-b,#fff5e0)} .dg-band-run{fill:var(--dg-blue-b,#e9f1fb)}
+.dg-band-stop{fill:var(--dg-green-b,#eaf6ee)} .dg-band-move{fill:var(--dg-gray-b,#eef1f4)}
+.dg-band-label{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:11.5px;letter-spacing:.08em;fill:var(--dg-muted,#56636f)}
+.dg-band-label.idle{fill:var(--dg-amber-d,#9a6212)} .dg-band-label.run{fill:var(--dg-blue,#0b5aa6)} .dg-band-label.stop{fill:var(--dg-green,#1e7d45)}
+.dg-note-rect{fill:var(--dg-note,#f6f7f9);stroke:var(--dg-rule,#c4ccd4);stroke-width:1}
+.dg-note{font-size:12.5px;fill:var(--dg-soft,#3a4754)}
+.dg-choice{fill:var(--dg-st,#f2f5f8);stroke:var(--dg-line,#2f3e4d);stroke-width:1.5}
+.dg-choice-t{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:13.5px;fill:var(--dg-ink,#14202b)}
+.dg-node{fill:var(--dg-st,#f2f5f8);stroke:var(--dg-line,#2f3e4d);stroke-width:1.4}
+.dg-node.ok{fill:var(--dg-green-t,#e7f5ec);stroke:var(--dg-green,#1e7d45)}
+.dg-node.warn{fill:var(--dg-amber-t,#fff4de);stroke:var(--dg-amber,#b7791f)}
+.dg-node.stop{fill:var(--dg-red-t,#fdeceb);stroke:var(--dg-red,#c62828)}
+.dg-node.check{fill:var(--dg-cp-t,#f3ecfa);stroke:var(--dg-cp,#7b3fb5)}
+.dg-node.op{fill:var(--dg-blue-t,#e6effa);stroke:var(--dg-blue,#0b5aa6)}
+.dg-node-t{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:14px;fill:var(--dg-ink,#14202b)}
+.dg-node-s{font-size:12.5px;fill:var(--dg-soft,#3a4754)}
+.dg-owner{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:10.5px;letter-spacing:.08em;fill:#ffffff}
+.dg-owner-r{fill:#2f3e4d}
+.dg-owner-r.op,.dg-owner-r.light{fill:#0b5aa6} .dg-owner-r.cnc{fill:#a0521d} .dg-owner-r.conv{fill:#2f6f5e} .dg-owner-r.r2{fill:#806000}
+.dg-owner-r.cam{fill:#7b3fb5} .dg-owner-r.gauge{fill:#a33a3a} .dg-owner-r.ok{fill:#1e7d45} .dg-owner-r.nok{fill:#c62828}
+.dg-conn{fill:var(--dg-bg,#ffffff);stroke:var(--dg-line,#2f3e4d);stroke-width:1.5}
+.dg-conn-t{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:13px;fill:var(--dg-ink,#14202b)}
+.dg-num{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:14px;fill:var(--dg-muted,#56636f)}
+.dg-active .dg-st-rect,.dg-active .dg-node,.dg-active .dg-choice{stroke:var(--dg-active,#0a66e8);stroke-width:3.2;fill:var(--dg-active-t,#dde9fc)}
+.dg-active .dg-st-chip{fill:var(--dg-active,#0a66e8)}
+.dg-flash .dg-tr{stroke:var(--dg-active,#0a66e8);stroke-width:3} .dg-flash .dg-head{fill:var(--dg-active,#0a66e8)}
+/* layout drawing */
+.ly-fence{fill:none;stroke:var(--dg-rule,#aab4be);stroke-width:1.3;stroke-dasharray:2 5}
+.ly-aisle{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:11px;letter-spacing:.14em;fill:var(--dg-muted,#56636f)}
+.ly-mach{fill:var(--ly-mach,#dfe5ea);stroke:var(--dg-line,#2f3e4d);stroke-width:1.6}
+.ly-mach-in{fill:var(--ly-mach-in,#eef2f5);stroke:var(--ly-rule2,#9aa6b1);stroke-width:1}
+.ly-pallet{fill:var(--ly-pallet,#e9dcc6);stroke:var(--ly-pallet-s,#8a6d3b);stroke-width:1.5}
+.ly-slot{fill:none;stroke:var(--ly-slot,#b39a6e);stroke-width:.9;stroke-dasharray:2 2}
+.ly-part{fill:var(--ly-raw,#a9b2ba);stroke:var(--ly-raw-s,#56626c);stroke-width:1.1}
+.ly-part.fin{fill:var(--ly-fin,#dfe8f0);stroke:var(--ly-fin-s,#43698c)}
+.ly-part.nok{stroke:var(--dg-red,#c62828);stroke-width:2.2}
+.ly-pocket{fill:none;stroke:var(--ly-fin-s,#43698c);stroke-width:.9}
+.ly-belt{fill:var(--ly-belt,#39414a)}
+.ly-frame{fill:var(--ly-frame,#8d98a3)}
+.ly-roller{stroke:var(--ly-roller,#5b646d);stroke-width:1.1}
+.ly-stop{fill:var(--dg-red,#c62828)}
+.ly-robot{fill:var(--ly-robot,#2c4a66);stroke:var(--ly-robot-s,#15283a);stroke-width:1.5}
+.ly-robot-t{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:11.5px;fill:#ffffff;letter-spacing:.04em}
+.ly-link{stroke:var(--ly-link,#5f7d99);stroke-width:13;stroke-linecap:round;fill:none}
+.ly-link2{stroke:var(--ly-link2,#7f9ab3);stroke-width:10;stroke-linecap:round;fill:none}
+.ly-joint{fill:var(--ly-joint,#243a52)}
+.ly-finger{stroke:var(--ly-joint,#243a52);stroke-width:3.2;stroke-linecap:round}
+.ly-door{fill:var(--ly-door,#6f8193);stroke:var(--dg-line,#2f3e4d);stroke-width:1}
+.ly-track{stroke:var(--ly-rule2,#9aa6b1);stroke-width:1.1;stroke-dasharray:3 3}
+.ly-handle{fill:var(--dg-line,#2f3e4d)}
+.ly-label{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:14px;fill:var(--dg-ink,#14202b);letter-spacing:.05em}
+.ly-sub{font-size:11.5px;fill:var(--dg-soft,#3a4754)}
+.ly-tag{font-family:'IBM Plex Mono',Consolas,monospace;font-size:11px;font-weight:600;fill:var(--dg-blue,#0b5aa6)}
+.ly-tag.cam{fill:var(--dg-cp,#7b3fb5)} .ly-tag.saf{fill:var(--ly-safety,#946c00)}
+.ly-sens{fill:var(--dg-bg,#ffffff);stroke:var(--dg-blue,#0b5aa6);stroke-width:1.6}
+.ly-sens.safety{stroke:var(--ly-safety,#c79400)}
+.ly-led{fill:var(--ly-led-off,#c3cad1)}
+.ly-led.on{fill:var(--ly-led-on,#1ea453)}
+.ly-led.bad{fill:var(--dg-red,#d32f2f)}
+.ly-beam{stroke:var(--ly-beam,#d33b3b);stroke-width:1.1;stroke-dasharray:2 3;opacity:.8}
+.ly-fov{fill:var(--ly-fov,rgba(123,63,181,.045));stroke:var(--dg-cp,#7b3fb5);stroke-width:1.3;stroke-dasharray:7 4}
+.ly-roi{fill:none;stroke:var(--dg-cp,#7b3fb5);stroke-width:1.1;stroke-dasharray:2 2}
+.ly-roi-t{font-family:'IBM Plex Mono',Consolas,monospace;font-size:10px;font-weight:600;fill:var(--dg-cp,#7b3fb5)}
+.ly-roi-t.on-belt{fill:#d9c5f5}
+.ly-cam{fill:var(--dg-cp,#7b3fb5)}
+.ly-nok{fill:var(--ly-nok,#fbe3e1);stroke:var(--dg-red,#c62828);stroke-width:1.6}
+.ly-nok-h{stroke:var(--dg-red,#c62828);stroke-width:.9;opacity:.35}
+.ly-gauge{fill:var(--ly-gauge,#e9eef3);stroke:var(--dg-line,#2f3e4d);stroke-width:1.5}
+.ly-datum{fill:var(--dg-line,#2f3e4d)}
+.ly-laser{fill:var(--dg-red,#c62828)}
+.ly-cab{fill:var(--ly-mach,#dfe5ea);stroke:var(--dg-line,#2f3e4d);stroke-width:1.3}
+.ly-lamp-r{fill:#d32f2f} .ly-lamp-a{fill:#f2a900} .ly-lamp-g{fill:#1e9e52} .ly-lamp-b{fill:#1565c0}
+.ly-lamp-off{opacity:.2}
+.ly-scan{fill:var(--ly-scan,rgba(199,148,0,.09));stroke:var(--ly-safety,#c79400);stroke-width:1.1;stroke-dasharray:3 3}
+.ly-flow{fill:none;stroke:#ffffff;stroke-width:1.8;opacity:.75}
+.ly-note{font-size:11.5px;font-style:italic;fill:var(--dg-muted,#56636f)}
+.ly-legend{font-size:12px;fill:var(--dg-soft,#3a4754)}
+/* timing chart */
+.gt-grid{stroke:var(--dg-rule,#d5dbe1);stroke-width:1}
+.gt-axis{font-size:11.5px;fill:var(--dg-muted,#56636f)}
+.gt-row{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:13.5px;fill:var(--dg-ink,#14202b)}
+.gt-bar-t{font-size:11.5px;fill:#ffffff;font-weight:600}
+.gt-bar-t.dark{fill:var(--dg-ink,#14202b)}
+.gt-mach{fill:#3f73b5} .gt-idle{fill:#e3a21a} .gt-door{fill:#2f3e4d} .gt-move{fill:#7d8b98} .gt-wait{fill:var(--dg-gray-b,#eef1f4);stroke:var(--dg-rule,#c4ccd4)} .gt-belt{fill:#2f6f5e} .gt-gauge{fill:#a33a3a}
+.gt-kpi{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:15px;fill:var(--dg-ink,#14202b)}
+.gt-break{fill:var(--dg-bg,#ffffff);stroke:var(--dg-muted,#56636f);stroke-width:1.2}
+</style><rect class="dg-bg" x="0" y="0" width="844" height="1293"/><text class="dg-title" x="20" y="36">State diagram: Robot 1 + CNC (Setup 1, single gripper)</text><text class="dg-sub" x="20" y="58">Arrow label = the confirmation that allows the transition · <tspan class="dg-tag">TAG</tspan> sensor · <tspan class="dg-cp">CP-n</tspan> camera + proximity cross-check</text><rect class="dg-band dg-band-run" x="100" y="238" width="408" height="86" rx="7"/><text class="dg-band-label run" x="490" y="281" text-anchor="middle" transform="rotate(-90 490 281)" dy="4">MACHINING</text><rect class="dg-band dg-band-idle" x="100" y="364" width="408" height="797" rx="7"/><text class="dg-band-label idle" x="490" y="999.5" text-anchor="middle" transform="rotate(-90 490 999.5)" dy="4">CNC IDLE ≈ 36.5 s</text><g class="dg-trg"><path class="dg-tr" d="M290 93 L290 130"/><polygon class="dg-head" points="290,135 294.5,125.5 285.5,125.5"/></g><g class="dg-trg"><path class="dg-tr" d="M290 205 L290 241"/><polygon class="dg-head" points="290,246 294.5,236.5 285.5,236.5"/></g><g class="dg-trg"><path class="dg-tr" d="M290 316 L290 367"/><polygon class="dg-head" points="290,372 294.5,362.5 285.5,362.5"/></g><g class="dg-trg"><path class="dg-tr" d="M290 442 L290 478"/><polygon class="dg-head" points="290,483 294.5,473.5 285.5,473.5"/></g><g class="dg-trg"><path class="dg-tr" d="M290 553 L290 604"/><polygon class="dg-head" points="290,609 294.5,599.5 285.5,599.5"/></g><g class="dg-trg"><path class="dg-tr" d="M290 679 L290 730"/><polygon class="dg-head" points="290,735 294.5,725.5 285.5,725.5"/></g><g class="dg-trg"><path class="dg-tr" d="M290 805 L290 841"/><polygon class="dg-head" points="290,846 294.5,836.5 285.5,836.5"/></g><g class="dg-trg"><path class="dg-tr" d="M290 916 L290 967"/><polygon class="dg-head" points="290,972 294.5,962.5 285.5,962.5"/></g><g class="dg-trg"><path class="dg-tr" d="M290 1042 L290 1078"/><polygon class="dg-head" points="290,1083 294.5,1073.5 285.5,1073.5"/></g><g class="dg-trg"><path class="dg-tr" d="M290 1153 L290 1174 Q290 1183 281 1183 L47 1183 Q38 1183 38 1174 L38 300 Q38 291 47 291 L105 291"/><polygon class="dg-head" points="110,291 100.5,286.5 100.5,295.5"/></g><g class="dg-trg"><path class="dg-tr" d="M110 407 L79 407 Q70 407 70 416 L70 751 Q70 760 79 760 L105 760"/><polygon class="dg-head" points="110,760 100.5,755.5 100.5,764.5"/></g><g class="dg-trg"><path class="dg-tr" d="M470 758 L569 758"/><polygon class="dg-head" points="574,758 564.5,753.5 564.5,762.5"/></g><g class="dg-trg"><path class="dg-tr" d="M574 784 L475 784"/><polygon class="dg-head" points="470,784 479.5,788.5 479.5,779.5"/></g><g class="dg-trg dg-trk-fault"><path class="dg-tr dg-dash" d="M540 170 L569 170"/><polygon class="dg-head" points="574,170 564.5,165.5 564.5,174.5"/></g><g class="dg-trg dg-trk-hold"><path class="dg-tr dg-dash" d="M540 256 L569 256"/><polygon class="dg-head" points="574,256 564.5,251.5 564.5,260.5"/></g><circle class="dg-init" cx="290" cy="86" r="7.5"/><g class="dg-state" data-state="A0"><rect class="dg-st-rect" x="110" y="135" width="360" height="70" rx="9"/><rect class="dg-st-chip" x="120" y="144" width="27.2" height="19" rx="4"/><text class="dg-st-chiptext" x="133.6" y="157.5" text-anchor="middle">A0</text><text class="dg-st-title" x="155.2" y="158.5">START-UP CHECKS</text><text class="dg-st-do" x="122" y="180">Home robot · check CNC ready, door closed</text><text class="dg-st-do" x="122" y="195">(<tspan class="dg-tag">ZS-32</tspan>) and fixture state (<tspan class="dg-tag">PS-36</tspan>)</text></g><g class="dg-state" data-state="A1"><rect class="dg-st-rect" x="110" y="246" width="360" height="70" rx="9"/><rect class="dg-st-chip" x="120" y="255" width="27.2" height="19" rx="4"/><text class="dg-st-chiptext" x="133.6" y="268.5" text-anchor="middle">A1</text><text class="dg-st-title" x="155.2" y="269.5">WAIT FOR CNC</text><text class="dg-st-do" x="122" y="291">Robot parked at home, clear of CNC and</text><text class="dg-st-do" x="122" y="306">conveyor · CNC machining the part (120 s)</text></g><g class="dg-state" data-state="A2"><rect class="dg-st-rect" x="110" y="372" width="360" height="70" rx="9"/><rect class="dg-st-chip" x="120" y="381" width="27.2" height="19" rx="4"/><text class="dg-st-chiptext" x="133.6" y="394.5" text-anchor="middle">A2</text><text class="dg-st-title" x="155.2" y="395.5">OPEN CNC DOOR</text><text class="dg-st-do" x="122" y="417">Empty gripper grips the door handle, slides</text><text class="dg-st-do" x="122" y="432">the door open, releases it, retracts</text></g><g class="dg-state" data-state="A3"><rect class="dg-st-rect" x="110" y="483" width="360" height="70" rx="9"/><rect class="dg-st-chip" x="120" y="492" width="27.2" height="19" rx="4"/><text class="dg-st-chiptext" x="133.6" y="505.5" text-anchor="middle">A3</text><text class="dg-st-title" x="155.2" y="506.5">UNLOAD CNC</text><text class="dg-st-do" x="122" y="528">Enter · grip finished part · open vise ·</text><text class="dg-st-do" x="122" y="543">lift the part out · exit the machine</text></g><g class="dg-state" data-state="A4"><rect class="dg-st-rect" x="110" y="609" width="360" height="70" rx="9"/><rect class="dg-st-chip" x="120" y="618" width="27.2" height="19" rx="4"/><text class="dg-st-chiptext" x="133.6" y="631.5" text-anchor="middle">A4</text><text class="dg-st-title" x="155.2" y="632.5">PLACE ON CONVEYOR</text><text class="dg-st-do" x="122" y="654">Wait for belt stopped (<tspan class="dg-tag">ENC-43</tspan> = 0) and</text><text class="dg-st-do" x="122" y="669">entry clear (<tspan class="dg-cp">CP-2</tspan>) · place · release</text></g><g class="dg-state" data-state="A5"><rect class="dg-st-rect" x="110" y="735" width="360" height="70" rx="9"/><rect class="dg-st-chip" x="120" y="744" width="27.2" height="19" rx="4"/><text class="dg-st-chiptext" x="133.6" y="757.5" text-anchor="middle">A5</text><text class="dg-st-title" x="155.2" y="758.5">PICK RAW PART</text><text class="dg-st-do" x="122" y="780"><tspan class="dg-cp">CP-1</tspan> pallet present (<tspan class="dg-tag">PX-11</tspan> + <tspan class="dg-tag">CAM-1</tspan>) ·</text><text class="dg-st-do" x="122" y="795"><tspan class="dg-tag">CAM-1</tspan> gives the pick pose · pick</text></g><g class="dg-state" data-state="A6"><rect class="dg-st-rect" x="110" y="846" width="360" height="70" rx="9"/><rect class="dg-st-chip" x="120" y="855" width="27.2" height="19" rx="4"/><text class="dg-st-chiptext" x="133.6" y="868.5" text-anchor="middle">A6</text><text class="dg-st-title" x="155.2" y="869.5">LOAD CNC</text><text class="dg-st-do" x="122" y="891">Enter · place part in the vise · clamp ·</text><text class="dg-st-do" x="122" y="906">open gripper · exit the machine</text></g><g class="dg-state" data-state="A7"><rect class="dg-st-rect" x="110" y="972" width="360" height="70" rx="9"/><rect class="dg-st-chip" x="120" y="981" width="27.2" height="19" rx="4"/><text class="dg-st-chiptext" x="133.6" y="994.5" text-anchor="middle">A7</text><text class="dg-st-title" x="155.2" y="995.5">CLOSE CNC DOOR</text><text class="dg-st-do" x="122" y="1017">Empty gripper slides the door closed,</text><text class="dg-st-do" x="122" y="1032">releases the handle, moves home</text></g><g class="dg-state" data-state="A8"><rect class="dg-st-rect" x="110" y="1083" width="360" height="70" rx="9"/><rect class="dg-st-chip" x="120" y="1092" width="27.2" height="19" rx="4"/><text class="dg-st-chiptext" x="133.6" y="1105.5" text-anchor="middle">A8</text><text class="dg-st-title" x="155.2" y="1106.5">START CYCLE</text><text class="dg-st-do" x="122" y="1128">Send CYCLE START through the CNC</text><text class="dg-st-do" x="122" y="1143">robot interface</text></g><g class="dg-state dg-k-op" data-state="W1"><rect class="dg-st-rect" x="574" y="735" width="250" height="70" rx="9"/><rect class="dg-st-chip" x="584" y="744" width="27.2" height="19" rx="4"/><text class="dg-st-chiptext" x="597.6" y="757.5" text-anchor="middle">W1</text><text class="dg-st-title" x="619.2" y="758.5">WAIT FOR INPUT PALLET</text><text class="dg-st-do" x="586" y="780">HMI: "Load input pallet"</text><text class="dg-st-do" x="586" y="795">amber light · robot waits</text></g><g class="dg-state dg-k-fault" data-state="F"><rect class="dg-st-rect" x="574" y="135" width="250" height="70" rx="9"/><rect class="dg-st-chip" x="584" y="144" width="19.6" height="19" rx="4"/><text class="dg-st-chiptext" x="593.8" y="157.5" text-anchor="middle">F</text><text class="dg-st-title" x="611.6" y="158.5">FAULT</text><text class="dg-st-do" x="586" y="180">From any state: timeout or a</text><text class="dg-st-do" x="586" y="195">missing confirmation · red light</text></g><g class="dg-state dg-k-hold" data-state="H"><rect class="dg-st-rect" x="574" y="221" width="250" height="70" rx="9"/><rect class="dg-st-chip" x="584" y="230" width="19.6" height="19" rx="4"/><text class="dg-st-chiptext" x="593.8" y="243.5" text-anchor="middle">H</text><text class="dg-st-title" x="611.6" y="244.5">HOLD (LINE STOP)</text><text class="dg-st-do" x="586" y="266">LINE STOP: finish the step,</text><text class="dg-st-do" x="586" y="281">park, wait for the reset</text></g><rect class="dg-note-rect" x="20" y="1209" width="804" height="66" rx="6"/><text class="dg-note" x="32" y="1232"><tspan class="dg-b">F FAULT</tspan> and <tspan class="dg-b">H HOLD</tspan> can be entered from any state. FAULT = a confirmation is missing or a timeout</text><text class="dg-note" x="32" y="1248">expired (the alarm names the sensor, no automatic robot retries). HOLD = LINE STOP from the cross-check</text><text class="dg-note" x="32" y="1264">supervisor: the current step is finished, the robot parks, and it resumes at the same step after the reset.</text><text class="dg-guard dg-halo" x="290" y="118.5" text-anchor="middle"><tspan x="290">Auto mode ON</tspan></text><text class="dg-guard dg-halo" x="290" y="230" text-anchor="middle"><tspan x="290">Robot home · CNC ready · <tspan class="dg-tag">ZS-32</tspan> door closed</tspan></text><text class="dg-guard dg-halo" x="290" y="341" text-anchor="middle"><tspan x="290">CNC cycle complete (M30) · spindle stopped</tspan><tspan x="290" dy="15"><tspan class="dg-tag">ZS-33</tspan> guard lock released</tspan></text><text class="dg-guard dg-halo" x="290" y="467" text-anchor="middle"><tspan x="290"><tspan class="dg-tag">ZS-31</tspan> door open = ON · <tspan class="dg-tag">ZS-32</tspan> = OFF</tspan></text><text class="dg-guard dg-halo" x="290" y="578" text-anchor="middle"><tspan x="290"><tspan class="dg-tag">GR-21</tspan> grip OK · <tspan class="dg-tag">ZS-34</tspan> vise open</tspan><tspan x="290" dy="15"><tspan class="dg-tag">PS-36</tspan> = OFF (fixture empty) · R1 clear of CNC</tspan></text><text class="dg-guard dg-halo" x="290" y="704" text-anchor="middle"><tspan x="290"><tspan class="dg-cp">CP-2</tspan> part present (<tspan class="dg-tag">PE-41</tspan> + <tspan class="dg-tag">CAM-1</tspan>)</tspan><tspan x="290" dy="15">R1 clear of conveyor</tspan></text><text class="dg-guard dg-halo" x="290" y="830" text-anchor="middle"><tspan x="290"><tspan class="dg-tag">GR-21</tspan> grip OK · <tspan class="dg-tag">CAM-1</tspan> slot now empty</tspan></text><text class="dg-guard dg-halo" x="290" y="941" text-anchor="middle"><tspan x="290"><tspan class="dg-tag">ZS-35</tspan> clamped · <tspan class="dg-tag">PS-36</tspan> part seated</tspan><tspan x="290" dy="15">gripper open · R1 clear of CNC</tspan></text><text class="dg-guard dg-halo" x="290" y="1067" text-anchor="middle"><tspan x="290"><tspan class="dg-tag">ZS-32</tspan> door closed = ON · <tspan class="dg-tag">ZS-33</tspan> locked</tspan></text><text class="dg-guard dg-halo" x="188" y="1187.5" text-anchor="middle"><tspan x="188">CNC in cycle</tspan></text><text class="dg-guard dg-halo" x="70" y="593" text-anchor="middle" transform="rotate(-90 70 588.5)"><tspan x="70">CNC empty (first cycle)</tspan></text><text class="dg-guard dg-halo" x="541" y="727" text-anchor="middle"><tspan x="541">no parts left</tspan><tspan x="541" dy="15">(<tspan class="dg-tag">CAM-1</tspan>)</tspan></text><text class="dg-guard dg-halo" x="541" y="809" text-anchor="middle"><tspan x="541">pallet loaded</tspan><tspan x="541" dy="15"><tspan class="dg-cp">CP-1</tspan> OK</tspan></text></svg>
