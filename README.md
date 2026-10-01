@@ -29,20 +29,22 @@ is reachable), `node test_sim.js conform` (20 h of simulated operation with rand
 state change must be a transition of the model, every job must take its model time, no property may
 be violated, and without faults the CNC idle time must equal the KPI) and `node verify.js` (every
 reachable state of the abstract model, nominal and with sensor or process faults; see
-`verification/results.md`).
+`verification/results.md`). All 13 properties hold in all six verification runs (up to 14.7 million
+states) and there is no deadlock. The `.smv` files have not been run through NuSMV yet.
 
-These checks found five design errors in the original state machines, all fixed in the model:
+These checks found five problems, all fixed in the model:
 
-1. After a line stop the conveyor entered C5 again and re-checked a part that Robot 2 had already
-   picked, which caused a chain of faults (random simulation run).
-2. Robot 1 could place a second part while the previous one still waited at the conveyor entry; the
-   old simulation hid this because it read the true part position instead of a PLC signal (random run).
-3. The cycle-start handshake waited for the short "CNC in cycle" signal; missing it meant a deadlock
-   (verifier). Robot 1 now accepts "in cycle or cycle complete".
-4. Robot 2 read a CP-3 result that the conveyor had overwritten, and stopped (verifier). Each machine
-   now uses only its own check results.
-5. Robot 2 did not consume the "pick allowed" signal and could try a second pick at an empty exit
-   (verifier).
+- Two latent problems of the original design, hidden by the timing of the simulation (found by the
+  verifier): the cycle-start handshake waited for the short "CNC in cycle" signal, and Robot 2 did
+  not consume the "pick allowed" signal, so it could try a second pick at an empty exit. Robot 1 now
+  accepts "in cycle or cycle complete" and Robot 2 clears "pick allowed" when it reports the pick.
+- One rule the original design left open: "wait until CP-2 shows the entry clear". The old
+  simulation waited on the true part position, which a PLC cannot read. Robot 1 now waits until the
+  conveyor has taken over the previous part (found by the random simulation run).
+- Two errors of the first version of the model, caught before release: after a line stop the
+  conveyor re-checked a part that Robot 2 had already picked (too general hold rule, random run), and
+  one machine read a check result written by another one (verifier). The conveyor now waits through
+  a line stop in C1 and C5, and each machine uses only its own checks.
 
 The Word report and the PDFs are the versions of `main`; they were not regenerated on this branch.
 

@@ -1,0 +1,759 @@
+[
+ {
+  "tag": "setup1_none",
+  "setup": 1,
+  "faults": "none",
+  "vars": 36,
+  "commands": 229,
+  "smv": "cell_setup1_none.smv",
+  "states": 55600,
+  "edges": 214365,
+  "seconds": 1.117,
+  "deadlocks": 0,
+  "deadlock": null,
+  "unreached": {
+   "R1": [
+    "H",
+    "F"
+   ],
+   "CONV": [
+    "H",
+    "F"
+   ],
+   "R2": [
+    "H"
+   ],
+   "SUP": [
+    "X2",
+    "X3",
+    "X4"
+   ]
+  },
+  "props": [
+   {
+    "id": "P1",
+    "text": "No robot is at the conveyor while the belt moves",
+    "kind": "never",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P2",
+    "text": "CYCLE START only with the door closed and the guard locked",
+    "kind": "start",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P3",
+    "text": "Robot 1 is inside the CNC only with the door open and the spindle stopped",
+    "kind": "never",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P4",
+    "text": "The door is opened only after the cycle, with the guard lock released",
+    "kind": "start",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P5",
+    "text": "A part is placed on the conveyor only at a free entry of a stopped belt",
+    "kind": "start",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P6",
+    "text": "Robot 2 places a part only on an output pallet that is in place and not full",
+    "kind": "start",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P9",
+    "text": "Three mismatches in the window always stop the line",
+    "kind": "never",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P10",
+    "text": "A camera fault always stops the line",
+    "kind": "never",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "L1",
+    "text": "A new CNC cycle can always be started again",
+    "kind": "eventually",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "L2",
+    "text": "Robot 2 can always deliver a part again",
+    "kind": "eventually",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "L3",
+    "text": "After any stop the supervisor can return to NORMAL",
+    "kind": "eventually",
+    "ok": true,
+    "trace": null,
+    "state": null
+   }
+  ]
+ },
+ {
+  "tag": "setup1_sensor",
+  "setup": 1,
+  "faults": "sensor",
+  "vars": 36,
+  "commands": 254,
+  "smv": "cell_setup1_sensor.smv",
+  "states": 3359887,
+  "edges": 14235656,
+  "seconds": 108.543,
+  "deadlocks": 0,
+  "deadlock": null,
+  "unreached": {
+   "R1": [
+    "F"
+   ],
+   "CONV": [
+    "F"
+   ],
+   "R2": [],
+   "SUP": []
+  },
+  "props": [
+   {
+    "id": "P1",
+    "text": "No robot is at the conveyor while the belt moves",
+    "kind": "never",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P2",
+    "text": "CYCLE START only with the door closed and the guard locked",
+    "kind": "start",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P3",
+    "text": "Robot 1 is inside the CNC only with the door open and the spindle stopped",
+    "kind": "never",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P4",
+    "text": "The door is opened only after the cycle, with the guard lock released",
+    "kind": "start",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P5",
+    "text": "A part is placed on the conveyor only at a free entry of a stopped belt",
+    "kind": "start",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P6",
+    "text": "Robot 2 places a part only on an output pallet that is in place and not full",
+    "kind": "start",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P9",
+    "text": "Three mismatches in the window always stop the line",
+    "kind": "never",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P10",
+    "text": "A camera fault always stops the line",
+    "kind": "never",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "L1",
+    "text": "A new CNC cycle can always be started again",
+    "kind": "eventually",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "L2",
+    "text": "Robot 2 can always deliver a part again",
+    "kind": "eventually",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "L3",
+    "text": "After any stop the supervisor can return to NORMAL",
+    "kind": "eventually",
+    "ok": true,
+    "trace": null,
+    "state": null
+   }
+  ]
+ },
+ {
+  "tag": "setup1_process",
+  "setup": 1,
+  "faults": "process",
+  "vars": 36,
+  "commands": 245,
+  "smv": "cell_setup1_process.smv",
+  "states": 88132,
+  "edges": 389655,
+  "seconds": 2.457,
+  "deadlocks": 0,
+  "deadlock": null,
+  "unreached": {
+   "R1": [
+    "H"
+   ],
+   "CONV": [
+    "H"
+   ],
+   "R2": [
+    "H"
+   ],
+   "SUP": [
+    "X2",
+    "X3",
+    "X4"
+   ]
+  },
+  "props": [
+   {
+    "id": "P1",
+    "text": "No robot is at the conveyor while the belt moves",
+    "kind": "never",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P2",
+    "text": "CYCLE START only with the door closed and the guard locked",
+    "kind": "start",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P3",
+    "text": "Robot 1 is inside the CNC only with the door open and the spindle stopped",
+    "kind": "never",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P4",
+    "text": "The door is opened only after the cycle, with the guard lock released",
+    "kind": "start",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P5",
+    "text": "A part is placed on the conveyor only at a free entry of a stopped belt",
+    "kind": "start",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P6",
+    "text": "Robot 2 places a part only on an output pallet that is in place and not full",
+    "kind": "start",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P9",
+    "text": "Three mismatches in the window always stop the line",
+    "kind": "never",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P10",
+    "text": "A camera fault always stops the line",
+    "kind": "never",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "L1",
+    "text": "A new CNC cycle can always be started again",
+    "kind": "eventually",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "L2",
+    "text": "Robot 2 can always deliver a part again",
+    "kind": "eventually",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "L3",
+    "text": "After any stop the supervisor can return to NORMAL",
+    "kind": "eventually",
+    "ok": true,
+    "trace": null,
+    "state": null
+   }
+  ]
+ },
+ {
+  "tag": "setup2_none",
+  "setup": 2,
+  "faults": "none",
+  "vars": 44,
+  "commands": 266,
+  "smv": "cell_setup2_none.smv",
+  "states": 212303,
+  "edges": 870229,
+  "seconds": 4.981,
+  "deadlocks": 0,
+  "deadlock": null,
+  "unreached": {
+   "R1": [
+    "H",
+    "F"
+   ],
+   "CONV": [
+    "H",
+    "F"
+   ],
+   "R2": [
+    "E6",
+    "H"
+   ],
+   "SUP": [
+    "X2",
+    "X3",
+    "X4"
+   ]
+  },
+  "props": [
+   {
+    "id": "P1",
+    "text": "No robot is at the conveyor while the belt moves",
+    "kind": "never",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P2",
+    "text": "CYCLE START only with the door closed and the guard locked",
+    "kind": "start",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P3",
+    "text": "Robot 1 is inside the CNC only with the door open and the spindle stopped",
+    "kind": "never",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P4",
+    "text": "The door is opened only after the cycle, with the guard lock released",
+    "kind": "start",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P5",
+    "text": "A part is placed on the conveyor only at a free entry of a stopped belt",
+    "kind": "start",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P6",
+    "text": "Robot 2 places a part only on an output pallet that is in place and not full",
+    "kind": "start",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P7",
+    "text": "An undersized part never reaches the output pallet",
+    "kind": "start",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P8",
+    "text": "No CYCLE START during a quality hold",
+    "kind": "start",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P9",
+    "text": "Three mismatches in the window always stop the line",
+    "kind": "never",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P10",
+    "text": "A camera fault always stops the line",
+    "kind": "never",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "L1",
+    "text": "A new CNC cycle can always be started again",
+    "kind": "eventually",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "L2",
+    "text": "Robot 2 can always deliver a part again",
+    "kind": "eventually",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "L3",
+    "text": "After any stop the supervisor can return to NORMAL",
+    "kind": "eventually",
+    "ok": true,
+    "trace": null,
+    "state": null
+   }
+  ]
+ },
+ {
+  "tag": "setup2_sensor",
+  "setup": 2,
+  "faults": "sensor",
+  "vars": 44,
+  "commands": 295,
+  "smv": "cell_setup2_sensor.smv",
+  "states": 14685160,
+  "edges": 66124127,
+  "seconds": 495.696,
+  "deadlocks": 0,
+  "deadlock": null,
+  "unreached": {
+   "R1": [
+    "F"
+   ],
+   "CONV": [
+    "F"
+   ],
+   "R2": [
+    "E6"
+   ],
+   "SUP": []
+  },
+  "props": [
+   {
+    "id": "P1",
+    "text": "No robot is at the conveyor while the belt moves",
+    "kind": "never",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P2",
+    "text": "CYCLE START only with the door closed and the guard locked",
+    "kind": "start",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P3",
+    "text": "Robot 1 is inside the CNC only with the door open and the spindle stopped",
+    "kind": "never",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P4",
+    "text": "The door is opened only after the cycle, with the guard lock released",
+    "kind": "start",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P5",
+    "text": "A part is placed on the conveyor only at a free entry of a stopped belt",
+    "kind": "start",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P6",
+    "text": "Robot 2 places a part only on an output pallet that is in place and not full",
+    "kind": "start",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P7",
+    "text": "An undersized part never reaches the output pallet",
+    "kind": "start",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P8",
+    "text": "No CYCLE START during a quality hold",
+    "kind": "start",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P9",
+    "text": "Three mismatches in the window always stop the line",
+    "kind": "never",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P10",
+    "text": "A camera fault always stops the line",
+    "kind": "never",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "L1",
+    "text": "A new CNC cycle can always be started again",
+    "kind": "eventually",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "L2",
+    "text": "Robot 2 can always deliver a part again",
+    "kind": "eventually",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "L3",
+    "text": "After any stop the supervisor can return to NORMAL",
+    "kind": "eventually",
+    "ok": true,
+    "trace": null,
+    "state": null
+   }
+  ]
+ },
+ {
+  "tag": "setup2_process",
+  "setup": 2,
+  "faults": "process",
+  "vars": 44,
+  "commands": 284,
+  "smv": "cell_setup2_process.smv",
+  "states": 5327386,
+  "edges": 27709028,
+  "seconds": 169.009,
+  "deadlocks": 0,
+  "deadlock": null,
+  "unreached": {
+   "R1": [
+    "H"
+   ],
+   "CONV": [
+    "H"
+   ],
+   "R2": [
+    "H"
+   ],
+   "SUP": [
+    "X2",
+    "X3",
+    "X4"
+   ]
+  },
+  "props": [
+   {
+    "id": "P1",
+    "text": "No robot is at the conveyor while the belt moves",
+    "kind": "never",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P2",
+    "text": "CYCLE START only with the door closed and the guard locked",
+    "kind": "start",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P3",
+    "text": "Robot 1 is inside the CNC only with the door open and the spindle stopped",
+    "kind": "never",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P4",
+    "text": "The door is opened only after the cycle, with the guard lock released",
+    "kind": "start",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P5",
+    "text": "A part is placed on the conveyor only at a free entry of a stopped belt",
+    "kind": "start",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P6",
+    "text": "Robot 2 places a part only on an output pallet that is in place and not full",
+    "kind": "start",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P7",
+    "text": "An undersized part never reaches the output pallet",
+    "kind": "start",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P8",
+    "text": "No CYCLE START during a quality hold",
+    "kind": "start",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P9",
+    "text": "Three mismatches in the window always stop the line",
+    "kind": "never",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P10",
+    "text": "A camera fault always stops the line",
+    "kind": "never",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "L1",
+    "text": "A new CNC cycle can always be started again",
+    "kind": "eventually",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "L2",
+    "text": "Robot 2 can always deliver a part again",
+    "kind": "eventually",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "L3",
+    "text": "After any stop the supervisor can return to NORMAL",
+    "kind": "eventually",
+    "ok": true,
+    "trace": null,
+    "state": null
+   }
+  ]
+ }
+]

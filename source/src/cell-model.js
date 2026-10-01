@@ -365,7 +365,7 @@
   //       { job, when?, confirm? }   start a job and wait for "done"; skipped when `when` is false;
   //                                  `confirm` must hold afterwards, otherwise FAULT
   //       { check: 'CP-n', quick?, confirm?, until? }  camera + proximity cross-check (quick = no settling
-  //                                  time); : repeat the check every T.check until it holds
+  //                                  time); `until`: repeat the check every T.check until it holds
   //       { await: expr }            wait until expr holds
   //       { set: { var: value }, when? } · { inc: var }   write PLC variables
   //     next: transitions, evaluated in order after the steps:
