@@ -1,0 +1,120 @@
+<svg xmlns="http://www.w3.org/2000/svg" class="dg-root" viewBox="0 0 1116 372" width="1116" height="372" font-family="'Barlow', 'Segoe UI', Arial, sans-serif" role="img" aria-label="How Robot 1 exchanges the parts with the dual gripper (Setup 2)"><style>
+.dg-root{font-family:'Barlow','Segoe UI',Arial,sans-serif}
+.dg-bg{fill:var(--dg-bg,#ffffff)}
+.dg-title{font-family:'Barlow Semi Condensed','Barlow','Segoe UI',sans-serif;font-weight:700;font-size:20px;fill:var(--dg-ink,#14202b)}
+.dg-sub{font-size:13px;fill:var(--dg-muted,#56636f)}
+.dg-st-rect{fill:var(--dg-st,#f2f5f8);stroke:var(--dg-line,#2f3e4d);stroke-width:1.5}
+.dg-st-title{font-family:'Barlow Semi Condensed','Barlow','Segoe UI',sans-serif;font-weight:700;font-size:14.5px;fill:var(--dg-ink,#14202b);letter-spacing:.04em}
+.dg-st-do{font-size:12.5px;fill:var(--dg-soft,#3a4754)}
+.dg-st-chip{fill:var(--dg-line,#2f3e4d)}
+.dg-st-chiptext{font-family:'IBM Plex Mono',Consolas,monospace;font-weight:600;font-size:11px;fill:var(--dg-chipink,#ffffff)}
+.dg-tr{fill:none;stroke:var(--dg-arrow,#56636f);stroke-width:1.5}
+.dg-head{fill:var(--dg-arrow,#56636f)}
+.dg-dash{stroke-dasharray:5 4}
+.dg-trk-fault .dg-tr{stroke:var(--dg-red,#c62828)} .dg-trk-fault .dg-head{fill:var(--dg-red,#c62828)}
+.dg-trk-hold .dg-tr{stroke:var(--dg-amber,#b7791f)} .dg-trk-hold .dg-head{fill:var(--dg-amber,#b7791f)}
+.dg-trk-ok .dg-tr{stroke:var(--dg-green,#1e7d45)} .dg-trk-ok .dg-head{fill:var(--dg-green,#1e7d45)}
+.dg-guard{font-size:12.5px;fill:var(--dg-ink2,#1f2a35)}
+.dg-halo{paint-order:stroke;stroke:var(--dg-bg,#ffffff);stroke-width:5px;stroke-linejoin:round}
+.dg-tag{font-family:'IBM Plex Mono',Consolas,monospace;font-size:11.5px;font-weight:500;fill:var(--dg-blue,#0b5aa6)}
+.dg-cp{font-weight:700;fill:var(--dg-cp,#7b3fb5)}
+.dg-b{font-weight:700}
+.dg-small{font-size:11.5px}
+.dg-init{fill:var(--dg-line,#2f3e4d)}
+.dg-k-wait .dg-st-rect{stroke-dasharray:5 3}
+.dg-k-fault .dg-st-rect{fill:var(--dg-red-t,#fdeceb);stroke:var(--dg-red,#c62828)} .dg-k-fault .dg-st-chip{fill:var(--dg-red,#c62828)}
+.dg-k-hold .dg-st-rect{fill:var(--dg-amber-t,#fff4de);stroke:var(--dg-amber,#b7791f)} .dg-k-hold .dg-st-chip{fill:var(--dg-amber,#b7791f)}
+.dg-k-ok .dg-st-rect{fill:var(--dg-green-t,#e7f5ec);stroke:var(--dg-green,#1e7d45)} .dg-k-ok .dg-st-chip{fill:var(--dg-green,#1e7d45)}
+.dg-k-warn .dg-st-rect{fill:var(--dg-amber-t,#fff4de);stroke:var(--dg-amber,#b7791f)} .dg-k-warn .dg-st-chip{fill:var(--dg-amber,#b7791f)}
+.dg-k-stop .dg-st-rect{fill:var(--dg-red-t,#fdeceb);stroke:var(--dg-red,#c62828)} .dg-k-stop .dg-st-chip{fill:var(--dg-red,#c62828)}
+.dg-k-op .dg-st-rect{fill:var(--dg-blue-t,#e6effa);stroke:var(--dg-blue,#0b5aa6)} .dg-k-op .dg-st-chip{fill:var(--dg-blue,#0b5aa6)}
+.dg-k-check .dg-st-rect{fill:var(--dg-cp-t,#f3ecfa);stroke:var(--dg-cp,#7b3fb5)} .dg-k-check .dg-st-chip{fill:var(--dg-cp,#7b3fb5)}
+.dg-band{stroke:none}
+.dg-band-idle{fill:var(--dg-amber-b,#fff5e0)} .dg-band-run{fill:var(--dg-blue-b,#e9f1fb)}
+.dg-band-stop{fill:var(--dg-green-b,#eaf6ee)} .dg-band-move{fill:var(--dg-gray-b,#eef1f4)}
+.dg-band-label{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:11.5px;letter-spacing:.08em;fill:var(--dg-muted,#56636f)}
+.dg-band-label.idle{fill:var(--dg-amber-d,#9a6212)} .dg-band-label.run{fill:var(--dg-blue,#0b5aa6)} .dg-band-label.stop{fill:var(--dg-green,#1e7d45)}
+.dg-note-rect{fill:var(--dg-note,#f6f7f9);stroke:var(--dg-rule,#c4ccd4);stroke-width:1}
+.dg-note{font-size:12.5px;fill:var(--dg-soft,#3a4754)}
+.dg-choice{fill:var(--dg-st,#f2f5f8);stroke:var(--dg-line,#2f3e4d);stroke-width:1.5}
+.dg-choice-t{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:13.5px;fill:var(--dg-ink,#14202b)}
+.dg-node{fill:var(--dg-st,#f2f5f8);stroke:var(--dg-line,#2f3e4d);stroke-width:1.4}
+.dg-node.ok{fill:var(--dg-green-t,#e7f5ec);stroke:var(--dg-green,#1e7d45)}
+.dg-node.warn{fill:var(--dg-amber-t,#fff4de);stroke:var(--dg-amber,#b7791f)}
+.dg-node.stop{fill:var(--dg-red-t,#fdeceb);stroke:var(--dg-red,#c62828)}
+.dg-node.check{fill:var(--dg-cp-t,#f3ecfa);stroke:var(--dg-cp,#7b3fb5)}
+.dg-node.op{fill:var(--dg-blue-t,#e6effa);stroke:var(--dg-blue,#0b5aa6)}
+.dg-node-t{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:14px;fill:var(--dg-ink,#14202b)}
+.dg-node-s{font-size:12.5px;fill:var(--dg-soft,#3a4754)}
+.dg-owner{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:10.5px;letter-spacing:.08em;fill:#ffffff}
+.dg-owner-r{fill:#2f3e4d}
+.dg-owner-r.op,.dg-owner-r.light{fill:#0b5aa6} .dg-owner-r.cnc{fill:#a0521d} .dg-owner-r.conv{fill:#2f6f5e} .dg-owner-r.r2{fill:#806000}
+.dg-owner-r.cam{fill:#7b3fb5} .dg-owner-r.gauge{fill:#a33a3a} .dg-owner-r.ok{fill:#1e7d45} .dg-owner-r.nok{fill:#c62828}
+.dg-conn{fill:var(--dg-bg,#ffffff);stroke:var(--dg-line,#2f3e4d);stroke-width:1.5}
+.dg-conn-t{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:13px;fill:var(--dg-ink,#14202b)}
+.dg-num{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:14px;fill:var(--dg-muted,#56636f)}
+.dg-active .dg-st-rect,.dg-active .dg-node,.dg-active .dg-choice{stroke:var(--dg-active,#0a66e8);stroke-width:3.2;fill:var(--dg-active-t,#dde9fc)}
+.dg-active .dg-st-chip{fill:var(--dg-active,#0a66e8)}
+.dg-flash .dg-tr{stroke:var(--dg-active,#0a66e8);stroke-width:3} .dg-flash .dg-head{fill:var(--dg-active,#0a66e8)}
+/* layout drawing */
+.ly-fence{fill:none;stroke:var(--dg-rule,#aab4be);stroke-width:1.3;stroke-dasharray:2 5}
+.ly-aisle{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:11px;letter-spacing:.14em;fill:var(--dg-muted,#56636f)}
+.ly-mach{fill:var(--ly-mach,#dfe5ea);stroke:var(--dg-line,#2f3e4d);stroke-width:1.6}
+.ly-mach-in{fill:var(--ly-mach-in,#eef2f5);stroke:var(--ly-rule2,#9aa6b1);stroke-width:1}
+.ly-pallet{fill:var(--ly-pallet,#e9dcc6);stroke:var(--ly-pallet-s,#8a6d3b);stroke-width:1.5}
+.ly-slot{fill:none;stroke:var(--ly-slot,#b39a6e);stroke-width:.9;stroke-dasharray:2 2}
+.ly-part{fill:var(--ly-raw,#a9b2ba);stroke:var(--ly-raw-s,#56626c);stroke-width:1.1}
+.ly-part.fin{fill:var(--ly-fin,#dfe8f0);stroke:var(--ly-fin-s,#43698c)}
+.ly-part.nok{stroke:var(--dg-red,#c62828);stroke-width:2.2}
+.ly-pocket{fill:none;stroke:var(--ly-fin-s,#43698c);stroke-width:.9}
+.ly-belt{fill:var(--ly-belt,#39414a)}
+.ly-frame{fill:var(--ly-frame,#8d98a3)}
+.ly-roller{stroke:var(--ly-roller,#5b646d);stroke-width:1.1}
+.ly-stop{fill:var(--dg-red,#c62828)}
+.ly-robot{fill:var(--ly-robot,#2c4a66);stroke:var(--ly-robot-s,#15283a);stroke-width:1.5}
+.ly-robot-t{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:11.5px;fill:#ffffff;letter-spacing:.04em}
+.ly-link{stroke:var(--ly-link,#5f7d99);stroke-width:13;stroke-linecap:round;fill:none}
+.ly-link2{stroke:var(--ly-link2,#7f9ab3);stroke-width:10;stroke-linecap:round;fill:none}
+.ly-joint{fill:var(--ly-joint,#243a52)}
+.ly-finger{stroke:var(--ly-joint,#243a52);stroke-width:3.2;stroke-linecap:round}
+.ly-door{fill:var(--ly-door,#6f8193);stroke:var(--dg-line,#2f3e4d);stroke-width:1}
+.ly-track{stroke:var(--ly-rule2,#9aa6b1);stroke-width:1.1;stroke-dasharray:3 3}
+.ly-handle{fill:var(--dg-line,#2f3e4d)}
+.ly-label{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:14px;fill:var(--dg-ink,#14202b);letter-spacing:.05em}
+.ly-sub{font-size:11.5px;fill:var(--dg-soft,#3a4754)}
+.ly-tag{font-family:'IBM Plex Mono',Consolas,monospace;font-size:11px;font-weight:600;fill:var(--dg-blue,#0b5aa6)}
+.ly-tag.cam{fill:var(--dg-cp,#7b3fb5)} .ly-tag.saf{fill:var(--ly-safety,#946c00)}
+.ly-sens{fill:var(--dg-bg,#ffffff);stroke:var(--dg-blue,#0b5aa6);stroke-width:1.6}
+.ly-sens.safety{stroke:var(--ly-safety,#c79400)}
+.ly-led{fill:var(--ly-led-off,#c3cad1)}
+.ly-led.on{fill:var(--ly-led-on,#1ea453)}
+.ly-led.bad{fill:var(--dg-red,#d32f2f)}
+.ly-beam{stroke:var(--ly-beam,#d33b3b);stroke-width:1.1;stroke-dasharray:2 3;opacity:.8}
+.ly-fov{fill:var(--ly-fov,rgba(123,63,181,.045));stroke:var(--dg-cp,#7b3fb5);stroke-width:1.3;stroke-dasharray:7 4}
+.ly-roi{fill:none;stroke:var(--dg-cp,#7b3fb5);stroke-width:1.1;stroke-dasharray:2 2}
+.ly-roi-t{font-family:'IBM Plex Mono',Consolas,monospace;font-size:10px;font-weight:600;fill:var(--dg-cp,#7b3fb5)}
+.ly-roi-t.on-belt{fill:#d9c5f5}
+.ly-cam{fill:var(--dg-cp,#7b3fb5)}
+.ly-nok{fill:var(--ly-nok,#fbe3e1);stroke:var(--dg-red,#c62828);stroke-width:1.6}
+.ly-nok-h{stroke:var(--dg-red,#c62828);stroke-width:.9;opacity:.35}
+.ly-gauge{fill:var(--ly-gauge,#e9eef3);stroke:var(--dg-line,#2f3e4d);stroke-width:1.5}
+.ly-datum{fill:var(--dg-line,#2f3e4d)}
+.ly-laser{fill:var(--dg-red,#c62828)}
+.ly-cab{fill:var(--ly-mach,#dfe5ea);stroke:var(--dg-line,#2f3e4d);stroke-width:1.3}
+.ly-lamp-r{fill:#d32f2f} .ly-lamp-a{fill:#f2a900} .ly-lamp-g{fill:#1e9e52} .ly-lamp-b{fill:#1565c0}
+.ly-lamp-off{opacity:.2}
+.ly-scan{fill:var(--ly-scan,rgba(199,148,0,.09));stroke:var(--ly-safety,#c79400);stroke-width:1.1;stroke-dasharray:3 3}
+.ly-flow{fill:none;stroke:#ffffff;stroke-width:1.8;opacity:.75}
+.ly-note{font-size:11.5px;font-style:italic;fill:var(--dg-muted,#56636f)}
+.ly-legend{font-size:12px;fill:var(--dg-soft,#3a4754)}
+/* timing chart */
+.gt-grid{stroke:var(--dg-rule,#d5dbe1);stroke-width:1}
+.gt-axis{font-size:11.5px;fill:var(--dg-muted,#56636f)}
+.gt-row{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:13.5px;fill:var(--dg-ink,#14202b)}
+.gt-bar-t{font-size:11.5px;fill:#ffffff;font-weight:600}
+.gt-bar-t.dark{fill:var(--dg-ink,#14202b)}
+.gt-mach{fill:#3f73b5} .gt-idle{fill:#e3a21a} .gt-door{fill:#2f3e4d} .gt-move{fill:#7d8b98} .gt-wait{fill:var(--dg-gray-b,#eef1f4);stroke:var(--dg-rule,#c4ccd4)} .gt-belt{fill:#2f6f5e} .gt-gauge{fill:#a33a3a}
+.gt-kpi{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:15px;fill:var(--dg-ink,#14202b)}
+.gt-break{fill:var(--dg-bg,#ffffff);stroke:var(--dg-muted,#56636f);stroke-width:1.2}
+.pill-t{font-family:'IBM Plex Mono',Consolas,monospace;font-size:10.5px;font-weight:600}
+</style><rect class="dg-bg" x="0" y="0" width="1116" height="372"/><text class="dg-title" x="20" y="36">How Robot 1 exchanges the parts with the dual gripper (Setup 2)</text><text class="dg-sub" x="20" y="58">Gripper A and gripper B sit 180° apart on the same wrist. The CNC only waits during steps 2 to 5.</text><g transform="translate(16 108)"><clipPath id="ex-clip-0"><rect x="0" y="0" width="204" height="200"/></clipPath><g clip-path="url(#ex-clip-0)"><rect x="0" y="0" width="204" height="200" rx="6" fill="var(--dg-note,#f6f7f9)" stroke="var(--dg-rule,#c4ccd4)"/><rect class="ly-mach" x="-6" y="14" width="102" height="176" rx="4"/><text class="ly-label" x="10" y="34" style="font-size:12px">CNC</text><rect class="ly-gauge" x="34" y="108" width="44" height="28" rx="3"/><rect class="ly-datum" x="34" y="108" width="6" height="28"/><text class="ly-sub" x="56" y="152" text-anchor="middle">vise</text><g class="ly-partg"><rect class="ly-part fin" x="47" y="111" width="22" height="22" rx="2"/><rect class="ly-pocket" x="53" y="117" width="10" height="10" rx="1"/></g><rect class="ly-door" x="96" y="58" width="8" height="96" rx="2"/><rect class="ly-handle" x="104" y="138" width="5" height="12" rx="1"/><line x1="150" y1="124" x2="184" y2="66" class="ly-link2"/><line x1="120" y1="124" x2="180" y2="124" stroke="#2f3e4d" stroke-width="6" stroke-linecap="round"/><circle cx="150" cy="124" r="7" class="ly-joint"/><path d="M120 111 h-16 M120 137 h-16 M120 111 v26" fill="none" stroke="#a0521d" stroke-width="3.2" stroke-linecap="round"/><circle cx="120" cy="100" r="9" fill="#a0521d"/><text x="120" y="104.2" text-anchor="middle" fill="#fff" class="pill-t" style="font-size:11px">B</text><g class="ly-partg"><rect class="ly-part " x="178" y="113" width="22" height="22" rx="2"/></g><path d="M180 111 h16 M180 137 h16 M180 111 v26" fill="none" stroke="#1565c0" stroke-width="3.2" stroke-linecap="round"/><circle cx="180" cy="100" r="9" fill="#1565c0"/><text x="180" y="104.2" text-anchor="middle" fill="#fff" class="pill-t" style="font-size:11px">A</text></g></g><g transform="translate(16 82)"><rect x="0" y="0" width="22" height="20" rx="4" fill="var(--dg-line,#2f3e4d)"/><text x="11" y="14.5" text-anchor="middle" class="dg-st-chiptext">1</text><text x="30" y="15" class="dg-st-title">WAIT AT THE DOOR</text></g><g transform="translate(234 108)"><clipPath id="ex-clip-1"><rect x="0" y="0" width="204" height="200"/></clipPath><g clip-path="url(#ex-clip-1)"><rect x="0" y="0" width="204" height="200" rx="6" fill="var(--dg-note,#f6f7f9)" stroke="var(--dg-rule,#c4ccd4)"/><rect class="ly-mach" x="-6" y="14" width="102" height="176" rx="4"/><text class="ly-label" x="10" y="34" style="font-size:12px">CNC</text><rect class="ly-gauge" x="34" y="108" width="44" height="28" rx="3"/><rect class="ly-datum" x="34" y="108" width="6" height="28"/><text class="ly-sub" x="56" y="152" text-anchor="middle">vise</text><g class="ly-partg"><rect class="ly-part fin" x="47" y="111" width="22" height="22" rx="2"/><rect class="ly-pocket" x="53" y="117" width="10" height="10" rx="1"/></g><rect class="ly-door" x="96" y="110.80000000000001" width="8" height="96" rx="2"/><rect class="ly-handle" x="104" y="190.8" width="5" height="12" rx="1"/><path d="M116 64 V104" stroke="#2f3e4d" stroke-width="2" fill="none"/><polygon points="111,102 121,102 116,112" fill="#2f3e4d"/><line x1="134" y1="166" x2="168" y2="108" class="ly-link2"/><line x1="104" y1="166" x2="164" y2="166" stroke="#2f3e4d" stroke-width="6" stroke-linecap="round"/><circle cx="134" cy="166" r="7" class="ly-joint"/><path d="M104 153 h-16 M104 179 h-16 M104 153 v26" fill="none" stroke="#a0521d" stroke-width="3.2" stroke-linecap="round"/><circle cx="104" cy="142" r="9" fill="#a0521d"/><text x="104" y="146.2" text-anchor="middle" fill="#fff" class="pill-t" style="font-size:11px">B</text><g class="ly-partg"><rect class="ly-part " x="162" y="155" width="22" height="22" rx="2"/></g><path d="M164 153 h16 M164 179 h16 M164 153 v26" fill="none" stroke="#1565c0" stroke-width="3.2" stroke-linecap="round"/><circle cx="164" cy="142" r="9" fill="#1565c0"/><text x="164" y="146.2" text-anchor="middle" fill="#fff" class="pill-t" style="font-size:11px">A</text></g></g><g transform="translate(234 82)"><rect x="0" y="0" width="22" height="20" rx="4" fill="var(--dg-line,#2f3e4d)"/><text x="11" y="14.5" text-anchor="middle" class="dg-st-chiptext">2</text><text x="30" y="15" class="dg-st-title">B OPENS THE DOOR</text></g><g transform="translate(452 108)"><clipPath id="ex-clip-2"><rect x="0" y="0" width="204" height="200"/></clipPath><g clip-path="url(#ex-clip-2)"><rect x="0" y="0" width="204" height="200" rx="6" fill="var(--dg-note,#f6f7f9)" stroke="var(--dg-rule,#c4ccd4)"/><rect class="ly-mach" x="-6" y="14" width="102" height="176" rx="4"/><text class="ly-label" x="10" y="34" style="font-size:12px">CNC</text><rect class="ly-gauge" x="34" y="108" width="44" height="28" rx="3"/><rect class="ly-datum" x="34" y="108" width="6" height="28"/><text class="ly-sub" x="56" y="152" text-anchor="middle">vise</text><rect class="ly-door" x="96" y="154" width="8" height="96" rx="2"/><rect class="ly-handle" x="104" y="234" width="5" height="12" rx="1"/><line x1="98" y1="122" x2="132" y2="64" class="ly-link2"/><line x1="68" y1="122" x2="128" y2="122" stroke="#2f3e4d" stroke-width="6" stroke-linecap="round"/><circle cx="98" cy="122" r="7" class="ly-joint"/><g class="ly-partg"><rect class="ly-part fin" x="48" y="111" width="22" height="22" rx="2"/><rect class="ly-pocket" x="54" y="117" width="10" height="10" rx="1"/></g><path d="M68 109 h-16 M68 135 h-16 M68 109 v26" fill="none" stroke="#a0521d" stroke-width="3.2" stroke-linecap="round"/><circle cx="68" cy="98" r="9" fill="#a0521d"/><text x="68" y="102.2" text-anchor="middle" fill="#fff" class="pill-t" style="font-size:11px">B</text><g class="ly-partg"><rect class="ly-part " x="126" y="111" width="22" height="22" rx="2"/></g><path d="M128 109 h16 M128 135 h16 M128 109 v26" fill="none" stroke="#1565c0" stroke-width="3.2" stroke-linecap="round"/><circle cx="128" cy="98" r="9" fill="#1565c0"/><text x="128" y="102.2" text-anchor="middle" fill="#fff" class="pill-t" style="font-size:11px">A</text></g></g><g transform="translate(452 82)"><rect x="0" y="0" width="22" height="20" rx="4" fill="var(--dg-line,#2f3e4d)"/><text x="11" y="14.5" text-anchor="middle" class="dg-st-chiptext">3</text><text x="30" y="15" class="dg-st-title">B UNLOADS</text></g><g transform="translate(670 108)"><clipPath id="ex-clip-3"><rect x="0" y="0" width="204" height="200"/></clipPath><g clip-path="url(#ex-clip-3)"><rect x="0" y="0" width="204" height="200" rx="6" fill="var(--dg-note,#f6f7f9)" stroke="var(--dg-rule,#c4ccd4)"/><rect class="ly-mach" x="-6" y="14" width="102" height="176" rx="4"/><text class="ly-label" x="10" y="34" style="font-size:12px">CNC</text><rect class="ly-gauge" x="34" y="108" width="44" height="28" rx="3"/><rect class="ly-datum" x="34" y="108" width="6" height="28"/><text class="ly-sub" x="56" y="152" text-anchor="middle">vise</text><g class="ly-partg"><rect class="ly-part " x="47" y="111" width="22" height="22" rx="2"/></g><rect class="ly-door" x="96" y="154" width="8" height="96" rx="2"/><rect class="ly-handle" x="104" y="234" width="5" height="12" rx="1"/><line x1="98" y1="122" x2="132" y2="64" class="ly-link2"/><line x1="68" y1="122" x2="128" y2="122" stroke="#2f3e4d" stroke-width="6" stroke-linecap="round"/><circle cx="98" cy="122" r="7" class="ly-joint"/><path d="M68 109 h-16 M68 135 h-16 M68 109 v26" fill="none" stroke="#1565c0" stroke-width="3.2" stroke-linecap="round"/><circle cx="68" cy="98" r="9" fill="#1565c0"/><text x="68" y="102.2" text-anchor="middle" fill="#fff" class="pill-t" style="font-size:11px">A</text><g class="ly-partg"><rect class="ly-part fin" x="126" y="111" width="22" height="22" rx="2"/><rect class="ly-pocket" x="132" y="117" width="10" height="10" rx="1"/></g><path d="M128 109 h16 M128 135 h16 M128 109 v26" fill="none" stroke="#a0521d" stroke-width="3.2" stroke-linecap="round"/><circle cx="128" cy="98" r="9" fill="#a0521d"/><text x="128" y="102.2" text-anchor="middle" fill="#fff" class="pill-t" style="font-size:11px">B</text><path d="M 74 152 A 30 22 0 0 0 122 152" fill="none" stroke="#7b3fb5" stroke-width="2.4"/><polygon points="118,144 128,152 117,157" fill="#7b3fb5"/><text x="146" y="174" text-anchor="middle" class="ly-tag" style="fill:#7b3fb5">180°</text></g></g><g transform="translate(670 82)"><rect x="0" y="0" width="22" height="20" rx="4" fill="var(--dg-line,#2f3e4d)"/><text x="11" y="14.5" text-anchor="middle" class="dg-st-chiptext">4</text><text x="30" y="15" class="dg-st-title">TURN 180° · A LOADS</text></g><g transform="translate(888 108)"><clipPath id="ex-clip-4"><rect x="0" y="0" width="204" height="200"/></clipPath><g clip-path="url(#ex-clip-4)"><rect x="0" y="0" width="204" height="200" rx="6" fill="var(--dg-note,#f6f7f9)" stroke="var(--dg-rule,#c4ccd4)"/><rect class="ly-mach" x="-6" y="14" width="102" height="176" rx="4"/><text class="ly-label" x="10" y="34" style="font-size:12px">CNC</text><rect class="ly-gauge" x="34" y="108" width="44" height="28" rx="3"/><rect class="ly-datum" x="34" y="108" width="6" height="28"/><text class="ly-sub" x="56" y="152" text-anchor="middle">vise</text><g class="ly-partg"><rect class="ly-part " x="47" y="111" width="22" height="22" rx="2"/></g><rect class="ly-door" x="96" y="91.6" width="8" height="96" rx="2"/><rect class="ly-handle" x="104" y="171.6" width="5" height="12" rx="1"/><path d="M116 150 V110" stroke="#2f3e4d" stroke-width="2" fill="none"/><polygon points="111,112 121,112 116,102" fill="#2f3e4d"/><line x1="134" y1="146" x2="168" y2="88" class="ly-link2"/><line x1="104" y1="146" x2="164" y2="146" stroke="#2f3e4d" stroke-width="6" stroke-linecap="round"/><circle cx="134" cy="146" r="7" class="ly-joint"/><path d="M104 133 h-16 M104 159 h-16 M104 133 v26" fill="none" stroke="#1565c0" stroke-width="3.2" stroke-linecap="round"/><circle cx="104" cy="122" r="9" fill="#1565c0"/><text x="104" y="126.2" text-anchor="middle" fill="#fff" class="pill-t" style="font-size:11px">A</text><g class="ly-partg"><rect class="ly-part fin" x="162" y="135" width="22" height="22" rx="2"/><rect class="ly-pocket" x="168" y="141" width="10" height="10" rx="1"/></g><path d="M164 133 h16 M164 159 h16 M164 133 v26" fill="none" stroke="#a0521d" stroke-width="3.2" stroke-linecap="round"/><circle cx="164" cy="122" r="9" fill="#a0521d"/><text x="164" y="126.2" text-anchor="middle" fill="#fff" class="pill-t" style="font-size:11px">B</text><rect x="8" y="164" width="82" height="18" rx="9" fill="#1e8a4c"/><text x="49" y="177" text-anchor="middle" fill="#fff" class="pill-t">CYCLE START</text></g></g><g transform="translate(888 82)"><rect x="0" y="0" width="22" height="20" rx="4" fill="var(--dg-line,#2f3e4d)"/><text x="11" y="14.5" text-anchor="middle" class="dg-st-chiptext">5</text><text x="30" y="15" class="dg-st-title">A CLOSES THE DOOR</text></g><text class="dg-guard" x="118" y="335" text-anchor="middle"><tspan x="118">Raw part in A, B empty.</tspan><tspan x="118" dy="15">The robot waits outside.</tspan></text><text class="dg-guard" x="336" y="335" text-anchor="middle"><tspan x="336">Empty gripper B slides</tspan><tspan x="336" dy="15">the door open (<tspan class="dg-tag">ZS-31</tspan>).</tspan></text><text class="dg-guard" x="554" y="335" text-anchor="middle"><tspan x="554">B takes the finished part</tspan><tspan x="554" dy="15">out of the vise.</tspan></text><text class="dg-guard" x="772" y="335" text-anchor="middle"><tspan x="772">The wrist turns: A puts the</tspan><tspan x="772" dy="15">raw part in the vise (<tspan class="dg-tag">ZS-35</tspan>).</tspan></text><text class="dg-guard" x="990" y="335" text-anchor="middle"><tspan x="990">A slides the door closed:</tspan><tspan x="990" dy="15">cycle start. B → conveyor.</tspan></text></svg>

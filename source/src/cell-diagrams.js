@@ -124,6 +124,7 @@
 .gt-mach{fill:#3f73b5} .gt-idle{fill:#e3a21a} .gt-door{fill:#2f3e4d} .gt-move{fill:#7d8b98} .gt-wait{fill:var(--dg-gray-b,#eef1f4);stroke:var(--dg-rule,#c4ccd4)} .gt-belt{fill:#2f6f5e} .gt-gauge{fill:#a33a3a}
 .gt-kpi{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:15px;fill:var(--dg-ink,#14202b)}
 .gt-break{fill:var(--dg-bg,#ffffff);stroke:var(--dg-muted,#56636f);stroke-width:1.2}
+.pill-t{font-family:'IBM Plex Mono',Consolas,monospace;font-size:10.5px;font-weight:600}
 `;
 
   // ------------------------------------------------------------------ helpers
@@ -436,11 +437,11 @@
       { label: ['Robot home · CNC ready · door closed'] },
       { id: 'B1', name: S.B1, lines: ['[CP-1] pallet present ({PX-11} + {CAM-1}) ·', '{CAM-1} pick pose · gripper A picks'] },
       { label: ['{GR-21A} grip OK · {CAM-1} slot now empty'] },
-      { id: 'B2', name: S.B2, lines: ['Hold the raw part at the door-ready pose', 'while the CNC finishes the cycle'] },
+      { id: 'B2', name: S.B2, lines: ['Raw part in gripper A, gripper B empty ·', 'wait at the door while the CNC finishes'] },
       { label: ['CNC cycle complete · spindle stopped', '{ZS-33} guard lock released'] },
       { id: 'B3', name: S.B3, lines: ['Empty gripper B grips the handle, slides', 'the door open, releases it'] },
       { label: ['{ZS-31} door open = ON · {ZS-32} = OFF'] },
-      { id: 'B4', name: S.B4, lines: ['B grips finished part · vise opens · lift ·', 'air blast · A places raw part · clamp'] },
+      { id: 'B4', name: S.B4, lines: ['B takes the finished part out of the vise ·', 'wrist turns 180° · A places the raw part'] },
       { label: ['{GR-21B} grip OK · {ZS-35} clamped · {PS-36} seated', 'gripper A open · R1 clear of CNC'] },
       { id: 'B5', name: S.B5, lines: ['Empty gripper A slides the door closed,', 'releases the handle'] },
       { label: ['{ZS-32} door closed = ON · {ZS-33} locked'] },
@@ -757,6 +758,66 @@
     return d.svg();
   }
 
+  // ------------------------------------------------------------------ Dual-gripper exchange (Setup 2)
+  function exchangeStrip(o) {
+    const d = new Diagram(1116, 0, 'How Robot 1 exchanges the parts with the dual gripper (Setup 2)',
+      'Gripper A and gripper B sit 180° apart on the same wrist. The CNC only waits during steps 2 to 5.', o);
+    const t = d.top + 4, PW = 204, GAP = 14, X0 = 16;
+    const A = '#1565c0', B = '#a0521d';
+    const part = (x, y, fin) => partSvg(x, y, fin ? 'fin' : '');
+    // jaw opening towards dir (-1 left, +1 right) at the bar end (x, y)
+    const jaw = (x, y, dir, col) => `<path d="M${x} ${y - 13} h${dir * 16} M${x} ${y + 13} h${dir * 16} M${x} ${y - 13} v26" fill="none" stroke="${col}" stroke-width="3.2" stroke-linecap="round"/>`;
+    const tag = (x, y, letter, col) => `<circle cx="${x}" cy="${y}" r="9" fill="${col}"/><text x="${x}" y="${y + 4.2}" text-anchor="middle" fill="#fff" class="pill-t" style="font-size:11px">${letter}</text>`;
+    // tool: left jaw at cx-30, right jaw at cx+30, the arm comes from the upper right
+    const tool = (cx, cy, left, right) => {
+      let s = `<line x1="${cx}" y1="${cy}" x2="${cx + 34}" y2="${cy - 58}" class="ly-link2"/>`;
+      s += `<line x1="${cx - 30}" y1="${cy}" x2="${cx + 30}" y2="${cy}" stroke="#2f3e4d" stroke-width="6" stroke-linecap="round"/><circle cx="${cx}" cy="${cy}" r="7" class="ly-joint"/>`;
+      [[left, -1], [right, 1]].forEach(([g, dir]) => {
+        const ex = cx + dir * 30;
+        if (g.part !== undefined && g.part !== null) s += part(ex + dir * 9, cy, g.part);
+        s += jaw(ex, cy, dir, g.col) + tag(ex, cy - 24, g.name, g.col);
+      });
+      return s;
+    };
+    const panels = [
+      { title: 'WAIT AT THE DOOR', cap: ['Raw part in A, B empty.', 'The robot waits outside.'], door: 0, vise: 'fin',
+        tool: [150, 124, { name: 'B', col: B, part: null }, { name: 'A', col: A, part: false }] },
+      { title: 'B OPENS THE DOOR', cap: ['Empty gripper B slides', 'the door open ({ZS-31}).'], door: 0.55, vise: 'fin', arrow: 'down',
+        tool: [134, 166, { name: 'B', col: B, part: null }, { name: 'A', col: A, part: false }] },
+      { title: 'B UNLOADS', cap: ['B takes the finished part', 'out of the vise.'], door: 1, vise: null,
+        tool: [98, 122, { name: 'B', col: B, part: true }, { name: 'A', col: A, part: false }] },
+      { title: 'TURN 180° · A LOADS', cap: ['The wrist turns: A puts the', 'raw part in the vise ({ZS-35}).'], door: 1, vise: 'raw', turn: true,
+        tool: [98, 122, { name: 'A', col: A, part: null }, { name: 'B', col: B, part: true }] },
+      { title: 'A CLOSES THE DOOR', cap: ['A slides the door closed:', 'cycle start. B → conveyor.'], door: 0.35, vise: 'raw', arrow: 'up', start: true,
+        tool: [134, 146, { name: 'A', col: A, part: null }, { name: 'B', col: B, part: true }] },
+    ];
+    const P = [];
+    panels.forEach((p, i) => {
+      const ox = X0 + i * (PW + GAP), oy = t + 26;
+      P.push(`<g transform="translate(${ox} ${oy})">`);
+      P.push(`<clipPath id="ex-clip-${i}"><rect x="0" y="0" width="${PW}" height="200"/></clipPath><g clip-path="url(#ex-clip-${i})">`);
+      P.push(`<rect x="0" y="0" width="${PW}" height="200" rx="6" fill="var(--dg-note,#f6f7f9)" stroke="var(--dg-rule,#c4ccd4)"/>`);
+      P.push(`<rect class="ly-mach" x="-6" y="14" width="102" height="176" rx="4"/><text class="ly-label" x="10" y="34" style="font-size:12px">CNC</text>`);
+      P.push(`<rect class="ly-gauge" x="34" y="108" width="44" height="28" rx="3"/><rect class="ly-datum" x="34" y="108" width="6" height="28"/><text class="ly-sub" x="56" y="152" text-anchor="middle">vise</text>`);
+      if (p.vise) P.push(part(58, 122, p.vise === 'fin'));
+      const dy = p.door * 96;
+      P.push(`<rect class="ly-door" x="96" y="${58 + dy}" width="8" height="96" rx="2"/><rect class="ly-handle" x="104" y="${138 + dy}" width="5" height="12" rx="1"/>`);
+      if (p.arrow) {
+        const y0 = p.arrow === 'down' ? 64 : 150, y1 = p.arrow === 'down' ? 104 : 110;
+        P.push(`<path d="M116 ${y0} V${y1}" stroke="#2f3e4d" stroke-width="2" fill="none"/><polygon points="${p.arrow === 'down' ? `111,${y1 - 2} 121,${y1 - 2} 116,${y1 + 8}` : `111,${y1 + 2} 121,${y1 + 2} 116,${y1 - 8}`}" fill="#2f3e4d"/>`);
+      }
+      P.push(tool(...p.tool));
+      if (p.turn) P.push(`<path d="M ${p.tool[0] - 24} ${p.tool[1] + 30} A 30 22 0 0 0 ${p.tool[0] + 24} ${p.tool[1] + 30}" fill="none" stroke="#7b3fb5" stroke-width="2.4"/><polygon points="${p.tool[0] + 20},${p.tool[1] + 22} ${p.tool[0] + 30},${p.tool[1] + 30} ${p.tool[0] + 19},${p.tool[1] + 35}" fill="#7b3fb5"/><text x="${p.tool[0] + 48}" y="${p.tool[1] + 52}" text-anchor="middle" class="ly-tag" style="fill:#7b3fb5">180°</text>`);
+      if (p.start) P.push(`<rect x="8" y="164" width="82" height="18" rx="9" fill="#1e8a4c"/><text x="49" y="177" text-anchor="middle" fill="#fff" class="pill-t">CYCLE START</text>`);
+      P.push(`</g></g>`);
+      P.push(`<g transform="translate(${ox} ${t})"><rect x="0" y="0" width="22" height="20" rx="4" fill="var(--dg-line,#2f3e4d)"/><text x="11" y="14.5" text-anchor="middle" class="dg-st-chiptext">${i + 1}</text><text x="30" y="15" class="dg-st-title">${esc(p.title)}</text></g>`);
+      d.text(p.cap, [ox + PW / 2, oy + 230], { halo: false });
+    });
+    d.raw(P.join(''));
+    d.h = t + 26 + 200 + 64;
+    return d.svg();
+  }
+
   // ------------------------------------------------------------------ Cell layout
   const LAYOUT = {
     W: 1110, H: 706,
@@ -979,7 +1040,7 @@
   const API = {
     CSS, LAYOUT, slotPos, partSvg, armSvg, armGeom,
     smRobot1S1, smRobot1S2, smConveyor, smRobot2S1, smRobot2S2, smSupervisor,
-    flowCrossCheck, archDiagram, flowSetup1, flowSetup2, timingChart, layoutSvg,
+    flowCrossCheck, archDiagram, flowSetup1, flowSetup2, timingChart, layoutSvg, exchangeStrip,
   };
   root.CellDiagrams = API;
   if (typeof module !== 'undefined' && module.exports) module.exports = API;

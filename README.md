@@ -15,6 +15,7 @@ check and the CNC-time optimization.
 
 | Path | What it is |
 |---|---|
+| `Week2_Assignment_Answer.docx` / `.pdf` | The short assignment answer (4 pages): how it works, sensor list with brand and price, Setup 2 figures |
 | `Sensors_Design_Report.docx` / `.pdf` | The full write-up (27 pages, 15 figures, 9 tables) |
 | `simulation/index.html` | Interactive simulation of all state machines. Double-click to open it in a browser |
 | `simulation/*.png` | Two screenshots of the simulation (also in the report) |
@@ -38,6 +39,7 @@ check and the CNC-time optimization.
 | 11 | `fig11_flow_setup2` – work flow of one part, Setup 2 |
 | 12 | `fig12_states_robot1_setup2` – Robot 1 + CNC state diagram, Setup 2 (dual gripper) |
 | 13 | `fig13_states_robot2_setup2` – Robot 2 + gauge + sorting state diagram, Setup 2 |
+| – | `fig14_dual_gripper_exchange` – how Robot 1 swaps the parts with the dual gripper (used in the short answer) |
 
 ## The cross-check rule in one paragraph
 

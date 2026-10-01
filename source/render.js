@@ -22,6 +22,7 @@ const BASE = [
   ['fig12_states_robot1_setup2', (o) => D.smRobot1S2(o)],
   ['fig13_states_robot2_setup2', (o) => D.smRobot2S2(o)],
   ['fig10_timing_setup1_vs_setup2', (o) => D.timingChart(o)],
+  ['fig14_dual_gripper_exchange', (o) => D.exchangeStrip(o)],
 ];
 // full = with title and notes (stand-alone images); doc = caption comes from the report
 const FIGS = [];

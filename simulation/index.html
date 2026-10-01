@@ -1144,11 +1144,11 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
       { label: ['Robot home · CNC ready · door closed'] },
       { id: 'B1', name: S.B1, lines: ['[CP-1] pallet present ({PX-11} + {CAM-1}) ·', '{CAM-1} pick pose · gripper A picks'] },
       { label: ['{GR-21A} grip OK · {CAM-1} slot now empty'] },
-      { id: 'B2', name: S.B2, lines: ['Hold the raw part at the door-ready pose', 'while the CNC finishes the cycle'] },
+      { id: 'B2', name: S.B2, lines: ['Raw part in gripper A, gripper B empty ·', 'wait at the door while the CNC finishes'] },
       { label: ['CNC cycle complete · spindle stopped', '{ZS-33} guard lock released'] },
       { id: 'B3', name: S.B3, lines: ['Empty gripper B grips the handle, slides', 'the door open, releases it'] },
       { label: ['{ZS-31} door open = ON · {ZS-32} = OFF'] },
-      { id: 'B4', name: S.B4, lines: ['B grips finished part · vise opens · lift ·', 'air blast · A places raw part · clamp'] },
+      { id: 'B4', name: S.B4, lines: ['B takes the finished part out of the vise ·', 'wrist turns 180° · A places the raw part'] },
       { label: ['{GR-21B} grip OK · {ZS-35} clamped · {PS-36} seated', 'gripper A open · R1 clear of CNC'] },
       { id: 'B5', name: S.B5, lines: ['Empty gripper A slides the door closed,', 'releases the handle'] },
       { label: ['{ZS-32} door closed = ON · {ZS-33} locked'] },
@@ -1762,7 +1762,11 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
     log('info', `Setup ${setup} started · input pallet 9 raw parts · output pallet 8 of 12 · CNC empty`);
     buildUi();
   }
-  function robot(base, dual) { return { base, tool: base.home.slice(), anim: null, fing: 'open', hold: { A: null, B: null, S: null }, clearCnc: true, clearConv: true, dual }; }
+  function robot(base, dual) { return { base, tool: base.home.slice(), anim: null, fing: 'open', hold: { A: null, B: null, S: null }, clearCnc: true, clearConv: true, dual, active: 'A', rot: null }; }
+  // Dual gripper (Setup 2): the wrist turns 180° so that gripper `to` faces the work.
+  // startTurn lets the robot keep moving while it turns; turnWrist waits for the turn.
+  function startTurn(r, to, dur) { if (!r.dual || S.setup !== 2 || r.active === to || r.rot) return; r.rot = { t0: S.t, t1: S.t + dur, to }; }
+  function* turnWrist(r, to, dur) { startTurn(r, to, dur); if (r.rot) yield* wait(r.rot.t1 - S.t); }
   function addPart(st, loc) { const p = { id: W.nextId++, st, loc, dims: [50, 50, 50], meas: null, nok: false }; W.parts.push(p); return p; }
   const partIn = (slot) => W.parts.find((p) => p.loc.k === 'in' && p.loc.slot === slot);
   function firstRaw() { for (let i = 0; i < 12; i++) if (partIn(i)) return i; return -1; }
@@ -1985,12 +1989,13 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
       const f = W.cnc.part; W.cnc.part = null; f.loc = { k: 'r1', g: 'B' }; r.hold.B = f;
       yield* wait(T.lift);
     } else W.cnc.vise = 'open';
-    r.swap = true; yield* wait(T.swapGripper); r.swap = false;
+    yield* turnWrist(r, 'A', T.swapGripper);   // B (finished part) turns away, A (raw part) faces the vise
+    r.fing = 'grip';
     const p = r.hold.A; r.hold.A = null; p.loc = { k: 'cnc' }; W.cnc.part = p;
     yield* wait(T.placeInVise);
     W.cnc.vise = 'clamped'; yield* wait(T.viseClamp);
     yield* wait(T.seatCheck);
-    yield* wait(T.release);
+    r.fing = 'open'; yield* wait(T.release);
     yield* moveTo(r, P.doorway, 1.0); yield* moveTo(r, P.outside, 1.0); r.clearCnc = true;
   }
   function* placeOnConveyor(r, g) {
@@ -2058,8 +2063,10 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
     let why = 'Robot home · CNC ready · door closed';
     for (;;) {
       yield* enter(m, 'B1', why);
+      startTurn(r, 'A', 1.2);                    // turn gripper A to the front while moving
       yield* pickRaw(r, 'A', 'B1');
       yield* enter(m, 'B2', 'GR-21A grip OK · CAM-1 slot now empty');
+      startTurn(r, 'B', 1.2);                    // empty gripper B will open the door
       yield* moveTo(r, r.base.doorReady, T.palletToDoor);
       yield* until(cncReady);
       const hasPart = W.cnc.state === 'DONE';
@@ -2073,6 +2080,7 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
       yield* cycleStart();
       if (r.hold.B) {
         yield* enter(m, 'B7', 'CNC in cycle · gripper B holds a finished part');
+        startTurn(r, 'B', 1.2);                  // finished part in B faces the belt
         yield* placeOnConveyor(r, 'B');
         why = 'CP-2 part present (PE-41 + CAM-1) · R1 clear';
       } else why = 'CNC in cycle · first cycle: gripper B is empty';
@@ -2276,6 +2284,7 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
       for (const p of W.parts) if (p.loc.k === 'conv') p.loc.x = Math.min(P.stopX, p.loc.x + b.v * h);
     }
     if (W.cnc.state === 'RUN') W.stats.runTime += h;
+    for (const r of [W.r1, W.r2]) if (r.rot && S.t >= r.rot.t1) { r.active = r.rot.to; r.rot = null; }
     pruneWindow();
   }
 
@@ -2309,17 +2318,42 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
     s += `<line class="ly-link2" x1="${fx2(g.ex)}" y1="${fx2(g.ey)}" x2="${fx2(g.tx - fx * 8)}" y2="${fx2(g.ty - fy * 8)}"/>`;
     s += `<circle class="ly-robot" cx="${r.base.x}" cy="${r.base.y}" r="${r.base.r}"/><text class="ly-robot-t" x="${r.base.x}" y="${r.base.y + 4}" text-anchor="middle">${label}</text>`;
     s += `<circle class="ly-joint" cx="${fx2(g.ex)}" cy="${fx2(g.ey)}" r="7"/>`;
-    // held parts (B sits behind A on the dual gripper)
-    const held = [];
-    if (r.hold.S) held.push([r.hold.S, 0]);
-    if (r.hold.A) held.push([r.hold.A, 0]);
-    if (r.hold.B) held.push([r.hold.B, r.hold.A ? 24 : 0]);
-    held.forEach(([p, back]) => { s += D.partSvg(g.tx - fx * back, g.ty - fy * back, partCls(p)); });
-    const open = { open: 16, grip: 12, handle: 6, closed: 3 }[r.fing] || 14;
-    const finger = (side) => { const ox = g.tx + px * side * open, oy = g.ty + py * side * open; return `<line class="ly-finger" x1="${fx2(ox - fx * 12)}" y1="${fx2(oy - fy * 12)}" x2="${fx2(ox + fx * 5)}" y2="${fx2(oy + fy * 5)}"/>`; };
-    s += `<line class="ly-finger" x1="${fx2(g.tx - fx * 12 + px * open)}" y1="${fx2(g.ty - fy * 12 + py * open)}" x2="${fx2(g.tx - fx * 12 - px * open)}" y2="${fx2(g.ty - fy * 12 - py * open)}"/>` + finger(1) + finger(-1);
-    if (r.dual && S.setup === 2) s += `<circle class="ly-joint" cx="${fx2(g.tx - fx * 22)}" cy="${fx2(g.ty - fy * 22)}" r="5"/>`;
+    const OPEN = { open: 16, grip: 12, handle: 6, closed: 3 };
+    // one gripper head: palm + two fingers pointing along the arm, centred on (cx, cy)
+    const head = (cx, cy, fing) => {
+      const w = OPEN[fing] || 14;
+      const fin = (side) => { const ox = cx + px * side * w, oy = cy + py * side * w; return `<line class="ly-finger" x1="${fx2(ox - fx * 12)}" y1="${fx2(oy - fy * 12)}" x2="${fx2(ox + fx * 5)}" y2="${fx2(oy + fy * 5)}"/>`; };
+      return `<line class="ly-finger" x1="${fx2(cx - fx * 12 + px * w)}" y1="${fx2(cy - fy * 12 + py * w)}" x2="${fx2(cx - fx * 12 - px * w)}" y2="${fx2(cy - fy * 12 - py * w)}"/>` + fin(1) + fin(-1);
+    };
+    if (!(r.dual && S.setup === 2)) {
+      if (r.hold.S) s += D.partSvg(g.tx, g.ty, partCls(r.hold.S));
+      return s + head(g.tx, g.ty, r.fing);
+    }
+    // dual gripper: the active head sits on the tool point, the other one 30 px to the side;
+    // a wrist turn rotates both heads 180° about the adapter centre
+    const act = r.active, oth = act === 'A' ? 'B' : 'A', DIST = 30;
+    const T0 = [g.tx, g.ty], O0 = [g.tx + px * DIST, g.ty + py * DIST];
+    const pos = { [act]: T0, [oth]: O0 };
+    if (r.rot) {
+      const u = ease(clamp((S.t - r.rot.t0) / (r.rot.t1 - r.rot.t0), 0, 1)), phi = Math.PI * u;
+      const mx = (T0[0] + O0[0]) / 2, my = (T0[1] + O0[1]) / 2;
+      const turn = (q) => { const dx = q[0] - mx, dy = q[1] - my; return [mx + dx * Math.cos(phi) - dy * Math.sin(phi), my + dx * Math.sin(phi) + dy * Math.cos(phi)]; };
+      pos[act] = turn(T0); pos[oth] = turn(O0);
+    }
+    s += `<line class="ly-link2" style="stroke-width:6" x1="${fx2(pos.A[0] - fx * 12)}" y1="${fx2(pos.A[1] - fy * 12)}" x2="${fx2(pos.B[0] - fx * 12)}" y2="${fx2(pos.B[1] - fy * 12)}"/>`;
+    ['A', 'B'].forEach((h) => {
+      const [hx, hy] = pos[h], isAct = h === r.active && !r.rot;
+      const fing = isAct && (r.fing === 'handle' || r.fing === 'closed') ? r.fing : r.hold[h] ? 'grip' : isAct ? r.fing : 'open';
+      if (r.hold[h]) s += D.partSvg(hx, hy, partCls(r.hold[h]));
+      s += head(hx, hy, fing);
+      const lx = hx - fx * 21, ly = hy - fy * 21;
+      s += `<circle cx="${fx2(lx)}" cy="${fx2(ly)}" r="7.5" fill="${h === 'A' ? '#1565c0' : '#a0521d'}" stroke="#fff" stroke-width="1.2"/><text x="${fx2(lx)}" y="${fx2(ly + 3.6)}" text-anchor="middle" fill="#fff" class="pill-t">${h}</text>`;
+    });
     return s;
+  }
+  function gripperText(r) {
+    const w = (h) => (r.hold[h] ? (r.hold[h].st === 'fin' ? 'finished part' : 'raw part') : 'empty');
+    return `A: ${w('A')} · B: ${w('B')}`;
   }
   function fx2(n) { return Math.round(n * 10) / 10; }
   function pill(x, y, id, name, kind) {
@@ -2353,6 +2387,7 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
     s += pill(120, 200, c[0], c[1], c[2]);
     const mk = (m, x, y) => { const id = MCH[m].state; s += pill(x, y, id, stateName(m, id), KIND[id] || ''); };
     mk('R1', L.r1.x, L.r1.y + 56);
+    if (S.setup === 2) s += pill(L.r1.x, L.r1.y + 80, 'GRIPPERS', gripperText(W.r1), '');
     mk('CONV', 646, 318);
     mk('R2', L.r2.x + 6, L.r2.y - 50);
     mk('XCHK', 700, 24);
