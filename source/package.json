@@ -1,10 +1,12 @@
 {
   "name": "week2-sensors-design",
   "private": true,
-  "description": "Build scripts for the diagrams, the simulator and the Word report",
+  "description": "The model of the cell and the scripts that generate the diagrams, the simulator, the verification and the Word report",
   "scripts": {
     "diagrams": "node render.js out",
     "sim": "node build_sim.js",
+    "test": "node test_sim.js all",
+    "verify": "node --max-old-space-size=10000 verify.js",
     "report": "node build_report.js"
   },
   "dependencies": {

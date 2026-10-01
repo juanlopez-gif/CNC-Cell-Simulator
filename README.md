@@ -11,6 +11,41 @@ This is the solution to the Week 2 Sensors Design Task, Setup 1 and Setup 2: sen
 placement, work-flow logic, state diagrams, the camera + proximity cross-check rule, the dimensional
 check and the CNC-time optimization.
 
+## Branch `state-machines-as-data`
+
+On this branch the four state machines are data in one file, `source/src/cell-model.js`: states,
+steps (robot jobs, camera + proximity checks, waits), transitions with their guards, timers, HMI
+messages and the properties the design must keep. The other parts are generated from it or run it:
+
+| Part | What it takes from the model |
+|---|---|
+| State diagrams (`src/cell-diagrams.js`) | Every box and arrow; the arrow labels are generated from the guards. The generator stops if a transition cannot be drawn |
+| Timing chart and CNC idle KPI | The step times of the states in the CNC idle band (36.5 s and 20.5 s are now computed, not typed) |
+| Simulation (`sim-src/app.js`) | Nothing about states is written there: an interpreter runs the machines; the file only holds the plant (robot motions, CNC, belt, sensors, operator) |
+| Verification (`src/cell-verify.js`, `verify.js`) | An abstract model of the same machines, explored state by state and exported to NuSMV (`verification/*.smv`) |
+
+Checks: `M.lint()` (every name used exists, every sensor named in a diagram text is used, every state
+is reachable), `node test_sim.js conform` (20 h of simulated operation with random faults: every
+state change must be a transition of the model, every job must take its model time, no property may
+be violated, and without faults the CNC idle time must equal the KPI) and `node verify.js` (every
+reachable state of the abstract model, nominal and with sensor or process faults; see
+`verification/results.md`).
+
+These checks found five design errors in the original state machines, all fixed in the model:
+
+1. After a line stop the conveyor entered C5 again and re-checked a part that Robot 2 had already
+   picked, which caused a chain of faults (random simulation run).
+2. Robot 1 could place a second part while the previous one still waited at the conveyor entry; the
+   old simulation hid this because it read the true part position instead of a PLC signal (random run).
+3. The cycle-start handshake waited for the short "CNC in cycle" signal; missing it meant a deadlock
+   (verifier). Robot 1 now accepts "in cycle or cycle complete".
+4. Robot 2 read a CP-3 result that the conveyor had overwritten, and stopped (verifier). Each machine
+   now uses only its own check results.
+5. Robot 2 did not consume the "pick allowed" signal and could try a second pick at an empty exit
+   (verifier).
+
+The Word report and the PDFs are the versions of `main`; they were not regenerated on this branch.
+
 ## Contents
 
 | Path | What it is |
@@ -20,7 +55,8 @@ check and the CNC-time optimization.
 | `simulation/index.html` | Interactive simulation of all state machines. Double-click to open it in a browser |
 | `simulation/*.png` | Two screenshots of the simulation (also in the report) |
 | `diagrams/` | Every figure as PNG (with title) and SVG (editable). Numbers match the report |
-| `source/` | Scripts that generate the diagrams, the simulation and the report |
+| `verification/` | NuSMV models of the cell and the results of the exhaustive verification |
+| `source/` | The model and the scripts that generate the diagrams, the simulation, the verification and the report |
 
 ## Figures
 
@@ -76,9 +112,12 @@ Requires Node.js and Google Chrome. From `source/`:
 npm install
 node render.js out        # diagrams -> out/ (full) and out/doc/ (report versions)
 node build_sim.js         # simulation -> out/sim/index.html
+node test_sim.js all      # headless tests of the simulation, including the conformance run
+node --max-old-space-size=10000 verify.js   # exhaustive verification -> out/verification/
 node capture_sim.js       # simulation screenshots for the report
 node build_report.js      # report -> out/Sensors_Design_Report.docx
 ```
 
 `render.js` and the other scripts expect Chrome at `C:/Program Files/Google/Chrome/Application/chrome.exe`.
-Step times and rules live in `src/cell-model.js`; change them there and rebuild.
+The state machines, step times and rules live in `src/cell-model.js`; change them there and rebuild.
+The largest verification run (Setup 2 with sensor faults) needs a few minutes and about 2 GB of memory.

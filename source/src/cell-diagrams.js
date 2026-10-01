@@ -161,6 +161,21 @@
     const q = [[p2[0], p2[1]], [bx + W * Math.sin(a), by - W * Math.cos(a)], [bx - W * Math.sin(a), by + W * Math.cos(a)]];
     return `<polygon class="dg-head" points="${q.map((p) => fmt(p[0]) + ',' + fmt(p[1])).join(' ')}"/>`;
   }
+  // Split a polyline where one of its straight segments runs through box [x0, y0, x1, y1].
+  function cutPath(pts, box) {
+    for (let i = 0; i < pts.length - 1; i++) {
+      const [ax, ay] = pts[i], [bx, by] = pts[i + 1];
+      if (Math.abs(ax - bx) < 0.01 && ax > box[0] && ax < box[2] && Math.min(ay, by) < box[1] && Math.max(ay, by) > box[3]) {
+        const down = by > ay;
+        return [pts.slice(0, i + 1).concat([[ax, down ? box[1] : box[3]]]), [[ax, down ? box[3] : box[1]]].concat(pts.slice(i + 1))];
+      }
+      if (Math.abs(ay - by) < 0.01 && ay > box[1] && ay < box[3] && Math.min(ax, bx) < box[0] && Math.max(ax, bx) > box[2]) {
+        const right = bx > ax;
+        return [pts.slice(0, i + 1).concat([[right ? box[0] : box[2], ay]]), [[right ? box[2] : box[0], ay]].concat(pts.slice(i + 1))];
+      }
+    }
+    return [pts];
+  }
   function trimEnd(pts, d) {
     const n = pts.length, a = pts[n - 2], b = pts[n - 1];
     const l = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
@@ -239,15 +254,20 @@
     arrow(pts, label, o) {
       o = o || {};
       const p2 = o.head === false ? pts : trimEnd(pts, 5);
+      let at = o.at;
+      if (label && label.length && !at) { const a = pts[0], b = pts[pts.length - 1]; at = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]; }
+      // o.cut: the line stops at the label that sits on it and continues after it
+      let pieces = [p2];
+      if (o.cut && label && label.length) {
+        const w = Math.max(...label.map((l) => l.replace(/[{}[\]*]/g, '').length)) * 6.6 + 14, h = label.length * 15 + 4;
+        const box = o.rotate ? [at[0] - h / 2, at[1] - w / 2, at[0] + h / 2, at[1] + w / 2] : [at[0] - w / 2, at[1] - h / 2, at[0] + w / 2, at[1] + h / 2];
+        pieces = cutPath(p2, box);
+      }
       let s = `<g class="dg-trg${o.kind ? ' dg-trk-' + o.kind : ''}"${o.id ? ` data-tr="${esc(o.id)}"` : ''}>`;
-      s += `<path class="dg-tr${o.dash ? ' dg-dash' : ''}" d="${roundPath(p2, o.r === undefined ? 9 : o.r)}"/>`;
+      pieces.forEach((p) => { s += `<path class="dg-tr${o.dash ? ' dg-dash' : ''}" d="${roundPath(p, o.r === undefined ? 9 : o.r)}"/>`; });
       if (o.head !== false) s += arrowHead(pts[pts.length - 2], pts[pts.length - 1]);
       this.tr.push(s + '</g>');
-      if (label && label.length) {
-        let at = o.at;
-        if (!at) { const a = pts[0], b = pts[pts.length - 1]; at = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]; }
-        this.text(label, at, o);
-      }
+      if (label && label.length) this.text(label, at, o);
     }
     text(lines, at, o) {
       o = o || {};
@@ -277,237 +297,275 @@
     }
   }
 
-  // Geometry shared by the vertical state diagrams
-  const G = { X: 110, W: 360, SX: 574, SW: 250, LOOP: 38, SKIP: 70, BR: 38 };
-  G.CX = G.X + G.W / 2;              // 290
-  G.BL = G.X + G.W + G.BR / 2 + 1;   // band label x (inside the right strip of the band)
+  // ------------------------------------------------------------------ state diagrams (generated)
+  // Every box, arrow and label comes from M.MACHINES: the state name and description, one arrow per
+  // transition, the label generated from its guard. m.view only says where each box goes. The
+  // generator throws if a transition of the model cannot be drawn, so the diagram cannot drop one.
+  const G = { X: 110, W: 360, SX: 640, SW: 236, LANES: [38, 70], BR: 38, DW: 904 };
+  G.CX = G.X + G.W / 2;                    // 290
+  G.BL = G.X + G.W + G.BR / 2 + 1;         // band label x (inside the right strip of the band)
+  G.RAILS = [G.X + G.W + 50, G.SX + G.SW + 18];
+  const PX = 6.4;                          // width of one label character (12.5 px Barlow), for fitting
+  const BAND_TEXT = { run: ['MACHINING'], stop: ['BELT STOPPED', 'STOPPED'], move: ['BELT MOVING', 'MOVING'] };
+  const stateHeight = (s) => (s.desc && s.desc.length ? 40 + 15 * s.desc.length : 36);
+  const edgeKind = (s) => (s && s.kind ? { ok: 'ok', stop: 'fault', fault: 'fault' }[s.kind] : undefined);
+  const vis = (l) => M.expr.visible(l);
+  // label block centred so that its last line sits just above (or its first line just below) y
+  const above = (y, n) => y - 10.5 - (n - 1) * 7.5;
+  const below = (y, n) => y + 16 + (n - 1) * 7.5;
 
-  // Stack a vertical chain of states joined by straight arrows with centered guard labels.
-  function chain(d, X, W, y, seq) {
-    const CX = X + W / 2;
-    let prev = null, label = null;
-    for (const it of seq) {
-      if (it.init) { prev = d.init(CX, y + 8); y += 16; continue; }
-      if (it.label) { label = it; y += 26 + 15 * it.label.length; continue; }
-      const g = d.state(it.id, X, y, W, it.name, it.lines, it.kind);
-      if (prev) d.arrow([[CX, prev.bottom], [CX, g.top]], label && label.label, { at: [CX, (prev.bottom + g.top) / 2] });
-      prev = g; label = null; y = g.bottom;
+  function edgesOf(m) {
+    const E = [];
+    Object.keys(m.states).forEach((id) => {
+      const s = m.states[id];
+      if (s.choice) {
+        const sig = M.SIGNALS[s.choice];
+        E.push({ from: id, to: s.yes, lines: ['Yes: ' + (s.yesText || sig.on)] });
+        E.push({ from: id, to: s.no, lines: ['No: ' + (s.noText || sig.off)] });
+      } else (s.next || []).forEach((tr) => E.push({ from: id, to: tr.to, tr }));
+    });
+    E.forEach((e) => { e.kind = edgeKind(m.states[e.to]); e.id = e.from + '>' + e.to; });
+    return E;
+  }
+  const edgeLines = (e, w) => e.lines || M.expr.label(e.tr, w);
+  function faultLines(s, w) {
+    const out = [];
+    s.faults.forEach((f, i) => {
+      const t = f.text || (M.expr.label({ when: f.when }, w).join(' ') + ` after ${f.after} s`);
+      out.push(...M.expr.label({ text: (i ? 'or ' : '') + t }, w));
+    });
+    return out;
+  }
+  function allDrawn(mk, E) {
+    const left = E.filter((e) => !e.drawn);
+    if (left.length) throw new Error(`${mk}: transitions not drawn: ${left.map((e) => e.id).join(', ')}`);
+  }
+  function bottomNote(d, m, y) {
+    if (!m.note || d.opts.noNote) return y;
+    return d.note(20, y + 26, d.w - 40, m.note);
+  }
+
+  function stateDiagram(mk, o) {
+    const m = M.MACHINES[mk];
+    if (m.view.grid) return gridDiagram(mk, o);
+    const d = new Diagram(G.DW, 0, m.title, m.sub, o);
+    const { X, W, CX, SX, SW } = G;
+    const main = m.view.main, side = m.view.side || {}, idx = {};
+    main.forEach((id, i) => { idx[id] = i; });
+    const E = edgesOf(m), g = d.st;
+    const edge = (a, b) => E.find((e) => e.from === a && e.to === b);
+    let bottom = 0;
+    const grow = (y) => { bottom = Math.max(bottom, y); };
+    // ---- main column: initial dot, then every node joined by its straight transition
+    let y = d.top;
+    let prev = d.init(CX, y + 8), prevLines = m.initial.when ? M.expr.label(m.initial, 54) : [];
+    y += 16 + (prevLines.length ? 26 + 15 * prevLines.length : 30);
+    main.forEach((id, i) => {
+      const s = m.states[id];
+      let n;
+      if (s.choice) {
+        const ask = M.SIGNALS[s.choice].ask, wv = Math.max(...ask.map(vis));
+        const w = Math.max(176, wv * 9.2 + 64), h = wv > 12 ? 74 : 66;
+        n = d.choice(id, CX, y + h / 2, w, h, ask);
+      } else n = d.state(id, X, y, W, s.name, s.desc, s.kind);
+      const e = i ? edge(main[i - 1], id) : null;
+      if (!i || e) d.arrow([[CX, prev.bottom], [CX, n.top]], prevLines.length ? prevLines : null, { at: [CX, (prev.bottom + n.top) / 2], kind: e && e.kind, id: e && e.id, cut: true });
+      if (e) e.drawn = true;
+      const nx = main[i + 1] && edge(id, main[i + 1]);
+      prevLines = nx ? edgeLines(nx, 54) : [];
+      y = n.bottom + (prevLines.length ? 26 + 15 * prevLines.length : 30);
+      prev = n;
+      grow(n.bottom);
+    });
+    // ---- side states next to their anchor
+    Object.keys(side).forEach((id) => {
+      const a = g[side[id]], s = m.states[id], h = stateHeight(s);
+      d.state(id, SX, a.cy - h / 2, SW, s.name, s.desc, s.kind);
+      grow(g[id].bottom);
+    });
+    // horizontal rows that cross the band strip or the side column (band labels, F/H avoid them)
+    const strip = [], sideRows = [];
+    // ---- transitions between an anchor and its side state (straight, both directions)
+    Object.keys(side).forEach((id) => {
+      const anc = side[id], a = g[anc], isCh = !!m.states[anc].choice;
+      const x0 = isCh ? a.right : X + W, mx = (x0 + SX) / 2;
+      const out = E.filter((e) => e.from === anc && e.to === id), back = E.filter((e) => e.from === id && e.to === anc);
+      out.forEach((e) => {
+        const yy = back.length ? a.cy - 12 : a.cy, lines = edgeLines(e, 26);
+        d.arrow([[x0, yy], [SX, yy]], lines, { at: [mx, above(yy, lines.length)], kind: e.kind, id: e.id });
+        e.drawn = true; strip.push([yy - 18 - 15 * lines.length, yy + 6]);
+      });
+      back.forEach((e) => {
+        const yy = a.cy + 14, lines = edgeLines(e, 26);
+        d.arrow([[SX, yy], [x0, yy]], lines, { at: [mx, below(yy, lines.length)], kind: e.kind, id: e.id });
+        e.drawn = true; strip.push([yy - 6, yy + 12 + 15 * lines.length]);
+      });
+    });
+    // ---- transitions back or forward along the main column: lanes on the left
+    const lanes = E.filter((e) => !e.drawn && e.from in idx && e.to in idx);
+    lanes.sort((a, b) => Math.abs(idx[b.to] - idx[b.from]) - Math.abs(idx[a.to] - idx[a.from]));
+    if (lanes.length > G.LANES.length) throw new Error(`${mk}: ${lanes.length} lane transitions, only ${G.LANES.length} lanes`);
+    lanes.forEach((e, k) => {
+      const L = G.LANES[k], s = g[e.from], t = g[e.to], ty = t.cy + (k ? -10 : 10);
+      const fromChoice = !!m.states[e.from].choice, last = idx[e.from] === main.length - 1 && !fromChoice;
+      if (last) {
+        const yl = s.bottom + 30, lines = edgeLines(e, Math.floor((CX - L - 24) / PX));
+        d.arrow([[CX, s.bottom], [CX, yl], [L, yl], [L, ty], [X, ty]], lines, { at: [(CX + L) / 2, yl], kind: e.kind, id: e.id, cut: true });
+        grow(yl + 8 * lines.length);
+      } else {
+        const sx = fromChoice ? s.left : X, sy = s.cy;
+        let lines = edgeLines(e, 40);
+        const fits = lines.length === 1 && vis(lines[0]) * PX < sx - L - 16;
+        if (fits) d.arrow([[sx, sy], [L, sy], [L, ty], [X, ty]], lines, { at: [(sx + L) / 2 + 4, sy - 13], kind: e.kind, id: e.id });
+        else {
+          lines = edgeLines(e, Math.max(16, Math.floor(Math.abs(ty - sy) / PX) - 4));
+          d.arrow([[sx, sy], [L, sy], [L, ty], [X, ty]], lines, { at: [L, (sy + ty) / 2], rotate: -90, kind: e.kind, id: e.id, cut: true });
+        }
+      }
+      e.drawn = true;
+    });
+    // ---- side state back to another main state: up a rail on the right
+    const rails = E.filter((e) => !e.drawn && side[e.from] && e.to in idx);
+    rails.sort((a, b) => g[a.from].top - g[b.from].top);
+    if (rails.length > G.RAILS.length) throw new Error(`${mk}: ${rails.length} rail transitions, only ${G.RAILS.length} rails`);
+    rails.forEach((e, k) => {
+      const s = g[e.from], t = g[e.to], ty = t.cy + (rails.length > 1 ? (k ? -10 : 10) : 0);
+      if (k === 0) {
+        const xr = G.RAILS[0], yt = s.top - 18;
+        const lines = edgeLines(e, Math.max(16, Math.floor((yt - ty) / PX) - 4));
+        d.arrow([[s.cx, s.top], [s.cx, yt], [xr, yt], [xr, ty], [X + W, ty]], lines, { at: [xr, (ty + yt) / 2], rotate: -90, kind: e.kind, id: e.id, cut: true });
+        sideRows.push([yt - 14, yt + 10]); strip.push([ty - 14, ty + 14]);
+      } else {
+        const xo = G.RAILS[1], lines = edgeLines(e, 60);
+        d.arrow([[s.right, s.cy], [xo, s.cy], [xo, ty], [X + W, ty]], lines, { at: [(X + W + xo) / 2 + 30, above(ty, lines.length)], kind: e.kind, id: e.id });
+        sideRows.push([ty - 14 - 15 * lines.length, ty + 10]); strip.push([ty - 14 - 15 * lines.length, ty + 14]);
+        d.w = Math.max(d.w, xo + 16);
+      }
+      e.drawn = true;
+    });
+    allDrawn(mk, E);
+    // ---- global FAULT and HOLD boxes (entered from any state), timed faults drawn explicitly
+    const occupied = Object.keys(side).map((id) => [g[id].top - 16, g[id].bottom + 16]).concat(sideRows);
+    const place = (h) => {
+      let y0 = g[main[0]].top;
+      for (let guard = 0; guard < 50; guard++) {
+        const hit = occupied.find(([a, b]) => y0 < b && y0 + h > a);
+        if (!hit) return y0;
+        y0 = hit[1] + 2;
+      }
+      return y0;
+    };
+    const timed = main.filter((id) => (m.states[id].faults || []).length);
+    if (m.fault) {
+      const f = { desc: m.fault.desc };
+      let fy;
+      if (timed.length) {
+        const s = g[timed[0]];
+        fy = s.top - 6;
+        const yy = s.top + 22, lines = faultLines(m.states[timed[0]], 27);
+        d.arrow([[X + W, yy], [SX, yy]], lines, { at: [(X + W + SX) / 2, above(yy, lines.length)], kind: 'fault', id: timed[0] + '>F' });
+        strip.push([yy - 18 - 15 * lines.length, yy + 6]);
+      } else fy = place(stateHeight(f) + (m.hold ? 16 + stateHeight(m.hold) : 0));
+      const fg = d.state('F', SX, fy, SW, M.STATES[mk].F, m.fault.desc, 'fault');
+      occupied.push([fg.top - 16, fg.bottom + (timed.length ? 16 : 0)]);
+      if (!timed.length) d.arrow([[SX - 34, fg.cy], [SX, fg.cy]], null, { kind: 'fault', dash: true });
+      grow(fg.bottom);
     }
-    return y;
+    if (m.hold) {
+      const hy = m.fault && !timed.length ? g.F.bottom + 16 : place(stateHeight(m.hold));
+      const hg = d.state('H', SX, hy, SW, M.STATES[mk].H, m.hold.desc, 'hold');
+      d.arrow([[SX - 34, hg.cy], [SX, hg.cy]], null, { kind: 'hold', dash: true });
+      grow(hg.bottom);
+    }
+    // ---- bands: CNC machining / idle, belt stopped / moving
+    const bandOf = (i) => {
+      const s = m.states[main[i]];
+      if (!s.choice) return s.band;
+      const p = m.states[main[i - 1]], n = m.states[main[i + 1]];
+      return p && (!n || p.band === n.band) ? p.band : undefined;
+    };
+    for (let i = 0; i < main.length;) {
+      const kind = bandOf(i);
+      let j = i;
+      while (j + 1 < main.length && bandOf(j + 1) === kind) j++;
+      if (kind) {
+        const a = g[main[i]], b = g[main[j]], y0 = a.top - 8, y1 = b.bottom + 8;
+        d.band(X - 10, y0, W + 10 + G.BR, y1 - y0, kind);
+        const texts = kind === 'idle' ? [`CNC IDLE ≈ ${M.KPI['idle' + m.setup]} s`, 'CNC IDLE'] : BAND_TEXT[kind];
+        // the longest stretch of the strip that no horizontal arrow crosses
+        const cuts = strip.filter(([p, q]) => q > y0 && p < y1).sort((u, v) => u[0] - v[0]);
+        let best = [y0, y0], cur = y0;
+        cuts.forEach(([p, q]) => { if (p - cur > best[1] - best[0]) best = [cur, p]; cur = Math.max(cur, q); });
+        if (y1 - cur > best[1] - best[0]) best = [cur, y1];
+        const room = best[1] - best[0], text = texts.find((t) => t.length * 7.9 + 12 <= room);
+        if (text) d.bandLabel(text, G.BL, (best[0] + best[1]) / 2, kind);
+      }
+      i = j + 1;
+    }
+    return finishDiagram(d, m, bottom);
   }
-  function band(d, a, b, kind, label, labelFrom, labelTo) {
-    d.band(G.X - 10, a.top - 8, G.W + 10 + G.BR, b.bottom - a.top + 16, kind);
-    if (label) d.bandLabel(label, G.BL, ((labelFrom || a).top + (labelTo || b).bottom) / 2, kind);
-  }
-  function faultHold(d, y, withHold, faultLines, holdLines) {
-    const f = d.state('F', G.SX, y, G.SW, 'FAULT', faultLines || ['From any state: timeout or a', 'missing confirmation · red light'], 'fault');
-    d.arrow([[G.SX - 34, f.cy], [G.SX, f.cy]], null, { kind: 'fault', dash: true });
-    if (!withHold) return f;
-    const h = d.state('H', G.SX, f.bottom + 16, G.SW, 'HOLD (LINE STOP)', holdLines || ['LINE STOP: finish the step,', 'park, wait for the reset'], 'hold');
-    d.arrow([[G.SX - 34, h.cy], [G.SX, h.cy]], null, { kind: 'hold', dash: true });
-    return h;
-  }
-  const HOLD_FAULT_NOTE = [
-    '*F FAULT* and *H HOLD* can be entered from any state. FAULT = a confirmation is missing or a timeout',
-    'expired (the alarm names the sensor, no automatic robot retries). HOLD = LINE STOP from the cross-check',
-    'supervisor: the current step is finished, the robot parks, and it resumes at the same step after the reset.',
-  ];
-  function finish(d, y, noteLines) {
-    if (noteLines && !d.opts.noNote) y = d.note(20, y + 26, d.w - 40, noteLines);
+  function finishDiagram(d, m, bottom) {
+    const y = bottomNote(d, m, bottom);
     d.h = y + 18;
     return d.svg();
   }
 
-  // ------------------------------------------------------------------ SD: Robot 1, Setup 1
-  function smRobot1S1(o) {
-    const S = M.STATES.R1S1;
-    const d = new Diagram(844, 0, 'State diagram: Robot 1 + CNC (Setup 1, single gripper)',
-      'Arrow label = the confirmation that allows the transition · {TAG} sensor · [CP-n] camera + proximity cross-check', o);
-    const { X, W, CX } = G;
-    chain(d, X, W, d.top, [
-      { init: true },
-      { label: ['Auto mode ON'] },
-      { id: 'A0', name: S.A0, lines: ['Home robot · check CNC ready, door closed', '({ZS-32}) and fixture state ({PS-36})'] },
-      { label: ['Robot home · CNC ready · {ZS-32} door closed'] },
-      { id: 'A1', name: S.A1, lines: ['Robot parked at home, clear of CNC and', 'conveyor · CNC machining the part (120 s)'] },
-      { label: ['CNC cycle complete (M30) · spindle stopped', '{ZS-33} guard lock released'] },
-      { id: 'A2', name: S.A2, lines: ['Empty gripper grips the door handle, slides', 'the door open, releases it, retracts'] },
-      { label: ['{ZS-31} door open = ON · {ZS-32} = OFF'] },
-      { id: 'A3', name: S.A3, lines: ['Enter · grip finished part · open vise ·', 'lift the part out · exit the machine'] },
-      { label: ['{GR-21} grip OK · {ZS-34} vise open', '{PS-36} = OFF (fixture empty) · R1 clear of CNC'] },
-      { id: 'A4', name: S.A4, lines: ['Wait for belt stopped ({ENC-43} = 0) and', 'entry clear ([CP-2]) · place · release'] },
-      { label: ['[CP-2] part present ({PE-41} + {CAM-1})', 'R1 clear of conveyor'] },
-      { id: 'A5', name: S.A5, lines: ['[CP-1] pallet present ({PX-11} + {CAM-1}) ·', '{CAM-1} gives the pick pose · pick'] },
-      { label: ['{GR-21} grip OK · {CAM-1} slot now empty'] },
-      { id: 'A6', name: S.A6, lines: ['Enter · place part in the vise · clamp ·', 'open gripper · exit the machine'] },
-      { label: ['{ZS-35} clamped · {PS-36} part seated', 'gripper open · R1 clear of CNC'] },
-      { id: 'A7', name: S.A7, lines: ['Empty gripper slides the door closed,', 'releases the handle, moves home'] },
-      { label: ['{ZS-32} door closed = ON · {ZS-33} locked'] },
-      { id: 'A8', name: S.A8, lines: ['Send CYCLE START through the CNC', 'robot interface'] },
-    ]);
-    const s = d.st;
-    band(d, s.A1, s.A1, 'run', 'MACHINING');
-    band(d, s.A2, s.A8, 'idle', `CNC IDLE ≈ ${M.KPI.idle1} s`, s.A6, s.A8);
-    const yl = s.A8.bottom + 30;
-    d.arrow([[CX, s.A8.bottom], [CX, yl], [G.LOOP, yl], [G.LOOP, s.A1.cy + 10], [X, s.A1.cy + 10]], ['CNC in cycle'], { at: [(CX + G.LOOP) / 2 + 24, yl] });
-    d.arrow([[X, s.A2.cy], [G.SKIP, s.A2.cy], [G.SKIP, s.A5.cy - 10], [X, s.A5.cy - 10]], ['CNC empty (first cycle)'], { at: [G.SKIP, (s.A2.cy + s.A5.cy) / 2], rotate: -90 });
-    const w1 = d.state('W1', G.SX, s.A5.cy - 35, G.SW, S.W1, ['HMI: "Load input pallet"', 'amber light · robot waits'], 'op');
-    const mx = (X + W + G.BR + G.SX) / 2;
-    d.arrow([[X + W, s.A5.cy - 12], [G.SX, s.A5.cy - 12]], ['no parts left', '({CAM-1})'], { at: [mx, s.A5.cy - 40] });
-    d.arrow([[G.SX, s.A5.cy + 14], [X + W, s.A5.cy + 14]], ['pallet loaded', '[CP-1] OK'], { at: [mx, s.A5.cy + 42] });
-    faultHold(d, s.A0.top, true);
-    return finish(d, yl, HOLD_FAULT_NOTE);
+  // Small machines on a 2 x 2 grid (cross-check supervisor). Same rules: every transition drawn.
+  function gridDiagram(mk, o) {
+    const m = M.MACHINES[mk], grid = m.view.grid;
+    const d = new Diagram(860, 0, m.title, m.sub, o);
+    const t = d.top + 34, COL = [40, 520], ROW = [t, t + 250], BW = 300;
+    const E = edgesOf(m), g = d.st, cell = {};
+    Object.keys(grid).forEach((id) => {
+      const s = m.states[id], [c, r] = grid[id];
+      d.state(id, COL[c], ROW[r], BW, s.name, s.desc, s.kind);
+      cell[id] = { c, r };
+    });
+    const first = g[m.initial.to];
+    d.init(20, first.top - 22);
+    d.arrow([[20, first.top - 14], [20, first.cy], [first.left, first.cy]], null, { r: 8 });
+    const has = (a, b) => E.some((e) => e.from === a && e.to === b);
+    const diag = E.filter((e) => cell[e.from].c !== cell[e.to].c && cell[e.from].r !== cell[e.to].r);
+    let bottom = Math.max(...Object.keys(grid).map((id) => g[id].bottom));
+    E.forEach((e) => {
+      const a = g[e.from], b = g[e.to], ca = cell[e.from], cb = cell[e.to];
+      const lines = edgeLines(e, 26), opt = { kind: e.kind, id: e.id };
+      if (e.from === e.to) {
+        const yb = a.bottom + 28;
+        d.arrow([[a.left + 50, a.bottom], [a.left + 50, yb], [a.left + 140, yb], [a.left + 140, a.bottom]], edgeLines(e, 52), Object.assign(opt, { at: [a.left + 95, below(yb, 1) - 2] }));
+        bottom = Math.max(bottom, yb + 26);
+      } else if (ca.r === cb.r) {
+        const rev = has(e.to, e.from), ltr = a.cx < b.cx;
+        const yy = a.cy + (rev ? (ltr ? -14 : 14) : 0);
+        const x0 = ltr ? a.right : a.left, x1 = ltr ? b.left : b.right;
+        const up = rev ? ltr : ca.r === 0;
+        d.arrow([[x0, yy], [x1, yy]], lines, Object.assign(opt, { at: [(x0 + x1) / 2, up ? above(yy, lines.length) : below(yy, lines.length) + 4] }));
+      } else if (ca.c === cb.c) {
+        const off = diag.some((x) => cell[x.from].c === ca.c && cell[x.from].r === 0) || diag.some((x) => cell[x.to].c === ca.c && cell[x.to].r === 0) ? (ca.c ? 70 : -70) : 0;
+        const down = a.cy < b.cy, x = a.cx + off;
+        d.arrow([[x, down ? a.bottom : a.top], [x, down ? b.top : b.bottom]], edgeLines(e, 30), Object.assign(opt, { at: [x, ((down ? a.bottom : a.top) + (down ? b.top : b.bottom)) / 2], cut: true }));
+      } else {
+        const xs = a.cx + (b.cx > a.cx ? 70 : -70), xe = b.cx > a.cx ? b.left + 60 : b.right - 60;
+        const ys = a.cy < b.cy ? a.bottom : a.top, ye = a.cy < b.cy ? b.top : b.bottom;
+        const ym = (ys + ye) / 2 + 26;
+        d.arrow([[xs, ys], [xs, ym], [xe, ym], [xe, ye]], edgeLines(e, 40), Object.assign(opt, { at: [(xs + xe) / 2, ym], cut: true }));
+      }
+      e.drawn = true;
+    });
+    allDrawn(mk, E);
+    if (m.note && !d.opts.noNote) {
+      const yN = d.note(COL[1], ROW[1] + g[Object.keys(grid).find((id) => cell[id].c === 1 && cell[id].r === 1)].h + 22, BW, m.note);
+      bottom = Math.max(bottom, yN);
+    }
+    d.h = bottom + 18;
+    return d.svg();
   }
-
-  // ------------------------------------------------------------------ SD: Conveyor
-  function smConveyor(o) {
-    const S = M.STATES.CONV;
-    const d = new Diagram(844, 0, 'State diagram: Conveyor',
-      'Robots pick or place at the belt only when it is stopped ({ENC-43} = 0); the belt starts only when both robots are clear.', o);
-    const { X, W, CX } = G;
-    chain(d, X, W, d.top, [
-      { init: true },
-      { label: ['Start-up: [CP-2] and [CP-3] clear'] },
-      { id: 'C1', name: S.C1, lines: ['Belt stopped ({ENC-43} = 0)', 'Robot 1 may place a part at the entry'] },
-      { label: ['Robot 1 "part placed" · [CP-2] part present', '({PE-41} + {CAM-1})'] },
-      { id: 'C2', name: S.C2, lines: ['Belt still stopped · wait for the', 'transport permissives'] },
-      { label: ['R1 and R2 clear of conveyor · [CP-3] exit clear'] },
-      { id: 'C3', name: S.C3, lines: ['Motor ON · {ENC-43} must count pulses', 'within 1 s · exit reached within 15 s'] },
-      { label: ['Part at the end stop: {PE-42} ON or {CAM-2} sees it', '(either source is enough to stop the belt)'] },
-      { id: 'C4', name: S.C4, lines: ['Motor OFF · wait for zero speed'] },
-      { label: ['{ENC-43} zero speed for 0.2 s'] },
-      { id: 'C5', name: S.C5, lines: ['[CP-3] part at exit ({PE-42} + {CAM-2}) ·', '{CAM-2} pick pose · "pick allowed" to R2'] },
-    ]);
-    const s = d.st;
-    band(d, s.C1, s.C2, 'stop', 'BELT STOPPED');
-    band(d, s.C3, s.C4, 'move', 'BELT MOVING', s.C4, s.C4);
-    band(d, s.C5, s.C5, 'stop', 'STOPPED');
-    const yl = s.C5.bottom + 44;
-    d.arrow([[CX, s.C5.bottom], [CX, yl], [G.LOOP, yl], [G.LOOP, s.C1.cy + 10], [X, s.C1.cy + 10]], ['Robot 2 picked: {GR-51} grip OK', '[CP-3] exit clear · R2 clear of conveyor'], { at: [(CX + G.LOOP) / 2 + 26, yl] });
-    const f = d.state('F', G.SX, s.C3.top - 6, G.SW, 'FAULT', ['No {ENC-43} pulses within 1 s', '(belt / drive), or no {PE-42}', 'within 15 s (jam, lost part)'], 'fault');
-    d.arrow([[X + W, s.C3.top + 22], [G.SX, s.C3.top + 22]], null, { kind: 'fault' });
-    const h = d.state('H', G.SX, s.C1.top, G.SW, 'HOLD (LINE STOP)', ['A running transport finishes at', 'the stop; no new transport starts'], 'hold');
-    d.arrow([[G.SX - 42, h.cy], [G.SX, h.cy]], null, { kind: 'hold', dash: true });
-    return finish(d, yl + 16, [
-      '*Stop logic:* stopping uses *OR* ({PE-42} or {CAM-2}) because stopping is the safe direction;',
-      'confirming the part for the pick uses the cross-check [CP-3] (both must agree, otherwise the camera decides).',
-    ]);
-  }
-
-  // ------------------------------------------------------------------ SD: Robot 2, Setup 1
-  function smRobot2S1(o) {
-    const S = M.STATES.R2S1;
-    const d = new Diagram(844, 0, 'State diagram: Robot 2 + output pallet (Setup 1)',
-      'The blue light {LT-53} is the "pallet ready for pickup" signal required by the assignment.', o);
-    const { X, W, CX } = G;
-    chain(d, X, W, d.top, [
-      { init: true },
-      { label: ['Auto mode ON'] },
-      { id: 'D0', name: S.D0, lines: ['Home · [CP-4] pallet present ({PX-52} + {CAM-2})', '{CAM-2} reads the slot map, sets the count'] },
-      { label: ['Robot home · pallet present · free slots'] },
-      { id: 'D1', name: S.D1, lines: ['Robot at home, clear of the conveyor'] },
-      { label: ['Conveyor in C5: "pick allowed" + pick pose ({CAM-2})'] },
-      { id: 'D2', name: S.D2, lines: ['Belt stopped ({ENC-43} = 0) · move to the', 'pick pose · grip · lift · retract'] },
-      { label: ['{GR-51} grip OK · [CP-3] exit clear', 'R2 clear of conveyor'] },
-      { id: 'D3', name: S.D3, lines: ['[CP-4] pallet present ({PX-52} + {CAM-2}) ·', '{CAM-2} next free slot · place · release'] },
-    ]);
-    const s = d.st;
-    const cy = s.D3.bottom + 72;
-    const c = d.choice('Q1', CX, cy, 176, 66, ['Output pallet', 'full?']);
-    d.arrow([[CX, s.D3.bottom], [CX, c.top]], ['{CAM-2}: slot occupied · count + 1'], { at: [CX, (s.D3.bottom + c.top) / 2] });
-    d.arrow([[c.left, cy], [G.LOOP, cy], [G.LOOP, s.D1.cy], [X, s.D1.cy]], ['No: count < 12'], { at: [(c.left + G.LOOP) / 2 + 6, cy - 13] });
-    const d4 = d.state('D4', G.SX, cy - 42, G.SW, S.D4, ['{LT-53} blue light ON · wait for', 'the swap: {PX-52} OFF → ON and', '{CAM-2} sees an empty pallet'], 'op');
-    d.arrow([[c.right, cy], [d4.left, cy]], ['Yes: count = 12', '{CAM-2}: all slots full'], { at: [(c.right + d4.left) / 2 - 4, cy - 32], kind: 'ok' });
-    const xr = X + W + 50;
-    d.arrow([[d4.cx, d4.top], [d4.cx, d4.top - 18], [xr, d4.top - 18], [xr, s.D1.cy], [X + W, s.D1.cy]], ['pallet swapped → count = 0 · {LT-53} OFF'], { at: [xr, (s.D1.cy + d4.top - 18) / 2 + 20], rotate: -90 });
-    faultHold(d, s.D0.top, true);
-    return finish(d, c.bottom, HOLD_FAULT_NOTE);
-  }
-
-  // ------------------------------------------------------------------ SD: Robot 1, Setup 2
-  function smRobot1S2(o) {
-    const S = M.STATES.R1S2;
-    const d = new Diagram(844, 0, 'State diagram: Robot 1 + CNC (Setup 2, dual gripper A / B)',
-      'Gripper A carries the raw part, gripper B the finished part. The raw part is picked while the CNC is still machining.', o);
-    const { X, W, CX } = G;
-    chain(d, X, W, d.top, [
-      { init: true },
-      { label: ['Auto mode ON'] },
-      { id: 'B0', name: S.B0, lines: ['Home robot · check CNC ready, door closed', '({ZS-32}) and fixture state ({PS-36})'] },
-      { label: ['Robot home · CNC ready · door closed'] },
-      { id: 'B1', name: S.B1, lines: ['[CP-1] pallet present ({PX-11} + {CAM-1}) ·', '{CAM-1} pick pose · gripper A picks'] },
-      { label: ['{GR-21A} grip OK · {CAM-1} slot now empty'] },
-      { id: 'B2', name: S.B2, lines: ['Raw part in gripper A, gripper B empty ·', 'wait at the door while the CNC finishes'] },
-      { label: ['CNC cycle complete · spindle stopped', '{ZS-33} guard lock released'] },
-      { id: 'B3', name: S.B3, lines: ['Empty gripper B grips the handle, slides', 'the door open, releases it'] },
-      { label: ['{ZS-31} door open = ON · {ZS-32} = OFF'] },
-      { id: 'B4', name: S.B4, lines: ['B takes the finished part out of the vise ·', 'wrist turns 180° · A places the raw part'] },
-      { label: ['{GR-21B} grip OK · {ZS-35} clamped · {PS-36} seated', 'gripper A open · R1 clear of CNC'] },
-      { id: 'B5', name: S.B5, lines: ['Empty gripper A slides the door closed,', 'releases the handle'] },
-      { label: ['{ZS-32} door closed = ON · {ZS-33} locked'] },
-      { id: 'B6', name: S.B6, lines: ['Send CYCLE START · CNC idle time ends'] },
-      { label: ['CNC in cycle · gripper B holds a finished part'] },
-      { id: 'B7', name: S.B7, lines: ['Wait for {ENC-43} = 0 and [CP-2] entry clear', '· place the finished part · release'] },
-    ]);
-    const s = d.st;
-    band(d, s.B1, s.B2, 'run', 'MACHINING', s.B2, s.B2);
-    band(d, s.B3, s.B6, 'idle', `CNC IDLE ≈ ${M.KPI.idle2} s`);
-    band(d, s.B7, s.B7, 'run', 'MACHINING');
-    const yl = s.B7.bottom + 30;
-    d.arrow([[CX, s.B7.bottom], [CX, yl], [G.LOOP, yl], [G.LOOP, s.B1.cy + 10], [X, s.B1.cy + 10]], ['[CP-2] part present ({PE-41} + {CAM-1}) · R1 clear'], { at: [(CX + G.LOOP) / 2 + 44, yl] });
-    d.arrow([[X, s.B6.cy], [G.SKIP, s.B6.cy], [G.SKIP, s.B1.cy - 10], [X, s.B1.cy - 10]], ['first cycle: gripper B is empty'], { at: [G.SKIP, (s.B3.top + s.B5.bottom) / 2], rotate: -90 });
-    const w1 = d.state('W1', G.SX, s.B1.cy - 35, G.SW, S.W1, ['HMI: "Load input pallet"', 'amber light · robot waits'], 'op');
-    const mx = (X + W + G.BR + G.SX) / 2;
-    d.arrow([[X + W, s.B1.cy - 12], [G.SX, s.B1.cy - 12]], ['no parts left', '({CAM-1})'], { at: [mx, s.B1.cy - 40] });
-    d.arrow([[G.SX, s.B1.cy + 14], [X + W, s.B1.cy + 14]], ['pallet loaded', '[CP-1] OK'], { at: [mx, s.B1.cy + 42] });
-    faultHold(d, s.B4.top - 10, true);
-    return finish(d, yl, HOLD_FAULT_NOTE);
-  }
-
-  // ------------------------------------------------------------------ SD: Robot 2, Setup 2
-  function smRobot2S2(o) {
-    const S = M.STATES.R2S2;
-    const d = new Diagram(860, 0, 'State diagram: Robot 2 + gauge + sorting (Setup 2)',
-      'Every part is measured. Accept only if length, width and height are all ≥ 48.00 mm (50 mm nominal − 2 mm).', o);
-    const { X, W, CX } = G;
-    chain(d, X, W, d.top, [
-      { init: true },
-      { label: ['Auto mode ON'] },
-      { id: 'E0', name: S.E0, lines: ['Home · [CP-4] pallet · [CP-5] nest empty ·', 'master cube check of the 3 lasers'] },
-      { label: ['Robot home · pallet ready · gauge verified'] },
-      { id: 'E1', name: S.E1, lines: ['Robot at home, clear of the conveyor'] },
-      { label: ['Conveyor in C5: "pick allowed" + pick pose ({CAM-2})'] },
-      { id: 'E2', name: S.E2, lines: ['Belt stopped ({ENC-43} = 0) · grip · lift'] },
-      { label: ['{GR-51} grip OK · [CP-3] exit clear · R2 clear'] },
-      { id: 'E3', name: S.E3, lines: ['Place in the corner nest · push against the', '3 datums (force control) · release · retract'] },
-      { label: ['[CP-5] part in nest ({PX-64} + {CAM-2})', 'R2 clear of the laser paths'] },
-      { id: 'E4', name: S.E4, lines: ['{LS-61}/{LS-62}/{LS-63}: average of 10 samples', 'size = 50.000 + (d master − d part)'] },
-    ]);
-    const s = d.st;
-    const c1y = s.E4.bottom + 80;
-    const c1 = d.choice('Q1', CX, c1y, 214, 74, ['L, W and H', '≥ 48.00 mm?']);
-    d.arrow([[CX, s.E4.bottom], [CX, c1.top]], ['3 valid readings (re-measure once; still', 'invalid → NOK + sensor error logged)'], { at: [CX, (s.E4.bottom + c1.top) / 2] });
-    const e6 = d.state('E6', G.SX, c1y - 42, G.SW, S.E6, ['Re-pick · drop into the locked chute', '{PE-65} confirms · log L, W, H ·', '2 NOK in a row → quality hold'], 'stop');
-    d.arrow([[c1.right, c1y], [e6.left, c1y]], ['No:', 'undersized'], { at: [(c1.right + e6.left) / 2, c1y - 26], kind: 'fault' });
-    const e5 = d.state('E5', X, c1.bottom + 60, W, S.E5, ['Re-pick from nest · [CP-4] pallet present ·', '{CAM-2} next free slot · place · release'], 'ok');
-    d.arrow([[CX, c1.bottom], [CX, e5.top]], ['Yes: OK part'], { at: [CX, (c1.bottom + e5.top) / 2], kind: 'ok' });
-    const c2y = e5.bottom + 74;
-    const c2 = d.choice('Q2', CX, c2y, 176, 66, ['Output pallet', 'full?']);
-    d.arrow([[CX, e5.bottom], [CX, c2.top]], ['{CAM-2}: slot occupied · count + 1'], { at: [CX, (e5.bottom + c2.top) / 2] });
-    d.arrow([[c2.left, c2y], [G.LOOP, c2y], [G.LOOP, s.E1.cy], [X, s.E1.cy]], ['No: count < 12'], { at: [(c2.left + G.LOOP) / 2 + 6, c2y - 13] });
-    const e7 = d.state('E7', G.SX, c2y - 42, G.SW, S.E7, ['{LT-53} blue light ON · wait for', 'the swap: {PX-52} OFF → ON and', '{CAM-2} sees an empty pallet'], 'op');
-    d.arrow([[c2.right, c2y], [e7.left, c2y]], ['Yes: count = 12'], { at: [(c2.right + e7.left) / 2, c2y - 14], kind: 'ok' });
-    // E6 -> E1 through the gap; E7 -> E1 along the outer right rail
-    const xg = X + W + 40, xo = G.SX + G.SW + 18;
-    d.arrow([[e6.cx, e6.top], [e6.cx, e6.top - 16], [xg, e6.top - 16], [xg, s.E1.cy + 10], [X + W, s.E1.cy + 10]], ['{PE-65} part dropped · NOK + 1'], { at: [xg, (s.E1.cy + e6.top) / 2 + 30], rotate: -90 });
-    d.arrow([[e7.right, c2y], [xo, c2y], [xo, s.E1.cy - 10], [X + W, s.E1.cy - 10]], ['pallet swapped · count = 0 · {LT-53} OFF'], { at: [(X + W + xo) / 2 + 40, s.E1.cy - 22] });
-    faultHold(d, s.E2.top - 6, true);
-    return finish(d, c2.bottom, [
-      '*Quality hold:* 2 consecutive NOK parts → the CNC finishes the current part and starts no new cycle until the tool',
-      'and offsets are checked and the operator resets. *One point per face is enough:* squareness and flatness < 0.1 mm.',
-      'F FAULT and H HOLD are entered from any state (see the Robot 1 diagram).',
-    ]);
-  }
+  const smRobot1S1 = (o) => stateDiagram('R1S1', o);
+  const smRobot1S2 = (o) => stateDiagram('R1S2', o);
+  const smConveyor = (o) => stateDiagram('CONV', o);
+  const smRobot2S1 = (o) => stateDiagram('R2S1', o);
+  const smRobot2S2 = (o) => stateDiagram('R2S2', o);
+  const smSupervisor = (o) => stateDiagram('SUP', o);
 
   // ------------------------------------------------------------------ Cross-check flowchart
   function flowCrossCheck(o) {
@@ -548,43 +606,21 @@
     return d.svg();
   }
 
-  // ------------------------------------------------------------------ Supervisor states
-  function smSupervisor(o) {
-    const S = M.STATES.XCHK;
-    const d = new Diagram(860, 0, 'State diagram: cross-check supervisor (camera vs proximity)',
-      'Runs in parallel with the other state machines and counts disagreements in a 10-minute sliding window.', o);
-    const t = d.top + 34;
-    const x1 = d.state('X1', 60, t, 300, S.X1, ['All checkpoints agree', 'stack light {LT-01} green'], 'ok');
-    const x2 = d.state('X2', 500, t, 300, S.X2, ['1–2 mismatches in the last 10 min', 'camera value used · amber flashing'], 'warn');
-    const x3 = d.state('X3', 500, t + 250, 300, S.X3, ['Controlled stop: CNC ends its cycle,', 'robots park, belt stops · red light'], 'stop');
-    const x4 = d.state('X4', 60, t + 250, 300, S.X4, ['Technician cleans and aligns sensors,', 'tests each CP, checks camera calibration'], 'check');
-    d.init(30, t - 22); d.arrow([[30, t - 14], [30, x1.cy], [x1.left, x1.cy]], null, { r: 8 });
-    d.arrow([[x1.right, x1.cy - 14], [x2.left, x2.cy - 14]], ['mismatch at any CP'], { at: [(x1.right + x2.left) / 2, x1.cy - 30] });
-    d.arrow([[x2.left, x2.cy + 14], [x1.right, x1.cy + 14]], ['no mismatch for', '10 min (window empty)'], { at: [(x1.right + x2.left) / 2, x1.cy + 44] });
-    d.arrow([[x2.right - 50, x2.top], [x2.right - 50, x2.top - 24], [x2.right + 22, x2.top - 24], [x2.right + 22, x2.cy], [x2.right, x2.cy]], ['mismatch, count < 3'], { at: [x2.right - 40, x2.top - 36] });
-    d.arrow([[x2.cx, x2.bottom], [x2.cx, x3.top]], ['3rd mismatch', 'within 10 min'], { at: [x2.cx, (x2.bottom + x3.top) / 2], kind: 'fault' });
-    const ym = (x1.bottom + x4.top) / 2 + 26;
-    d.arrow([[x1.cx + 70, x1.bottom], [x1.cx + 70, ym], [x3.left + 60, ym], [x3.left + 60, x3.top]], ['camera fault (after 1 retry)'], { at: [(x1.cx + 70 + x3.left + 60) / 2, ym], kind: 'fault' });
-    d.arrow([[x3.left, x3.cy], [x4.right, x4.cy]], ['all stopped · technician', 'starts the check'], { at: [(x3.left + x4.right) / 2, x3.cy + 30] });
-    d.arrow([[x4.cx - 70, x4.top], [x4.cx - 70, x1.bottom]], ['all CP tests pass ·', 'operator reset →', 'counter cleared'], { at: [x4.cx - 70, (x1.bottom + x4.top) / 2 - 10], kind: 'ok' });
-    d.arrow([[x4.left + 50, x4.bottom], [x4.left + 50, x4.bottom + 28], [x4.left + 140, x4.bottom + 28], [x4.left + 140, x4.bottom]], ['test fails → repair or replace the sensor, re-test'], { at: [x4.left + 95, x4.bottom + 44] });
-    const yN = d.note(500, x3.bottom + 22, 300, ['*The camera never overrides safety:*', 'door interlock, E-stops and scanners', 'stay hardwired to the safety relay.']);
-    d.h = Math.max(yN, x4.bottom + 60) + 16;
-    return d.svg();
-  }
 
   // ------------------------------------------------------------------ Control architecture
   function archDiagram(o) {
     const d = new Diagram(900, 0, 'Control architecture: four state machines in the cell PLC',
       'Each state machine moves only on its own sensors plus the handshake signals written on the arrows.', o);
     const t = d.top;
+    // state ranges come from the model (first and last id of each machine)
+    const span = (mk) => { const ids = Object.keys(M.STATES[mk]).filter((id) => id[0] === Object.keys(M.STATES[mk])[0][0]); return ids[0] + '–' + ids[ids.length - 1]; };
     const cnc = d.node('CNC', 40, t + 4, 240, 74, ['CNC + DOOR KIT', 'robot interface · {ZS-31} {ZS-32} {ZS-33}', 'vise {ZS-34} {ZS-35} · {PS-36}']);
     const op = d.node('OP', 620, t + 4, 240, 74, ['OPERATOR / HMI', 'loads input pallet ({PX-11}, [CP-1])', 'swaps output pallet · resets'], { kind: 'op' });
     const yb = t + 170;
-    const s1 = d.node('SM1', 40, yb + 26, 240, 92, ['SM-1  ROBOT 1 + CNC', 'states A0–A8 (Setup 1)', 'or B0–B7 (Setup 2)', '{PX-11} {CAM-1} {GR-21}']);
-    const s2 = d.node('SM2', 360, yb + 26, 180, 92, ['SM-2  CONVEYOR', 'states C1–C5', '{PE-41} {PE-42}', '{ENC-43}']);
-    const s3 = d.node('SM3', 620, yb + 26, 240, 92, ['SM-3  ROBOT 2 + PALLET', 'states D0–D4 (Setup 1)', 'or E0–E7 (Setup 2)', '{CAM-2} {GR-51} {PX-52}']);
-    const s4 = d.node('SM4', 40, s1.bottom + 96, 820, 76, ['SM-4  CROSS-CHECK SUPERVISOR  (states X1–X4)', 'compares proximity vs camera at CP-1 … CP-5 · counts mismatches in a 10-min window', 'commands LINE STOP after 3 mismatches in 10 min']);
+    const s1 = d.node('SM1', 40, yb + 26, 240, 92, ['SM-1  ROBOT 1 + CNC', `states ${span('R1S1')} (Setup 1)`, `or ${span('R1S2')} (Setup 2)`, '{PX-11} {CAM-1} {GR-21}']);
+    const s2 = d.node('SM2', 360, yb + 26, 180, 92, ['SM-2  CONVEYOR', `states ${span('CONV')}`, '{PE-41} {PE-42}', '{ENC-43}']);
+    const s3 = d.node('SM3', 620, yb + 26, 240, 92, ['SM-3  ROBOT 2 + PALLET', `states ${span('R2S1')} (Setup 1)`, `or ${span('R2S2')} (Setup 2)`, '{CAM-2} {GR-51} {PX-52}']);
+    const s4 = d.node('SM4', 40, s1.bottom + 96, 820, 76, [`SM-4  CROSS-CHECK SUPERVISOR  (states ${span('SUP')})`, 'compares proximity vs camera at CP-1 … CP-5 · counts mismatches in a 10-min window', 'commands LINE STOP after 3 mismatches in 10 min']);
     d.raw(`<rect x="22" y="${yb}" width="856" height="${s4.bottom + 34 - yb}" rx="12" fill="none" stroke="var(--dg-rule,#aab4be)" stroke-width="1.4" stroke-dasharray="6 5"/><text class="dg-band-label" x="38" y="${s4.bottom + 24}">CELL PLC-01 · runs the 4 state machines</text>`, 'bg');
     d.arrow([[120, s1.top], [120, cnc.bottom]], ['cycle start,', 'door + vise', 'requests'], { at: [114, (s1.top + cnc.bottom) / 2], anchor: 'end' });
     d.arrow([[200, cnc.bottom], [200, s1.top]], ['cycle complete,', 'spindle stopped,', 'door + vise state'], { at: [206, (s1.top + cnc.bottom) / 2], anchor: 'start' });
@@ -716,14 +752,37 @@
       d.raw(`<rect x="${fmt(xs(BRK))}" y="${y0 - 6}" width="${fmt(xs(160) - xs(BRK))}" height="${y1 - y0 + 12}" fill="var(--dg-gray-b,#eef1f4)" opacity=".55"/><text class="ly-note" x="${fmt(xs(160))}" y="${y1 + 30}" text-anchor="end">compressed time scale after 50 s</text>`, 'bg');
     };
     const rowT = (y, t) => d.raw(`<text class="gt-row" x="${X0 - 12}" y="${y + 18}" text-anchor="end">${esc(t)}</text>`);
+    // The robot rows follow the nominal path of the Robot 1 machine through one cycle: the states of
+    // the idle band, then the states up to the next waiting state. Every bar is a state of the model
+    // and its length is the sum of its step times (M.stateTime); bars under 1 s join the previous one.
+    const MM = M.MACHINES;
+    const nextOf = (m, id) => { let t = m.states[id].next[0].to; for (let k = 0; m.states[t].choice && k < 9; k++) t = m.states[t].yes; return t; };
+    const barCls = (m, id) => ((m.states[id].do || []).filter((st) => st.job).map((st) => M.JOBS[st.job]).some((j) => !j.robot || j.zone === 'cnc' || j.zone === 'door') ? 'gt-door' : 'gt-move');
+    function robotRow(mk) {
+      const m = MM[mk], segs = [];
+      let t = 0;
+      const push = (id, dur, label, cls) => {
+        if (dur <= 0) return;
+        const last = segs[segs.length - 1];
+        if (dur < 1 && last) { last[1] += dur; t += dur; return; }
+        segs.push([t, t + dur, cls, label]); t += dur;
+      };
+      const idle = m.view.main.filter((id) => m.states[id].band === 'idle');
+      idle.forEach((id, k) => push(id, M.stateTime(mk, id) + (k ? 0 : T.unlock), m.states[id].short || '', barCls(m, id)));
+      let id = nextOf(m, idle[idle.length - 1]);
+      for (let k = 0; !m.states[id].wait && k < 20; k++) { push(id, M.stateTime(mk, id), m.states[id].short || '', barCls(m, id)); id = nextOf(m, id); }
+      push(id, M.stateTime(mk, id), m.states[id].short || '', 'gt-move');     // steps of the waiting state (move to it)
+      return { segs, end: t, ends: Object.fromEntries(segs.map((x) => [x[3], x[1]])) };
+    }
     const y1 = d.top + 30;
     d.raw(`<text class="gt-kpi" x="20" y="${y1 - 12}">Setup 1 · single gripper · CNC idle ${K.idle1} s · cycle ${K.cycle1} s · CNC utilization ${(K.util1 * 100).toFixed(1)} % · ${K.pph1.toFixed(1)} parts/h</text>`);
     grid(y1, y1 + 72);
     rowT(y1 + 6, 'CNC'); rowT(y1 + 40, 'Robot 1');
     bar(y1 + 6, 0, K.idle1, 'gt-idle', `idle ${K.idle1} s`, true);
     bar(y1 + 6, K.idle1, K.idle1 + T.cncCycle, 'gt-mach', 'machining 120 s');
-    [[0, 6.0, 'gt-door', 'door'], [6.0, 12.5, 'gt-door', 'unload'], [12.5, 17.5, 'gt-move', 'to belt'], [17.5, 22.0, 'gt-move', 'pick'], [22.0, 31.5, 'gt-door', 'load'], [31.5, 36.5, 'gt-door', 'door']].forEach((b) => bar(y1 + 40, b[0], b[1], b[2], b[3]));
-    bar(y1 + 40, K.idle1, K.idle1 + T.cncCycle, 'gt-wait', 'robot waits at home', true);
+    const row1 = robotRow(M.IDLE_MACHINE[1]);
+    row1.segs.forEach((x) => bar(y1 + 40, x[0], x[1], x[2], x[3]));
+    bar(y1 + 40, row1.end, K.idle1 + T.cncCycle, 'gt-wait', 'robot waits at home', true);
     const y2 = y1 + 156;
     d.raw(`<text class="gt-kpi" x="20" y="${y2 - 12}">Setup 2 · dual gripper + gauge at Robot 2 · CNC idle ${K.idle2} s · cycle ${K.cycle2} s · CNC utilization ${(K.util2 * 100).toFixed(1)} % · ${K.pph2.toFixed(1)} parts/h</text>`);
     grid(y2, y2 + 140);
@@ -731,24 +790,23 @@
     const i2 = K.idle2;
     bar(y2 + 6, 0, i2, 'gt-idle', `idle ${i2} s`, true);
     bar(y2 + 6, i2, i2 + T.cncCycle, 'gt-mach', 'machining 120 s');
-    [[0, 4.5, 'gt-door', 'door'], [4.5, 15.5, 'gt-door', 'exchange B / A'], [15.5, i2, 'gt-door', 'door']].forEach((b) => bar(y2 + 40, b[0], b[1], b[2], b[3]));
-    const tc = i2 + T.doorToConv + T.placeConv + T.check;
-    bar(y2 + 40, i2, tc, 'gt-move', 'to belt');
-    const tp = tc + T.convToPallet + T.check + T.pickPallet;
-    bar(y2 + 40, tc, tp, 'gt-move', 'pick A');
-    const td = tp + T.palletToDoor;
-    bar(y2 + 40, tp, td, 'gt-move', '');
-    bar(y2 + 40, td, i2 + T.cncCycle, 'gt-wait', 'waits at the door with the next raw part', true);
-    const b0 = tc + 0.5, b1 = b0 + T.beltStart + T.beltTravel + T.beltStop + T.zeroSpeed;
-    bar(y2 + 74, b0, b1, 'gt-belt', 'transport');
-    const r2a = b1 + T.check, r2b = r2a + T.r2ToExit + T.r2Pick + T.check;
-    const r2c = r2b + T.r2ToGauge + T.r2LoadGauge + T.check, r2d = r2c + T.measure;
-    const r2e = r2d + T.r2Repick + T.r2ToPallet + T.check + T.r2Place + T.check;
-    bar(y2 + 108, r2a, r2b, 'gt-move', 'pick');
-    bar(y2 + 108, r2b, r2c, 'gt-gauge', 'gauge');
-    bar(y2 + 108, r2c, r2d, 'gt-gauge', '');
-    bar(y2 + 108, r2d, r2e, 'gt-move', 'sort');
-    d.raw(`<text class="dg-note" x="${fmt(xs(r2e) + 10)}" y="${y2 + 126}">sorted at t ≈ ${Math.round(r2e)} s, while the CNC machines the next part</text>`);
+    const row2 = robotRow(M.IDLE_MACHINE[2]);
+    row2.segs.forEach((x) => bar(y2 + 40, x[0], x[1], x[2], x[3]));
+    bar(y2 + 40, row2.end, i2 + T.cncCycle, 'gt-wait', 'waits at the door with the next raw part', true);
+    // the conveyor starts when Robot 1 reports "part placed" (end of the "to belt" state)
+    const placed = row2.segs.find((x) => x[3] === MM[M.IDLE_MACHINE[2]].states[MM[M.IDLE_MACHINE[2]].view.main.find((id) => MM[M.IDLE_MACHINE[2]].states[id].short === 'to belt')].short)[1];
+    const b1 = placed + ['C2', 'C3', 'C4'].reduce((acc, id) => acc + M.stateTime('CONV', id), 0);
+    bar(y2 + 74, placed, b1, 'gt-belt', 'transport');
+    let r2t = b1 + M.stateTime('CONV', 'C5');
+    const r2m = MM.R2S2;
+    let r2id = r2m.states.E1.next[0].to;
+    for (let k = 0; k < 8 && !r2m.states[r2id].wait; k++) {
+      const dur = M.stateTime('R2S2', r2id), sh = r2m.states[r2id].short || '';
+      bar(y2 + 108, r2t, r2t + dur, r2id === 'E3' || r2id === 'E4' ? 'gt-gauge' : 'gt-move', sh);
+      r2t += dur;
+      r2id = nextOf(r2m, r2id);
+    }
+    d.raw(`<text class="dg-note" x="${fmt(xs(r2t) + 10)}" y="${y2 + 126}">sorted at t ≈ ${Math.round(r2t)} s, while the CNC machines the next part</text>`);
     const ly = y2 + 178;
     [['gt-mach', 'CNC machining'], ['gt-idle', 'CNC idle'], ['gt-door', 'robot at the CNC (door, unload, load)'], ['gt-move', 'robot moves, picks, places'], ['gt-belt', 'belt moving'], ['gt-gauge', 'gauge'], ['gt-wait', 'waiting']].reduce((x, it) => {
       d.raw(`<rect class="${it[0]}" x="${x}" y="${ly}" width="14" height="14" rx="2"/><text class="ly-legend" x="${x + 20}" y="${ly + 11.5}">${esc(it[1])}</text>`);
@@ -1039,7 +1097,7 @@
 
   const API = {
     CSS, LAYOUT, slotPos, partSvg, armSvg, armGeom,
-    smRobot1S1, smRobot1S2, smConveyor, smRobot2S1, smRobot2S2, smSupervisor,
+    stateDiagram, smRobot1S1, smRobot1S2, smConveyor, smRobot2S1, smRobot2S2, smSupervisor,
     flowCrossCheck, archDiagram, flowSetup1, flowSetup2, timingChart, layoutSvg, exchangeStrip,
   };
   root.CellDiagrams = API;
