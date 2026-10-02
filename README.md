@@ -22,7 +22,7 @@ messages and the properties the design must keep. The other parts are generated 
 | State diagrams (`src/cell-diagrams.js`) | Every box and arrow; the arrow labels are generated from the guards. The generator stops if a transition cannot be drawn |
 | Timing chart and CNC idle KPI | The step times of the states in the CNC idle band (36.5 s and 20.5 s are now computed, not typed) |
 | Simulation (`sim-src/app.js`) | Nothing about states is written there: an interpreter runs the machines; the file only holds the plant (robot motions, CNC, belt, sensors, operator) |
-| Verification (`src/cell-verify.js`, `verify.js`) | An abstract model of the same machines, explored state by state and exported to NuSMV (`verification/*.smv`) |
+| Verification (`src/cell-verify.js`, `verify.js`) | An abstract model of the same machines, explored state by state, exported to NuSMV (`verification/*.smv`) and checked again with NuSMV |
 
 Checks: `M.lint()` (every name used exists, every sensor named in a diagram text is used, every state
 is reachable), `node test_sim.js conform` (20 h of simulated operation with random faults: every
@@ -30,7 +30,10 @@ state change must be a transition of the model, every job must take its model ti
 be violated, and without faults the CNC idle time must equal the KPI) and `node verify.js` (every
 reachable state of the abstract model, nominal and with sensor or process faults; see
 `verification/results.md`). All 13 properties hold in all six verification runs (up to 14.7 million
-states) and there is no deadlock. The `.smv` files have not been run through NuSMV yet.
+states) and there is no deadlock. NuSMV 2.7.1, an independent symbolic model checker, checked the six
+exported `.smv` files and agrees with the search on every property, on the absence of deadlocks, on
+which machine states can be reached and on the number of reachable states. Both read the same
+generated model, so this confirms the search and the export, not the abstraction itself.
 
 These checks found five problems, all fixed in the model:
 
@@ -57,7 +60,7 @@ The Word report and the PDFs are the versions of `main`; they were not regenerat
 | `simulation/index.html` | Interactive simulation of all state machines. Double-click to open it in a browser |
 | `simulation/*.png` | Two screenshots of the simulation (also in the report) |
 | `diagrams/` | Every figure as PNG (with title) and SVG (editable). Numbers match the report |
-| `verification/` | NuSMV models of the cell and the results of the exhaustive verification |
+| `verification/` | NuSMV models of the cell, the NuSMV outputs and the results of the exhaustive verification |
 | `source/` | The model and the scripts that generate the diagrams, the simulation, the verification and the report |
 
 ## Figures
@@ -119,6 +122,11 @@ node --max-old-space-size=10000 verify.js   # exhaustive verification -> out/ver
 node capture_sim.js       # simulation screenshots for the report
 node build_report.js      # report -> out/Sensors_Design_Report.docx
 ```
+
+With `NUSMV=<path to NuSMV.exe>` (or NuSMV on the PATH), `verify.js` also checks the six `.smv` files
+with NuSMV and compares the verdicts; `NUSMV_ONLY=1` runs only that part again. NuSMV 2.7.1 is free
+(LGPL) from https://nusmv.fbk.eu. The NuSMV checks take about an hour on a laptop with
+`NUSMV_JOBS=8` (8 runs at a time), most of it for Setup 2 with sensor faults.
 
 `render.js` and the other scripts expect Chrome at `C:/Program Files/Google/Chrome/Application/chrome.exe`.
 The state machines, step times and rules live in `src/cell-model.js`; change them there and rebuild.

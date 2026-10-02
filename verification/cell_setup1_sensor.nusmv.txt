@@ -1,0 +1,81 @@
+==== L1, L2, L3: NuSMV -dynamic -dcx -source <3 commands> cell_setup1_sensor.smv, 470 s
+*** This is NuSMV 2.7.1 (compiled on Mon Sep 29 16:07:59 2025)
+*** Enabled addons are: compass
+*** For more information on NuSMV see <http://nusmv.fbk.eu>
+*** or email to <nusmv-users@list.fbk.eu>.
+*** Please report bugs to <Please report bugs to <nusmv-users@fbk.eu>>
+
+*** Copyright (c) 2010-2025, Fondazione Bruno Kessler
+
+*** This version of NuSMV is linked to the CUDD library version 2.4.1
+*** Copyright (c) 1995-2004, Regents of the University of Colorado
+
+*** This version of NuSMV is linked to the MiniSat SAT solver. 
+*** See http://minisat.se/MiniSat.html
+*** Copyright (c) 2003-2006, Niklas Een, Niklas Sorensson
+*** Copyright (c) 2007-2010, Niklas Sorensson
+
+-- specification AG (EF R1 = A8_0)  is true
+-- specification AG (EF R2 = D3_1)  is true
+-- specification AG (EF SUP = X1_x)  is true
+
+==== invariants: NuSMV -dynamic -dcx -source <40 commands> cell_setup1_sensor.smv, 591 s
+*** This is NuSMV 2.7.1 (compiled on Mon Sep 29 16:07:59 2025)
+*** Enabled addons are: compass
+*** For more information on NuSMV see <http://nusmv.fbk.eu>
+*** or email to <nusmv-users@list.fbk.eu>.
+*** Please report bugs to <Please report bugs to <nusmv-users@fbk.eu>>
+
+*** Copyright (c) 2010-2025, Fondazione Bruno Kessler
+
+*** This version of NuSMV is linked to the CUDD library version 2.4.1
+*** Copyright (c) 1995-2004, Regents of the University of Colorado
+
+*** This version of NuSMV is linked to the MiniSat SAT solver. 
+*** See http://minisat.se/MiniSat.html
+*** Copyright (c) 2003-2006, Niklas Een, Niklas Sorensson
+*** Copyright (c) 2007-2010, Niklas Sorensson
+
+-- invariant (!urgent -> !((R1 = A4_3 | R2 = D2_0) & moving))  is true
+-- invariant (!urgent -> !(R1 in A3_0 union A6_0 & (!(door = open) | run)))  is true
+-- invariant (!urgent -> !(mismatches = 3 & !(SUP = X3_x | SUP = X4_x)))  is true
+-- invariant (!urgent -> !(CAM_FAULT & !(SUP = X3_x | SUP = X4_x)))  is true
+-- invariant enabled  is true
+-- invariant !(R1 in A0_0 union A0_x)  is false
+-- invariant !(R1 in A1_0 union A1_x)  is false
+-- invariant !(R1 in A2_0 union A2_x)  is false
+-- invariant !(R1 in A3_0 union A3_x)  is false
+-- invariant !(R1 in ((((A4_0 union A4_1) union A4_2) union A4_3) union A4_4) union A4_x)  is false
+-- invariant !(R1 in (A5_0 union A5_1) union A5_x)  is false
+-- invariant !(R1 in A6_0 union A6_x)  is false
+-- invariant !(R1 in (A7_0 union A7_1) union A7_x)  is false
+-- invariant !(R1 in A8_0 union A8_x)  is false
+-- invariant !(R1 in W1_0 union W1_x)  is false
+-- invariant !(R1 in H_0 union H_x)  is false
+-- invariant !(R1 in F_x)  is true
+-- invariant !(CONV in C1_x)  is false
+-- invariant !(CONV in (C2_1 union C2_2) union C2_x)  is false
+-- invariant !(CONV in C3_x)  is false
+-- invariant !(CONV in C4_x)  is false
+-- invariant !(CONV in C5_1 union C5_x)  is false
+-- invariant !(CONV in H_x)  is false
+-- invariant !(CONV in F_x)  is true
+-- invariant !(R2 in (D0_0 union D0_1) union D0_x)  is false
+-- invariant !(R2 in D1_0 union D1_x)  is false
+-- invariant !(R2 in (D2_0 union D2_1) union D2_x)  is false
+-- invariant !(R2 in (D3_0 union D3_1) union D3_x)  is false
+-- invariant !(R2 in ((D4_0 union D4_1) union D4_2) union D4_x)  is false
+-- invariant !(R2 in H_0 union H_x)  is false
+-- invariant !(R2 in F_x)  is false
+-- invariant !(SUP in X1_x)  is false
+-- invariant !(SUP in X2_x)  is false
+-- invariant !(SUP in X3_x)  is false
+-- invariant !(SUP in X4_x)  is false
+######################################################################
+system diameter: 197
+reachable states: 3.35989e+06 (2^21.68) out of 7.61281e+17 (2^59.4012)
+######################################################################
+-- invariant ((next(R1) != R1 & next(R1) in A8_0) -> next((door = closed & lock)))  is true
+-- invariant ((next(R1) != R1 & next(R1) in A2_0) -> next((!run & !lock)))  is true
+-- invariant ((next(R1) != R1 & next(R1) in A4_3) -> next((beltEntry = none & !moving)))  is true
+-- invariant ((next(R2) != R2 & next(R2) in D3_1) -> next((outPresent & outCount in 0 union 1)))  is true
