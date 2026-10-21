@@ -1,5 +1,5 @@
 // Headless runs of the simulator: collect console errors, drive scenarios, take screenshots.
-//   node test_sim.js basic | fault | s2 | mobile | conform | all
+//   node test_sim.js basic | fault | s2 | mobile | conform | engine | all
 // conform: hours of simulated operation with random faults, checked against the model:
 //   every state change must be a transition of M.MACHINES (or an entry into / exit from H and F),
 //   no property of M.PROPERTIES may be violated, every job must take its model time, and in the
@@ -61,7 +61,7 @@ function conformance(trace, setup) {
   }));
   const report = (name, errors) => { console.log(`[${name}] console errors:`, errors.length ? '\n' + errors.join('\n') : 'none'); if (errors.length) failed = true; };
   const arg = process.argv[2] || 'basic';
-  const modes = arg === 'all' ? ['basic', 'fault', 's2', 'mobile', 'conform'] : [arg];
+  const modes = arg === 'all' ? ['basic', 'fault', 's2', 'mobile', 'conform', 'engine'] : [arg];
 
   for (const mode of modes) {
     const { page, errors } = await open();
@@ -102,6 +102,37 @@ function conformance(trace, setup) {
       await page.setViewport({ width: 1500, height: 1200, deviceScaleFactor: 1 });
       await sleep(1500);
       await page.screenshot({ path: shot('shot_dark.png'), fullPage: false });
+    }
+    if (mode === 'engine') {
+      // the Python engine (engine/) must give the same state changes at the same instants
+      await page.click('#btnRun');
+      for (const [setup, scenario] of [[1, 'nominal'], [1, 'cp2fault'], [2, 'nominal'], [2, 'cp2fault']]) {
+        const js = await page.evaluate((setup, scenario) => {
+          const C = window.CellSim;
+          C.instantVerify = true;
+          C.newSim(setup);
+          C.S.running = false;
+          for (let t = 0; t < 3600; t += 10) {
+            if (scenario === 'cp2fault' && t === 300) document.querySelector('#cpTable tr[data-cp="CP-2"] button[data-inj="fault"]').click();
+            C.advance(10);
+            if (scenario === 'cp2fault') {
+              if (C.MCH.SUP.state === 'X3' && !C.S.inputs.verify) C.press('verify');
+              if (C.MCH.SUP.state === 'X4' && C.S.verify && C.S.verify.done && !C.S.inputs.reset) C.press('resume');
+            }
+          }
+          return C.TRACE.map((e) => [e.t, e.slot, e.from, e.to]);
+        }, setup, scenario);
+        let py;
+        try {
+          py = JSON.parse(require('child_process').execFileSync(process.env.PYTHON || 'python', ['trace.py', String(setup), '3600', scenario], { cwd: path.join(__dirname, '..', 'engine'), encoding: 'utf8', maxBuffer: 1 << 26 }));
+        } catch (e) { console.log(`[engine] Python not available or failed: ${e.message.split('\n')[0]}`); failed = true; break; }
+        const n = Math.min(js.length, py.trace.length);
+        let first = -1;
+        for (let i = 0; i < n && first < 0; i++) if (js[i][1] !== py.trace[i][1] || js[i][2] !== py.trace[i][2] || js[i][3] !== py.trace[i][3] || Math.abs(js[i][0] - py.trace[i][0]) > 1e-6) first = i;
+        const same = first < 0 && js.length === py.trace.length && !py.errors.length;
+        console.log(`[engine] Setup ${setup} ${scenario}: browser ${js.length} / Python ${py.trace.length} state changes → ${same ? 'identical' : 'DIFFERENT at ' + (first < 0 ? n : first)}`);
+        if (!same) failed = true;
+      }
     }
     if (mode === 'conform') {
       await page.click('#btnRun');                                  // pause the animation; the test drives the clock

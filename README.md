@@ -11,17 +11,18 @@ This is the solution to the Week 2 Sensors Design Task, Setup 1 and Setup 2: sen
 placement, work-flow logic, state diagrams, the camera + proximity cross-check rule, the dimensional
 check and the CNC-time optimization.
 
-## Branch `state-machines-as-data`
+## The state machines are one model
 
-On this branch the four state machines are data in one file, `source/src/cell-model.js`: states,
-steps (robot jobs, camera + proximity checks, waits), transitions with their guards, timers, HMI
-messages and the properties the design must keep. The other parts are generated from it or run it:
+The four state machines are data in one file, `source/src/cell-model.js`: states, steps (robot
+jobs, camera + proximity checks, waits), transitions with their guards, timers, HMI messages and the
+properties the design must keep. The other parts are generated from it or run it:
 
 | Part | What it takes from the model |
 |---|---|
 | State diagrams (`src/cell-diagrams.js`) | Every box and arrow; the arrow labels are generated from the guards. The generator stops if a transition cannot be drawn |
 | Timing chart and CNC idle KPI | The step times of the states in the CNC idle band (36.5 s and 20.5 s are now computed, not typed) |
-| Simulation (`sim-src/app.js`) | Nothing about states is written there: an interpreter runs the machines; the file only holds the plant (robot motions, CNC, belt, sensors, operator) |
+| Browser simulation (`sim-src/app.js`) | Nothing about states is written there: an interpreter runs the machines; the file only holds the plant (robot motions, CNC, belt, sensors, operator) and the drawing |
+| Python engine (`engine/`) | The same interpreter and plant without graphics, for long runs and analysis; it reads the model exported to JSON (`node source/export_model.js`) and gives the same state changes at the same instants as the browser |
 | Verification (`src/cell-verify.js`, `verify.js`) | An abstract model of the same machines, explored state by state, exported to NuSMV (`verification/*.smv`) and checked again with NuSMV |
 
 Checks: `M.lint()` (every name used exists, every sensor named in a diagram text is used, every state
@@ -49,7 +50,9 @@ These checks found five problems, all fixed in the model:
   one machine read a check result written by another one (verifier). The conveyor now waits through
   a line stop in C1 and C5, and each machine uses only its own checks.
 
-The Word report and the PDFs are the versions of `main`; they were not regenerated on this branch.
+The Word report and the PDFs are the course submission. They describe the first version, in which
+the state machines were written separately for the diagrams and the simulation, and they were not
+regenerated after these changes.
 
 ## Contents
 
@@ -61,6 +64,7 @@ The Word report and the PDFs are the versions of `main`; they were not regenerat
 | `simulation/*.png` | Two screenshots of the simulation (also in the report) |
 | `diagrams/` | Every figure as PNG (with title) and SVG (editable). Numbers match the report |
 | `verification/` | NuSMV models of the cell, the NuSMV outputs and the results of the exhaustive verification |
+| `engine/` | The simulation engine in Python, without graphics (see `engine/README.md`) |
 | `source/` | The model and the scripts that generate the diagrams, the simulation, the verification and the report |
 
 ## Figures
@@ -117,7 +121,9 @@ Requires Node.js and Google Chrome. From `source/`:
 npm install
 node render.js out        # diagrams -> out/ (full) and out/doc/ (report versions)
 node build_sim.js         # simulation -> out/sim/index.html
-node test_sim.js all      # headless tests of the simulation, including the conformance run
+node export_model.js      # model -> ../engine/cellsim/cell_model.json (Python engine)
+node test_sim.js all      # headless tests of the simulation, including the conformance run and
+                          # the comparison with the Python engine (needs Python 3.9+)
 node --max-old-space-size=10000 verify.js   # exhaustive verification -> out/verification/
 node capture_sim.js       # simulation screenshots for the report
 node build_report.js      # report -> out/Sensors_Design_Report.docx
@@ -129,5 +135,6 @@ with NuSMV and compares the verdicts; `NUSMV_ONLY=1` runs only that part again. 
 `NUSMV_JOBS=8` (8 runs at a time), most of it for Setup 2 with sensor faults.
 
 `render.js` and the other scripts expect Chrome at `C:/Program Files/Google/Chrome/Application/chrome.exe`.
-The state machines, step times and rules live in `src/cell-model.js`; change them there and rebuild.
+The state machines, step times and rules live in `src/cell-model.js`; change them there and rebuild
+(including `node export_model.js`, so that the Python engine runs the same model).
 The largest verification run (Setup 2 with sensor faults) needs a few minutes and about 2 GB of memory.
