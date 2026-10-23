@@ -35,7 +35,20 @@ jobs:
           curl -sSL -o nusmv.tar.xz https://nusmv.fbk.eu/distrib/2.7.1/NuSMV-2.7.1-linux64.tar.xz
           echo "894dc71f0997683f28d4dc3512e3a6b608e02b9700e5e813017931df2d11883c  nusmv.tar.xz" | sha256sum -c
           tar -xJf nusmv.tar.xz
+          # the binary links libedit.so.0; Ubuntu ships the same library as libedit.so.2
+          sudo apt-get install -y -qq libedit2
+          mkdir -p nusmv-lib
+          ln -sf "$(ldconfig -p | awk '/libedit\.so\.2 .*x86-64/ {print $NF; exit}')" nusmv-lib/libedit.so.0
+          echo "LD_LIBRARY_PATH=$PWD/nusmv-lib" >> "$GITHUB_ENV"
           echo "NUSMV=$PWD/NuSMV-2.7.1-linux64/bin/NuSMV" >> "$GITHUB_ENV"
+
+      - name: Check that NuSMV starts
+        if: inputs.nusmv
+        run: |
+          if ldd "$NUSMV" | grep -q "not found"; then ldd "$NUSMV"; exit 1; fi
+          echo 'MODULE main VAR x : boolean; INVARSPEC x | !x' > smoke.smv
+          "$NUSMV" smoke.smv | tee smoke.txt
+          grep -q "is true" smoke.txt
 
       - name: Exhaustive search (and NuSMV)
         working-directory: source
