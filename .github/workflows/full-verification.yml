@@ -1,0 +1,56 @@
+# Full exhaustive verification with the NuSMV cross-check, started by hand (Actions tab, or
+# `gh workflow run full-verification`). It takes one to a few hours, so it is not part of `checks`.
+# The results are uploaded as an artifact and compared with the committed verification/results.json;
+# when the model changes on purpose, download the artifact and commit it to verification/.
+name: full verification
+
+on:
+  workflow_dispatch:
+    inputs:
+      nusmv:
+        description: Also check the .smv files with NuSMV 2.7.1
+        type: boolean
+        default: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: source/package-lock.json
+
+      - name: Install
+        working-directory: source
+        run: npm ci
+
+      - name: Download NuSMV 2.7.1
+        if: inputs.nusmv
+        run: |
+          curl -sSL -o nusmv.tar.xz https://nusmv.fbk.eu/distrib/2.7.1/NuSMV-2.7.1-linux64.tar.xz
+          echo "894dc71f0997683f28d4dc3512e3a6b608e02b9700e5e813017931df2d11883c  nusmv.tar.xz" | sha256sum -c
+          tar -xJf nusmv.tar.xz
+          echo "NUSMV=$PWD/NuSMV-2.7.1-linux64/bin/NuSMV" >> "$GITHUB_ENV"
+
+      - name: Exhaustive search (and NuSMV)
+        working-directory: source
+        env:
+          NUSMV_JOBS: 4
+        run: node --max-old-space-size=10000 verify.js
+
+      - name: Upload the results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verification
+          path: source/out/verification/
+          if-no-files-found: warn
+
+      - name: Compare with the committed results
+        working-directory: source
+        run: node compare_verification.js ../verification/results.json out/verification/results.json

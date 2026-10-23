@@ -17,7 +17,7 @@ reference behind it.
 | Branch `main` | Step A1 merged (Setup 2 only, CI, one build command, regression references) |
 | Branch `legacy-setup1-setup2` | Commit `1f4b8ad`: the last version with Setup 1 and Setup 2, frozen |
 | Branch `state-machines-as-data` | Commit `6204b09`; history only, no work on it |
-| Continuous integration | GitHub Actions `checks` on every push (§11) |
+| Continuous integration | GitHub Actions `checks` on every push; `full verification` (NuSMV) by hand (§11) |
 | Toolchain used | Node.js 24, Python 3.11, Google Chrome (headless via puppeteer-core), NuSMV 2.7.1; Windows 11 locally, Ubuntu in CI |
 | Built by | Claude Code (one agent, model Claude Opus 5.5) directed by the author |
 
@@ -115,6 +115,7 @@ Week2_Sensors_Design/
 ├── .nojekyll                        Pages serves files as they are
 ├── .gitignore                       node_modules, source/out, Office temp files, __pycache__, *.pyc
 ├── .github/workflows/checks.yml     CI: the checks of §11 on every push
+├── .github/workflows/full-verification.yml   full verification with NuSMV, started by hand
 ├── submission/                      round-1 course submission, historical (answer, report, video, README)
 ├── diagrams/                        10 figures as SVG (editable) and PNG (2x), generated
 ├── simulation/
@@ -155,6 +156,7 @@ Week2_Sensors_Design/
     ├── export_model.js              writes engine/cellsim/cell_model.json (--check mode)
     ├── verify.js                    runs the 3 verification runs (+ NuSMV), writes results
     ├── regress.js                   regression fingerprint and comparison
+    ├── compare_verification.js      compares two verification results.json
     ├── test_sim.js                  headless tests: basic | fault | s2 | mobile | conform | engine | all
     ├── capture_sim.js               simulator screenshots for the README
     └── capture_exchange.js          crops of the dual-gripper exchange and the overview screenshot
@@ -630,8 +632,13 @@ branch `legacy-setup1-setup2`.
 
 **Continuous integration** (`.github/workflows/checks.yml`, Ubuntu, clean `npm ci`): `npm run
 check`, the Python tests, the nominal verification run, all browser tests and the regression, on
-every push and pull request. NuSMV and the two large verification runs are not in CI (about an hour);
-run them locally before changing the model and commit `verification/`.
+every push and pull request. NuSMV and the two large verification runs are not in `checks` (about
+an hour or more). They run in the workflow **`full verification`**
+(`.github/workflows/full-verification.yml`), started by hand from the Actions tab or with
+`gh workflow run full-verification`: it downloads NuSMV 2.7.1 (checksum verified), runs `verify.js`
+with NuSMV, uploads `out/verification/` as an artifact and compares it with the committed
+`verification/results.json` (`source/compare_verification.js`). When the model changes on purpose,
+download the artifact and commit it to `verification/`. No local computer is needed for it.
 
 None of these checks validates the design against a real cell. §1.1 lists what each one supports.
 
@@ -986,3 +993,4 @@ Newest last. Every change to the plan or to a design rule is written here first 
 | 2026-10-23 | Second review triaged, all accepted: the A0/A1 renumbering is explained under the progress table; A2 gets concrete deliverables as its "done when"; rule 6 allows reopening a finished step; before the author decides the camera rule, alternatives, consequences and test results are presented; the decided-versus-implemented table states that the camera behaviour is still untested | The plan must stay unambiguous and must not block corrections; the author decides the operating rule, but on technical evidence |
 | 2026-10-23 | Third review triaged: it confirms starting A1 and proposes an order (reference first, then remove Setup 1, then build and CI, then documents). Accepted as the working order of A1. Its remark that a capacity-3 pallet run does not prove the case of 12 is added to A2.5 | No change to the plan was needed |
 | 2026-10-23 | **A1 closed.** Setup 2 identical to the recorded reference except the intended figure changes; one defect introduced and fixed (page stopped drawing); `regress.js` extended to fail on page errors. With Setup 1 gone, the two nominal conformance runs were identical, so one was replaced by a 2 h run with faults (20 h total: 2 h nominal, 18 h with faults). The build scripts of the round-1 documents and the `docx` dependency left `main` | Done-when of A1 met: regression documented, CI green from a clean install, documents describe Setup 2 |
+| 2026-10-23 | Add the workflow `full verification` (NuSMV in GitHub Actions, by hand) and try to continue the work in a cloud session | The author wants to work without the local computer running; Remote Control is blocked by the organization. Infrastructure only, no change to the steps of the plan |

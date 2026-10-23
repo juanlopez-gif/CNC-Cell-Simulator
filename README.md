@@ -154,3 +154,5 @@ With `NUSMV=<path to NuSMV>` (or NuSMV on the PATH), `verify.js` also checks the
 with NuSMV and compares the verdicts; `NUSMV_ONLY=1` runs only that part again. NuSMV 2.7.1 is free
 (LGPL) from https://nusmv.fbk.eu. The NuSMV checks take about an hour on a laptop with
 `NUSMV_JOBS=8`, most of it for the run with sensor faults, which also needs about 2 GB of memory.
+The same full verification runs on GitHub without a local computer: Actions tab → **full
+verification** → Run workflow (or `gh workflow run full-verification`).
