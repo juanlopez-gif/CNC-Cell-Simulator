@@ -1,4 +1,4 @@
-==== L1, L2, L3: NuSMV -dynamic -dcx -source <3 commands> cell_setup2_sensor.smv, 3324 s
+==== L1, L2, L3: NuSMV -dynamic -dcx -source <3 commands> cell_setup2_sensor.smv, 2997 s
 *** This is NuSMV 2.7.1 (compiled on Mon Sep 29 16:07:59 2025)
 *** Enabled addons are: compass
 *** For more information on NuSMV see <http://nusmv.fbk.eu>
@@ -19,7 +19,7 @@
 -- specification AG (EF R2 = E5_3)  is true
 -- specification AG (EF SUP = X1_x)  is true
 
-==== invariants: NuSMV -dynamic -dcx -source <44 commands> cell_setup2_sensor.smv, 3749 s
+==== invariants: NuSMV -dynamic -dcx -source <44 commands> cell_setup2_sensor.smv, 3337 s
 *** This is NuSMV 2.7.1 (compiled on Mon Sep 29 16:07:59 2025)
 *** Enabled addons are: compass
 *** For more information on NuSMV see <http://nusmv.fbk.eu>
