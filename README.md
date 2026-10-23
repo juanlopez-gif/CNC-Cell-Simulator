@@ -34,7 +34,10 @@ reachable state of the abstract model, nominal and with sensor or process faults
 states) and there is no deadlock. NuSMV 2.7.1, an independent symbolic model checker, checked the six
 exported `.smv` files and agrees with the search on every property, on the absence of deadlocks, on
 which machine states can be reached and on the number of reachable states. Both read the same
-generated model, so this confirms the search and the export, not the abstraction itself.
+generated model, so this is additional evidence that the search and the export are consistent, not a
+check of the abstraction itself. The abstract model assumes the camera is never wrong and keeps a
+2-slot output pallet; `PROJECT_STATUS.md` (§1.1) lists what each check does and does not show. The
+design has not been validated on a real cell.
 
 These checks found five problems, all fixed in the model:
 
@@ -59,8 +62,10 @@ regenerated after these changes.
 From 2026-10-23 the project continues with **Setup 2 only**; the version with both setups is kept in
 the branch `legacy-setup1-setup2`. The next steps, in order:
 
-1. **Solid, demonstrable base**: continuous integration and one build command; a PLC program in
-   IEC 61131-3 Structured Text generated from the model and run in OpenPLC against the Python
+1. **Solid, demonstrable base**: continuous integration and one build command; closing the design
+   gaps (camera errors in the cross-check rule, the gauge's measurement definition, sources and
+   tolerances of the times, KPI definitions, combined faults); a PLC program in IEC 61131-3
+   Structured Text generated from the model and run in OpenPLC (a software PLC) against the Python
    engine as the plant; timed verification with UPPAAL; studies with the Python engine; a more
    realistic plant.
 2. **Generalization**: the cell becomes a template that can be instantiated several times, with

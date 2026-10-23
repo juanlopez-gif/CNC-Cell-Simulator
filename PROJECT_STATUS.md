@@ -38,6 +38,15 @@ search, minutes; NuSMV, about 1 h). Their last results are the committed ones in
 `verification/results.md` (2026-10-02) and the logs of commit `6204b09`. Since then no file in
 `source/src` or `source/sim-src` has changed, so those results still apply.
 
+### Decided versus implemented
+
+| Item | Decided | In `main` today |
+|---|---|---|
+| Work continues with Setup 2 only | Yes (2026-10-23) | **No.** The code still contains Setup 1; step A1 removes it. Sections §5–§14 still describe both setups |
+| Both setups frozen in `legacy-setup1-setup2` | Yes | Yes |
+| Claims limited to what the evidence shows (§1.1) | Yes | Yes (this revision) |
+| Roadmap A1–A6, B, C (§15) | Yes | Not started; progress table in §15 |
+
 > `source/node_modules` is **not installed** in the repo folder right now (`npm ls` reports
 > unmet `docx` and `puppeteer-core`). Run `npm install` in `source/` before any script that uses
 > Chrome or writes Word files.
@@ -64,6 +73,19 @@ The solution to the ISE 401 Week 2 "Sensors Design Task" for a CNC machine-tendi
 The project grew from that assignment into a **model-driven** system: the four state machines of the
 cell are data in one file, and the diagrams, the browser simulator, the Python engine and the
 formal verification are all generated from or interpret that file.
+
+### 1.1 What the evidence supports
+
+| Claim | Evidence | Assumptions and limits |
+|---|---|---|
+| The model is internally consistent | `lint()` | Structural only: names exist, states reachable, texts match the logic. Says nothing about whether the logic is right |
+| The browser and Python simulators run the same controller logic | Export check; identical traces in 4 deterministic scenarios (1 h each) | Shows that the Python port reproduces the browser in those scenarios. Python is a line-by-line port, so an error in the original would be reproduced, not detected |
+| Both simulators follow the model | Conformance runs, 20 h with random faults | Only with the simulated plant and the faults it can inject |
+| 13 properties hold and there is no deadlock | Exhaustive search of the abstract model, 6 runs | Untimed plant; **the fused check result always equals the physical truth** (a mismatch only adds to the counter, the camera is never wrong); output pallet of 2 slots; sensor and process faults never combined in one run; L1–L3 are AG EF: the goal can always still be reached, not that it will be reached |
+| The search and the NuSMV export agree | Same verdicts and state counts in all 6 runs | Additional evidence of consistency. Both start from the same intermediate representation (`build()`), so an error made there would be shared |
+| CNC idle 36.5 s → 20.5 s; 23.0 → 25.6 parts/h | Sum of nominal step times of the states in the idle band; the simulators reproduce it without faults | Planning estimates, not measurements. Nominal exchange only: excludes material shortage, pallet changes, holds and repairs. Idle time falls 43.8 %, output rises 11.4 %. The 85.4 % is the share of the nominal cycle spent machining, not availability or OEE |
+| The cross-check rule ("the camera decides") is safe | — | **Not shown.** Camera errors with a valid image are not modelled (§9.1, §13) |
+| The design is validated for a real cell | — | **Not claimed.** No hardware, no measured times; sensors and prices come from catalogues |
 
 ---
 
@@ -407,12 +429,16 @@ FAULT.any` · `LT-01.amber` = no red and (`mismatches>0 | QH | R1=W1`) · `LT-01
 | P8 | at start of `CNC.start` | `!QH` | 2 |
 | P9 | never | `mismatches>=limit & !lineStop` | both |
 | P10 | never | `CAM_FAULT & !lineStop` | both |
-| L1 | eventually (AG EF) | `R1.job=CNC.start` | both |
-| L2 | eventually | `R2.job=R2.placePallet` | both |
-| L3 | eventually | `SUP=X1` | both |
+| L1 | AG EF (goal stays reachable) | `R1.job=CNC.start` | both |
+| L2 | AG EF | `R2.job=R2.placePallet` | both |
+| L3 | AG EF | `SUP=X1` | both |
 
 "never" is checked in stable states (after the supervisor reacted). The simulators monitor the
-safety ones live; only the verifier checks "eventually".
+safety ones live; only the verifier checks the AG EF ones. AG EF means that from every reachable
+state some path still leads to the goal (no deadlock and no trap). It does not mean the cell will
+reach the goal: a run that waits forever while a way out still exists satisfies it. Guaranteed
+progress (AG AF under fairness assumptions on the operator, the jobs and the faults) is not checked;
+it is an option in step A4. The key `eventually` in `PROPERTIES` keeps its name in the code.
 
 ### 5.12 Derived data
 
@@ -489,7 +515,8 @@ sim.state("R2"); sim.kpis(); sim.trace; sim.logs; sim.stats; sim.errors  # error
   within 1e-6 s). Last result: identical in all 4 scenarios.
 
 The parity test uses only deterministic scenarios (nominal and a stuck CP-2 sensor). Random runs are
-checked separately in each simulator by conformance, not by comparing traces.
+checked separately in each simulator by conformance, not by comparing traces. The parity shows that
+the port reproduces the original in those scenarios; it cannot find an error that both share.
 
 ---
 
@@ -524,6 +551,17 @@ checked separately in each simulator by conformance, not by comparing traces.
   **Output pallet capacity is 2, not 12**, to keep the state space finite and small.
 - **Fault classes**: `none`; `sensor` = camera/proximity mismatches and camera faults; `process` =
   missed picks, confirmation timeouts, transport timer faults, undersized parts (Setup 2).
+- **Camera assumption.** Every check result equals the physical truth (`TRUTH[cp]`). The
+  "mismatch" variant only increments `mismatches`; the camera is never wrong. Camera
+  misclassification (valid image, wrong answer) and stale images are not modelled, so the rule
+  "the camera decides" is not tested against camera errors. The simulators also inject faults only
+  into the proximity sensors (glitch, stuck) and into camera availability (bad frame, failure).
+- **No combined faults.** `faults: 'all'` exists in `build()` but was never run; sensor and
+  process faults were verified separately.
+- **Pallet of 2.** Argument (not a proof) for why capacity 2 should represent 12: the machines
+  and properties read the count only through `PALLET.empty` (`=0`), `PALLET.full` (`>=slots`) and
+  P6 (`<slots`), so the logic distinguishes only empty, partly full and full. To be tested with
+  capacity 3 in step A2.
 - Interleaving semantics: one command = one step of one machine or of the plant; commands with the
   same guard and updates are deduplicated.
 
@@ -564,9 +602,10 @@ Also records deadlocks and which machine states are never reached.
   sensor (≈ 1 h total wall clock with 8 parallel jobs).
 - Manual run of one file: `NuSMV -dynamic -dcx -r cell_setup1_none.smv`.
 
-What the agreement proves: the explicit search and the export are correct for the abstract model.
-It does **not** prove the abstraction matches the real cell, nor the timed simulators (those are
-covered by the conformance runs).
+What the agreement means: additional evidence that the explicit search and the NuSMV export are
+consistent for these six models and these specifications. Both start from the same intermediate
+representation (`build()`), so an error made there would be shared and not detected. It says
+nothing about whether the abstraction matches the real cell or the timed simulators.
 
 ### 9.5 `verify.js` options
 
@@ -590,12 +629,12 @@ done with Word through PowerShell COM (`SaveAs2`, format 17), not by a script in
 
 ---
 
-## 11. Tests and checks — what each one guarantees
+## 11. Tests and checks — what each one checks
 
-| Command (from `source/` unless noted) | Guarantees |
+| Command (from `source/` unless noted) | What it checks |
 |---|---|
 | `M.lint()` (runs inside verify/export) | Model is internally consistent (§5.13) |
-| `node export_model.js --check` | Python runs the same model as JS |
+| `node export_model.js --check` | The JSON read by Python matches `cell-model.js` (not that the Python interpreter is correct) |
 | `node test_sim.js basic` | Simulator loads, runs, no console errors |
 | `node test_sim.js fault` | CP-2 fault → 3 mismatches → line stop → verify → reset works |
 | `node test_sim.js s2` | Setup 2, two undersized parts → NOK chute and quality hold |
@@ -605,6 +644,8 @@ done with Word through PowerShell COM (`SaveAs2`, format 17), not by a script in
 | `node test_sim.js all` | All of the above |
 | `python -m unittest test_engine` (in `engine/`) | §7 |
 | `node --max-old-space-size=10000 verify.js` | §9 (and with `NUSMV=…` the NuSMV cross-check) |
+
+None of these checks validates the design against a real cell. §1.1 lists what each one supports.
 
 ---
 
@@ -660,6 +701,17 @@ Gotchas met before:
 8. **Private claude.ai simulator page** may lag behind `simulation/index.html` if the simulator is
    rebuilt; the GitHub Pages one is the reference.
 9. Old private artifact `claude.ai/artifact/1BzXRhiHiZNo7q5AS3Rsb2` is the round-1 simulator (stale).
+10. **Camera policy not justified.** "The camera decides" is the author's original rule. Camera
+    false positives and false negatives with a valid image are not modelled anywhere, and three
+    mismatches stopping the line does not protect the first wrong decision. Step A2.1.
+11. **Gauge only partly defined.** Datums, conversion of distances to L, W, H, uncertainty of the
+    whole station, chips and coolant, a guard band near 48.00 mm and calibration are not specified.
+    The assignment gives only a lower limit. Step A2.2.
+12. **Times without source or tolerance.** Every value in `T` is a planning estimate. Step A2.3.
+13. **KPIs are nominal.** Idle time counts only the idle-band states of the exchange; waits for
+    material, pallet changes, holds and repairs are not in it. Step A2.4.
+14. **Fault coverage.** Sensor and process faults never combined; the 2-slot pallet is argued,
+    not proved. Step A2.5.
 
 ---
 
@@ -713,112 +765,173 @@ The planned order of the next steps is in §15.
 
 ## 15. Roadmap
 
-Decided on 2026-10-23. Three phases, in this order: first a solid, demonstrable base (A), then the
-generalization (B), then the factory (C). Each step keeps the rule of §4.1 (the model is the only
-source) and ends with every check of §11 green.
+Decided on 2026-10-23, revised the same day after an external review (see §17). Three phases, in
+this order: a solid, demonstrable and honestly scoped base (A), the generalization (B), the factory
+(C). Every step keeps the rule of §4.1 (the model is the only source), has a "done when" criterion,
+and ends with every check of §11 green. Effort figures are indicative only.
 
-### Scope decision: Setup 2 only from now on
+### How we keep to the plan
+
+1. **This section is the only plan.** Ideas from chat, reviews or meetings do not change it until
+   they are written in the decision log (§17) with the reason.
+2. **One step at a time.** A step starts only when the previous one meets its "done when". Work
+   that belongs to a later step is noted there, not done now.
+3. **New input is triaged, not acted on at once.** Each new point becomes: a fix inside the current
+   step, an item placed in a later step, or a rejection. All three are logged in §17.
+4. **Progress is recorded in the same commit** that finishes a step: the table below, §0, and the
+   affected sections.
+5. **Every working session starts the same way:** read §0, the progress table and the last
+   entries of §17; then continue the step marked "In progress".
+
+### Progress
+
+| Step | Status | Branch | Finished |
+|---|---|---|---|
+| A0 Claims and assumptions stated | Done | `main` | 2026-10-23 |
+| A1 Base: Setup 2 only, CI, one build | Not started | | |
+| A2 Design gaps: camera policy, gauge, times, KPIs, faults | Not started | | |
+| A3 PLC demonstration | Not started | | |
+| A4 Timed verification (UPPAAL) | Not started | | |
+| A5 Studies with the Python engine | Not started | | |
+| A6 More realistic plant | Not started | | |
+| B Generalization (cell template) | Not started | | |
+| C Factory | Not started | | |
+
+### Scope decision: Setup 2 only
 
 - The version with both setups is frozen in the branch **`legacy-setup1-setup2`** (commit
   `1f4b8ad`, on GitHub). It is not developed further.
-- `main` moves forward with **Setup 2 only** (dual gripper A/B on Robot 1, gauge and NOK sorting on
-  Robot 2). All new work (PLC, timed verification, studies, generalization, factory) is for Setup 2.
-- Setup 1 stays in the history and in the legacy branch. Its CNC idle time (36.5 s) remains the
-  baseline that Setup 2 (20.5 s) is compared with.
+- All new work is for **Setup 2** (dual gripper on Robot 1, gauge and NOK sorting on Robot 2).
+  The code of Setup 1 is still in `main` until step A1 removes it.
+- Setup 1's nominal idle time (36.5 s) remains only as the baseline for Setup 2 (20.5 s).
 
 ### Phase A — Solid, demonstrable base
 
-**A0. Prepare the base** (first, about 1 session)
+**A0. Claims and assumptions stated** — Done (2026-10-23)
 
-| Task | How |
-|---|---|
-| Remove Setup 1 from `main` | Delete machines `R1S1`, `R2S1` and `SETUP_MACHINES[1]`; remove the Setup 1 button and branches in `app.js`, `sim.py`, `cell-verify.js`, `verify.js`, `test_sim.js`, `cell-diagrams.js` and the figures that only show Setup 1. Regression: every Setup 2 trace, state count and verdict must stay identical. |
-| Continuous integration | GitHub Actions on every push: `npm ci`, lint, `export_model.js --check`, `python -m unittest test_engine`, `verify.js` nominal run, `test_sim.js basic conform` with the runner's Chrome. |
-| Configurable Chrome path | `process.env.CHROME` with the current path as default, in the 4 scripts. |
-| One build command | `npm run all` regenerates and copies `diagrams/`, `simulation/`, `verification/` and the JSON. |
-| Mark the round-1 documents | Move the report, the answer and the video to `submission/` with a note that they describe the first version. |
+§1.1 lists what each piece of evidence shows and under which assumptions; §5.11, §7, §9 and §11
+were reworded so that nothing claims more than it shows; §13 lists the gaps found by the review.
 
-**A1. PLC program generated from the model** (priority, 4–6 sessions)
+**A1. Base** (about 1 session)
 
-- New generator `source/src/cell-st.js`: IEC 61131-3 Structured Text, one function block per
-  machine (`R1S2`, `CONV`, `R2S2`, `SUP`), a `CASE` on the state, steps as sub-states, guards
-  translated from the guard language, jobs as start/done handshakes with the robot programs,
-  confirmation timeouts as `TON` timers, H / F handling, outputs (`OUTPUTS`) as assignments.
-  Written generically, so it also works for the cell template of Phase B.
-- Generated code committed in `source/plc/` (and PLCopen XML if needed for CODESYS / TwinCAT).
-- Run it in **OpenPLC** (free, Structured Text, Modbus TCP).
-- `engine/cellsim/plc_bridge.py`: the Python engine becomes the plant. Sensor values go to PLC
-  inputs; PLC outputs and job commands drive the simulated robots, CNC, belt and gauge.
-- Check: the conformance test of today, applied to the PLC. Every state change of the PLC must be
-  a transition of the model, and the trace must match the Python interpreter for the deterministic
-  scenarios.
-- Demo: a real PLC running generated code that controls the simulated cell, with the browser
-  simulator or a simple view showing it live.
+- Remove Setup 1 from `main`: machines `R1S1`, `R2S1`, `SETUP_MACHINES[1]`, the Setup 1 button
+  and branches in `app.js`, `sim.py`, `cell-verify.js`, `verify.js`, `test_sim.js`,
+  `cell-diagrams.js`, and the figures that only show Setup 1.
+- Continuous integration on GitHub Actions: `npm ci`, lint, `export_model.js --check`,
+  `python -m unittest test_engine`, a nominal `verify.js` run, `test_sim.js basic conform`.
+- Chrome path from `process.env.CHROME`; one build command (`npm run all`) that regenerates and
+  copies every generated file.
+- Move the report, the answer and the video to `submission/` with a visible note that they are
+  the historical round-1 submission.
+- Rewrite §0–§14 of this file for Setup 2 only.
 
-**A2. Timed verification with UPPAAL** (3–4 sessions)
+Done when: every Setup 2 trace, state count and verdict is identical to before the removal, CI is
+green on `main`, and the documents no longer describe Setup 1 as current.
 
-- `toUppaal(ir)` next to `toSmv` in `cell-verify.js`: one timed automaton per machine, job
-  durations from `JOBS.time` (with a tolerance), plant timers from `T`.
-- Prove bounds such as: CNC idle per cycle ≤ 21 s; a part never waits more than X s at the
-  conveyor exit; after a line stop and reset the cell is producing again within Y s.
-- Compare UPPAAL's bounds with the values measured by the Python engine. NuSMV stays for the
-  untimed properties.
+**A2. Design gaps** (2–3 sessions; must come before the PLC, because the PLC would freeze them)
 
-**A3. Studies with the Python engine** (about 2 sessions)
+1. **Camera policy.** Add a fault class "camera misclassification" (valid image, wrong answer:
+   false positive and false negative) and "stale image" to the verifier and to both simulators.
+   Run the properties and see which ones fail (P5 "place only at a free entry" is the obvious
+   candidate). Then decide the policy **per checkpoint** according to the cost of a wrong answer:
+   where a wrong "clear" can cause a collision, treat the place as occupied if either source says
+   so (conservative fusion, as the belt stop already does with PE-42 OR CAM-2); keep "the camera
+   decides" only where a wrong answer costs time, not safety. This changes the author's original
+   rule, so the decision is the author's and goes into §17.
+2. **Gauge definition.** Datums and fixture geometry, how three distances become L, W and H,
+   master-cube calibration and its frequency, measurement uncertainty of the whole station (not
+   the sensor's repeatability), effect of chips, coolant, tilt and surface, a guard band and a
+   rule for parts near 48.00 mm. The assignment gives only a lower limit; record that no upper
+   limit is specified.
+3. **Times.** For every value in `T`: its source (datasheet, estimate, measurement) and an
+   interval [min, max]. These intervals feed A4 and A5.
+4. **KPI definitions.** Separate and measure with the Python engine: nominal exchange idle (today's
+   36.5 / 20.5 s), simulated time not machining, total parts per hour, good parts per hour, and
+   time lost by cause (material shortage, pallet change, quality hold, line stop, fault).
+   State clearly that the 85.4 % is the share of the nominal cycle spent machining, not
+   availability or OEE.
+5. **Fault coverage.** Run the verifier with sensor and process faults combined (`faults: 'all'`)
+   for Setup 2, or document why it is out of reach. Write the argument for the 2-slot pallet
+   (the logic only reads empty, not full and full) and test it with capacity 3.
 
-- Parameter sweeps (belt speed, robot speeds, CNC cycle 90–180 s): utilization and bottleneck.
-- Monte Carlo with fault rates per sensor and camera: availability, line stops per shift, time to
-  restart.
-- Sensitivity of the cross-check rule (2–5 mismatches, 5–30 min window): false stops versus
-  undetected sensor faults. NOK rate versus quality-hold frequency.
-- `engine/studies/`, one script per study, CSV output and plots, many seeds with confidence
-  intervals.
+Done when: each item is in the model, the checks or this file, and §1.1 and §13 are updated.
 
-**A4. More realistic plant** (about 1 session per item)
+**A3. PLC demonstration** (4–6 sessions)
 
-- CNC alarms and `CNC.ready` going false.
-- `VERIFY.fail` path: the technician finds a broken sensor and replaces it.
-- An explicit safety machine (E-stop, scanners SC-01/02), kept separate from the cross-check.
-- Tool wear that makes undersized parts more likely over time.
+1. **Execution semantics first**, written in this file before any code: scan cycle (read inputs,
+   execute machines in a fixed order, write outputs), when a guard sees a value written in the
+   same scan, how job commands and "done" confirmations are latched and cleared, timers (`TON`
+   for confirmation timeouts and transport timers), restart after a FAULT and after a loss of
+   communication with the plant.
+2. **Generator** `source/src/cell-st.js`: IEC 61131-3 Structured Text, one function block per
+   machine (`R1S2`, `CONV`, `R2S2`, `SUP`), written generically so it serves the template of
+   Phase B. Generated code committed in `source/plc/`.
+3. **Run** it in OpenPLC on a PC, with `engine/cellsim/plc_bridge.py` connecting the Python engine
+   as the plant over Modbus TCP. This is a software PLC controlling a simulated cell, not
+   industrial hardware; the demo and the documents say so.
+4. **Compare** with the model: the same sequence of state changes as the Python interpreter for
+   the deterministic scenarios, and time differences within a stated bound (for example one scan
+   plus the communication latency). Exact equal instants are not required.
 
-Each item adds signals and plant readers in both simulators, a fault class in the verifier, new
-properties, and is reflected in the generated PLC code.
+Done when: the four scenarios pass that comparison, a 1 h nominal run conforms to the model, and a
+short recorded demo exists.
+
+**A4. Timed verification with UPPAAL** (3–4 sessions)
+
+- `toUppaal(ir)` next to `toSmv`: one timed automaton per machine, job durations as the intervals
+  of A2.3.
+- Properties stated with their conditions, for example: *in nominal operation, with material
+  available, no quality hold or line stop, and every operation inside its interval, the exchange
+  at the CNC ends within X s.* X comes from the intervals, not from today's 20.5 s figure.
+- Optionally, response properties (AG AF) under explicit fairness assumptions on the operator,
+  the jobs and the faults, to go beyond the AG EF of L1–L3.
+
+Done when: the bounds are proved or a counterexample explains why not, and they are compared
+with the Python engine's measured values.
+
+**A5. Studies with the Python engine** (about 2 sessions)
+
+Parameter sweeps (belt speed, robot speeds, CNC cycle 90–180 s), Monte Carlo with fault rates
+(availability, line stops per shift, time to restart), sensitivity of the cross-check rule (2–5
+mismatches, 5–30 min window) to false stops and missed sensor faults, NOK rate versus quality
+holds. Scripts in `engine/studies/`, CSV output, plots, many seeds, confidence intervals, using the
+KPI definitions of A2.4.
+
+**A6. More realistic plant** (about 1 session per item)
+
+CNC alarms and `CNC.ready` going false; the `VERIFY.fail` path; an explicit safety machine
+(E-stop, scanners SC-01/02) separate from the cross-check; tool wear that makes undersized parts
+more likely over time. Each item adds signals, plant readers in both simulators, a fault class in
+the verifier, properties, and regenerated PLC code.
 
 ### Phase B — Generalization
 
-- A machine becomes a **template with parameters**: the Setup 2 cell (Robot 1 + CNC, conveyor,
-  Robot 2 + gauge, supervisor) is defined once and instantiated N times with its own tags
-  (`CNC1.ZS-31`, `CNC2.ZS-31`, …).
-- The configuration is data: which instances exist, how they are connected (buffers, conveyors),
-  the layout, and the **part types** (dimensions, tolerances, process time per station, route).
+- The Setup 2 cell becomes a **template with parameters**, instantiated N times with its own tags.
+- The configuration is data: instances, connections (buffers, conveyors), layout, and **part
+  types** (dimensions, tolerances, process time per station, route).
 - No fixed setup branches remain in the simulator, the verifier, the Python engine or the PLC
   generator.
-- Regression proof: one instance of the template must give exactly the same traces, state counts,
-  verdicts and PLC code as the Setup 2 cell before the change.
+
+Done when: one instance of the template gives exactly the same traces, state counts, verdicts and
+PLC code as the Setup 2 cell before the change.
 
 ### Phase C — Factory (future)
 
-1. A second CNC served by the same Robot 1.
-2. A process before (e.g. cutting the raw blocks) and after (e.g. deburring, washing, inspection,
-   packing), connected by buffers.
-3. Several part types, each with its own route and times.
-4. Three more lines in parallel.
-5. Simulator: a factory overview with zoom into each cell.
-6. Verification: each cell template once (with faults) together with its interface to the buffers;
-   the whole factory with an abstract model where each cell is a black box, plus long simulation.
-7. Factory studies: how parts are dispatched to lines, bottlenecks, utilization.
-8. PLC: one generated program per cell plus a line or factory coordinator.
+A second CNC served by the same robot; a process before and after, with buffers; several part
+types with their routes; three more lines in parallel; a factory overview with zoom into each cell;
+verification per cell template with its buffer interface and of the factory as an abstract model of
+black-box cells, plus long simulation; factory studies; one generated PLC program per cell plus a
+coordinator.
 
 ### How to run each step with the agent
 
-1. One branch per step (`git switch -c a1-plc`), merged into `main` only when every check is green.
-2. Start the prompt with this file: *"Read PROJECT_STATUS.md. Goal: … Setup 2 only. Keep the model
-   the single source. Do not change the legacy branch or the round-1 documents."*
-3. Change the model first, then the generators, then the checks. Ask it to run lint and the tests
-   after every change and to report failures with their output.
-4. Review by looking: open the regenerated diagrams and the simulator and read the diff of
-   `cell-model.js`. Every human-caught error so far was found this way.
-5. When a step is done, update §0, §2, §11, §13 and this section in the same commit.
+1. One branch per step (`git switch -c a1-base`), merged into `main` only when its "done when" is met.
+2. Start the prompt with: *"Read PROJECT_STATUS.md (§0, §15, §17). Continue step Ax. Setup 2 only.
+   Keep the model the single source. Do not touch the legacy branch or the round-1 documents."*
+3. Change the model first, then the generators, then the checks; run lint and the tests after
+   every change and report failures with their output.
+4. Review by looking: the regenerated diagrams, the simulator, and the diff of `cell-model.js`.
+5. Close the step by updating the progress table, §0, §1.1, §13 and §17 in the same commit.
 
 ---
 
@@ -839,3 +952,15 @@ properties, and is reflected in the generated PLC code.
 | Symbolic model checking | Representing sets of states as BDDs (NuSMV) |
 | AG EF goal | "From every reachable state the goal can still be reached" |
 | Stutter | A step that changes nothing; used so NuSMV needs no TRANS constraints |
+
+---
+
+## 17. Decision log
+
+Newest last. Every change to the plan or to a design rule is written here first (§15).
+
+| Date | Decision | Reason |
+|---|---|---|
+| 2026-10-23 | Continue with Setup 2 only; freeze both setups in `legacy-setup1-setup2` | Focus the project; Setup 1 stays as the baseline |
+| 2026-10-23 | Order: base (A) → generalization (B) → factory (C); PLC is the priority of phase A | A demonstrable base before growing; a template is needed before a factory |
+| 2026-10-23 | External review triaged. Accepted: claims reworded (§1.1, §5.11, §7, §9, §11); camera policy, gauge definition, time sources, KPI definitions and fault coverage added as step A2 **before** the PLC; PLC execution semantics and a tolerance-based comparison added to A3; the UPPAAL bound made conditional in A4; OpenPLC described as a software PLC. Not changed: the order of phases and the PLC as the main demonstration | The review was right that several statements claimed more than the evidence shows and that the camera rule was never tested against camera errors (confirmed in `cell-verify.js`: the check result always equals the truth). Fixing the design gaps first avoids freezing them into the PLC code |
