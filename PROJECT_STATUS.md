@@ -45,6 +45,7 @@ search, minutes; NuSMV, about 1 h). Their last results are the committed ones in
 | Work continues with Setup 2 only | Yes (2026-10-23) | **No.** The code still contains Setup 1; step A1 removes it. Sections §5–§14 still describe both setups |
 | Both setups frozen in `legacy-setup1-setup2` | Yes | Yes |
 | Claims limited to what the evidence shows (§1.1) | Yes | Yes (this revision) |
+| Cross-check rule tested against camera errors | Planned (A2.1) | **No.** The abstract model and the simulators assume the camera is always right; only the documentation was corrected |
 | Roadmap A1–A6, B, C (§15) | Yes | Not started; progress table in §15 |
 
 > `source/node_modules` is **not installed** in the repo folder right now (`npm ls` reports
@@ -782,6 +783,10 @@ and ends with every check of §11 green. Effort figures are indicative only.
    affected sections.
 5. **Every working session starts the same way:** read §0, the progress table and the last
    entries of §17; then continue the step marked "In progress".
+6. **A finished step can be reopened** when a defect is found that invalidates its conclusions.
+   The defect, what has to be redone and why are logged in §17, and the progress table shows the
+   step as "Reopened" until it meets its "done when" again. Sequential work must never stop a
+   correction.
 
 ### Progress
 
@@ -796,6 +801,11 @@ and ends with every check of §11 green. Effort figures are indicative only.
 | A6 More realistic plant | Not started | | |
 | B Generalization (cell template) | Not started | | |
 | C Factory | Not started | | |
+
+Numbering note: the first version of this roadmap (commit `31bff5e`) called the base tasks (remove
+Setup 1, CI, one build command, `submission/`) "A0". On 2026-10-23 they became **A1**, and A0 became
+the documentation step that states the claims and assumptions, done the same day (§17). Nothing of
+the old A0 is done yet.
 
 ### Scope decision: Setup 2 only
 
@@ -837,7 +847,10 @@ green on `main`, and the documents no longer describe Setup 1 as current.
    where a wrong "clear" can cause a collision, treat the place as occupied if either source says
    so (conservative fusion, as the belt stop already does with PE-42 OR CAM-2); keep "the camera
    decides" only where a wrong answer costs time, not safety. This changes the author's original
-   rule, so the decision is the author's and goes into §17.
+   rule. Before the author is asked to decide, present for each checkpoint the alternatives
+   (camera decides; proximity decides; conservative fusion; stop and ask the operator), their
+   consequences (safety, lost time, false stops) and the verification and simulation results of
+   each. The author decides on that evidence, and the decision goes into §17.
 2. **Gauge definition.** Datums and fixture geometry, how three distances become L, W and H,
    master-cube calibration and its frequency, measurement uncertainty of the whole station (not
    the sensor's repeatability), effect of chips, coolant, tilt and surface, a guard band and a
@@ -854,7 +867,20 @@ green on `main`, and the documents no longer describe Setup 1 as current.
    for Setup 2, or document why it is out of reach. Write the argument for the 2-slot pallet
    (the logic only reads empty, not full and full) and test it with capacity 3.
 
-Done when: each item is in the model, the checks or this file, and §1.1 and §13 are updated.
+Done when all five deliverables exist and §1.1, §13 and §17 are updated:
+
+1. **Camera:** a policy table for CP-1 … CP-5 with the chosen rule and its reason; fault classes
+   for camera false positive, false negative and stale image in the verifier and both simulators;
+   verification runs with them alone and combined with the other classes; results in
+   `verification/results.md`, with any failed property explained and fixed or accepted in §17.
+2. **Gauge:** a written specification in this file (fixture and datums, distance-to-size formula,
+   calibration procedure and interval, uncertainty budget, guard band and decision rule at
+   48.00 mm, note that no upper limit is specified) and that decision rule implemented in the model.
+3. **Times:** every value of `T` with its source and [min, max] in the model.
+4. **KPIs:** the five measures of A2.4 computed by the Python engine and reported for nominal and
+   faulty runs.
+5. **Faults:** the combined-fault run for Setup 2 finished (or, if out of reach, the largest run
+   reached and the limit documented), and the capacity-3 pallet run compared with capacity 2.
 
 **A3. PLC demonstration** (4–6 sessions)
 
@@ -964,3 +990,4 @@ Newest last. Every change to the plan or to a design rule is written here first 
 | 2026-10-23 | Continue with Setup 2 only; freeze both setups in `legacy-setup1-setup2` | Focus the project; Setup 1 stays as the baseline |
 | 2026-10-23 | Order: base (A) → generalization (B) → factory (C); PLC is the priority of phase A | A demonstrable base before growing; a template is needed before a factory |
 | 2026-10-23 | External review triaged. Accepted: claims reworded (§1.1, §5.11, §7, §9, §11); camera policy, gauge definition, time sources, KPI definitions and fault coverage added as step A2 **before** the PLC; PLC execution semantics and a tolerance-based comparison added to A3; the UPPAAL bound made conditional in A4; OpenPLC described as a software PLC. Not changed: the order of phases and the PLC as the main demonstration | The review was right that several statements claimed more than the evidence shows and that the camera rule was never tested against camera errors (confirmed in `cell-verify.js`: the check result always equals the truth). Fixing the design gaps first avoids freezing them into the PLC code |
+| 2026-10-23 | Second review triaged, all accepted: the A0/A1 renumbering is explained under the progress table; A2 gets concrete deliverables as its "done when"; rule 6 allows reopening a finished step; before the author decides the camera rule, alternatives, consequences and test results are presented; the decided-versus-implemented table states that the camera behaviour is still untested | The plan must stay unambiguous and must not block corrections; the author decides the operating rule, but on technical evidence |
