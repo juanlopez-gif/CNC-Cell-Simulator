@@ -54,6 +54,21 @@ The Word report and the PDFs are the course submission. They describe the first 
 the state machines were written separately for the diagrams and the simulation, and they were not
 regenerated after these changes.
 
+## Roadmap
+
+From 2026-10-23 the project continues with **Setup 2 only**; the version with both setups is kept in
+the branch `legacy-setup1-setup2`. The next steps, in order:
+
+1. **Solid, demonstrable base**: continuous integration and one build command; a PLC program in
+   IEC 61131-3 Structured Text generated from the model and run in OpenPLC against the Python
+   engine as the plant; timed verification with UPPAAL; studies with the Python engine; a more
+   realistic plant.
+2. **Generalization**: the cell becomes a template that can be instantiated several times, with
+   the configuration and the part types as data.
+3. **Factory**: more CNCs, processes before and after, several part types and parallel lines.
+
+Details in `PROJECT_STATUS.md`, section 15.
+
 ## Contents
 
 | Path | What it is |

@@ -15,6 +15,7 @@ reference behind it.
 | Live simulator | https://juanlopez-gif.github.io/CNC-Cell-Simulator/ (GitHub Pages from `main`, root `index.html` redirects to `simulation/`) |
 | Branch `main` | `6204b09` "Separate the simulation engine into a Python package without graphics" (2026-10-21) |
 | Branch `state-machines-as-data` | Same commit `6204b09` (local and `origin`); kept only as history, no extra work on it |
+| Branch `legacy-setup1-setup2` | Commit `1f4b8ad`: the last version with Setup 1 and Setup 2, frozen. From 2026-10-23 `main` continues with Setup 2 only (§15) |
 | Working tree | Clean, in sync with `origin/main` (before this file was added) |
 | Toolchain used | Node.js 24.19.0, Python 3.11.8, Google Chrome (headless via puppeteer-core), NuSMV 2.7.1, Windows 11 |
 | Built by | Claude Code (one agent, model Claude Opus 5.5) directed by the author, in one long session from 2026-09-28 to 2026-10-22 |
@@ -706,104 +707,118 @@ list setups explicitly. Expect work in every consumer.
 `sim.kpis()`, `sim.trace`. It is the right place for parameter sweeps (e.g. belt speed vs CNC
 idle), Monte Carlo fault studies, or connecting a real PLC/OPC-UA later, because it has no UI.
 
-Ideas not started: timed verification (e.g. UPPAAL) to prove the idle-time figures; a 3D or ROS 2
-digital twin driven by the Python engine; generating PLC code (IEC 61131-3 ST) from `MACHINES`;
-regenerating the report from the current model.
+The planned order of the next steps is in §15.
 
 ---
 
-## 15. Roadmap: how I would extend it
+## 15. Roadmap
 
-Recommended order. Each step keeps the rule of §4.1 (the model is the only source) and ends with
-every check of §11 green. Effort is a rough estimate of working sessions with the AI agent plus
-review.
+Decided on 2026-10-23. Three phases, in this order: first a solid, demonstrable base (A), then the
+generalization (B), then the factory (C). Each step keeps the rule of §4.1 (the model is the only
+source) and ends with every check of §11 green.
 
-### Step 0 — Make the base safer to change (small, do first)
+### Scope decision: Setup 2 only from now on
 
-| Task | How | Why |
-|---|---|---|
-| Continuous integration | GitHub Actions on every push: `npm ci`, lint, `export_model.js --check`, `python -m unittest test_engine`, `verify.js` with `ONLY=setup1_none,setup2_none` (seconds), `test_sim.js basic conform` with Chrome from the runner | A change that breaks the model is caught before it reaches `main` |
-| Configurable Chrome path | Read `process.env.CHROME` with the current path as default, in the 4 scripts | Runs on any machine and in CI |
-| One build command | `npm run all` that regenerates and copies `diagrams/`, `simulation/`, `verification/`, the JSON | No more forgotten copies of generated files |
-| Mark the round-1 documents | One line at the top of the report and the answer, or move them to `submission/` | Nobody mistakes them for the current design |
+- The version with both setups is frozen in the branch **`legacy-setup1-setup2`** (commit
+  `1f4b8ad`, on GitHub). It is not developed further.
+- `main` moves forward with **Setup 2 only** (dual gripper A/B on Robot 1, gauge and NOK sorting on
+  Robot 2). All new work (PLC, timed verification, studies, generalization, factory) is for Setup 2.
+- Setup 1 stays in the history and in the legacy branch. Its CNC idle time (36.5 s) remains the
+  baseline that Setup 2 (20.5 s) is compared with.
 
-Effort: 1 session.
+### Phase A — Solid, demonstrable base
 
-### Step 1 — Timed verification (prove the numbers, not only the logic)
+**A0. Prepare the base** (first, about 1 session)
 
-Today the idle time (36.5 s / 20.5 s) is computed and confirmed by simulation, but no tool proves
-bounds over all behaviours. Add an exporter `toUppaal(ir)` next to `toSmv` in `cell-verify.js`:
-each machine becomes a timed automaton, each job a location with a clock invariant from `JOBS.time`
-(± a tolerance), the plant timers from `T`. Then check in UPPAAL properties such as "CNC idle per
-cycle ≤ 37 s in Setup 1 and ≤ 21 s in Setup 2", "a part never waits more than X s at the exit", and
-"after a line stop the cell restarts within Y s of the reset". Keep NuSMV for the untimed
-properties. Compare UPPAAL's best/worst case with the Python engine's measured values.
+| Task | How |
+|---|---|
+| Remove Setup 1 from `main` | Delete machines `R1S1`, `R2S1` and `SETUP_MACHINES[1]`; remove the Setup 1 button and branches in `app.js`, `sim.py`, `cell-verify.js`, `verify.js`, `test_sim.js`, `cell-diagrams.js` and the figures that only show Setup 1. Regression: every Setup 2 trace, state count and verdict must stay identical. |
+| Continuous integration | GitHub Actions on every push: `npm ci`, lint, `export_model.js --check`, `python -m unittest test_engine`, `verify.js` nominal run, `test_sim.js basic conform` with the runner's Chrome. |
+| Configurable Chrome path | `process.env.CHROME` with the current path as default, in the 4 scripts. |
+| One build command | `npm run all` regenerates and copies `diagrams/`, `simulation/`, `verification/` and the JSON. |
+| Mark the round-1 documents | Move the report, the answer and the video to `submission/` with a note that they describe the first version. |
 
-Effort: 3–4 sessions. Risk: state explosion with all fault classes; start with nominal runs.
+**A1. PLC program generated from the model** (priority, 4–6 sessions)
 
-### Step 2 — Generate the PLC program from the model (the most valuable step)
+- New generator `source/src/cell-st.js`: IEC 61131-3 Structured Text, one function block per
+  machine (`R1S2`, `CONV`, `R2S2`, `SUP`), a `CASE` on the state, steps as sub-states, guards
+  translated from the guard language, jobs as start/done handshakes with the robot programs,
+  confirmation timeouts as `TON` timers, H / F handling, outputs (`OUTPUTS`) as assignments.
+  Written generically, so it also works for the cell template of Phase B.
+- Generated code committed in `source/plc/` (and PLCopen XML if needed for CODESYS / TwinCAT).
+- Run it in **OpenPLC** (free, Structured Text, Modbus TCP).
+- `engine/cellsim/plc_bridge.py`: the Python engine becomes the plant. Sensor values go to PLC
+  inputs; PLC outputs and job commands drive the simulated robots, CNC, belt and gauge.
+- Check: the conformance test of today, applied to the PLC. Every state change of the PLC must be
+  a transition of the model, and the trace must match the Python interpreter for the deterministic
+  scenarios.
+- Demo: a real PLC running generated code that controls the simulated cell, with the browser
+  simulator or a simple view showing it live.
 
-The machines are already what a PLC would run. Generate **IEC 61131-3 Structured Text** (one
-function block per machine, a `CASE` on the state, steps as sub-states, guards translated from the
-guard language, jobs as handshakes with the robot programs), and optionally PLCopen XML to import
-into CODESYS or TwinCAT.
+**A2. Timed verification with UPPAAL** (3–4 sessions)
 
-Then close the loop: run the generated program in a soft PLC (OpenPLC or CODESYS Control Win) and
-connect the **Python engine as the plant** through Modbus TCP or OPC UA (sensors → PLC inputs,
-PLC outputs → jobs). Run the same conformance check as today: every state change of the real PLC
-must be a transition of the model, and the trace must match the Python interpreter. This tests the
-generated code with the same model it came from, so the same specification covers diagrams,
-simulation, formal checks and PLC code.
+- `toUppaal(ir)` next to `toSmv` in `cell-verify.js`: one timed automaton per machine, job
+  durations from `JOBS.time` (with a tolerance), plant timers from `T`.
+- Prove bounds such as: CNC idle per cycle ≤ 21 s; a part never waits more than X s at the
+  conveyor exit; after a line stop and reset the cell is producing again within Y s.
+- Compare UPPAAL's bounds with the values measured by the Python engine. NuSMV stays for the
+  untimed properties.
 
-Files: new `source/src/cell-st.js` (generator), `source/plc/` (generated code, committed),
-`engine/cellsim/plc_bridge.py` (I/O mapping). Effort: 4–6 sessions.
+**A3. Studies with the Python engine** (about 2 sessions)
 
-### Step 3 — Studies with the Python engine
+- Parameter sweeps (belt speed, robot speeds, CNC cycle 90–180 s): utilization and bottleneck.
+- Monte Carlo with fault rates per sensor and camera: availability, line stops per shift, time to
+  restart.
+- Sensitivity of the cross-check rule (2–5 mismatches, 5–30 min window): false stops versus
+  undetected sensor faults. NOK rate versus quality-hold frequency.
+- `engine/studies/`, one script per study, CSV output and plots, many seeds with confidence
+  intervals.
 
-No UI needed, so it is the place for numbers:
+**A4. More realistic plant** (about 1 session per item)
 
-- **Parameter sweeps**: belt speed, robot speeds, CNC cycle 90–180 s → CNC utilization and the
-  bottleneck (when does Robot 2 or the belt become the limit instead of the CNC?).
-- **Monte Carlo of faults**: realistic rates per sensor and camera → availability, line stops per
-  shift, mean time to restart; sensitivity of the rule "3 mismatches in 10 min" (try 2–5 and
-  5–30 min) to false stops versus undetected sensor faults.
-- **Quality**: NOK rate vs quality-hold frequency.
+- CNC alarms and `CNC.ready` going false.
+- `VERIFY.fail` path: the technician finds a broken sensor and replaces it.
+- An explicit safety machine (E-stop, scanners SC-01/02), kept separate from the cross-check.
+- Tool wear that makes undersized parts more likely over time.
 
-Add `engine/studies/` with one script per study writing CSV, and plots (matplotlib). Use many seeds
-and report confidence intervals. Effort: 2 sessions.
+Each item adds signals and plant readers in both simulators, a fault class in the verifier, new
+properties, and is reflected in the generated PLC code.
 
-### Step 4 — Better plant and HMI
+### Phase B — Generalization
 
-- CNC alarms and `CNC.ready` going false; `VERIFY.fail` path (technician replaces a sensor);
-  operator delays drawn from a distribution instead of instant.
-- Explicit safety layer in the model (E-stop, scanners SC-01/02) as a separate machine that the
-  properties can reference, still kept apart from the cross-check logic.
-- Tool wear in Setup 2 making undersized parts more likely over time, so the quality hold has
-  something real to detect.
+- A machine becomes a **template with parameters**: the Setup 2 cell (Robot 1 + CNC, conveyor,
+  Robot 2 + gauge, supervisor) is defined once and instantiated N times with its own tags
+  (`CNC1.ZS-31`, `CNC2.ZS-31`, …).
+- The configuration is data: which instances exist, how they are connected (buffers, conveyors),
+  the layout, and the **part types** (dimensions, tolerances, process time per station, route).
+- No fixed setup branches remain in the simulator, the verifier, the Python engine or the PLC
+  generator.
+- Regression proof: one instance of the template must give exactly the same traces, state counts,
+  verdicts and PLC code as the Setup 2 cell before the change.
 
-Each item: new signals and plant readers in both simulators, new fault class in the verifier,
-new properties. Effort: 1 session each.
+### Phase C — Factory (future)
 
-### Step 5 — Digital twin and other layouts
-
-- **3D / ROS 2 twin**: drive a 3D scene (e.g. RViz or a web Three.js view) from the Python engine
-  trace, or let ROS 2 robot nodes execute the jobs. The model and the PLC logic stay the same.
-- **New cells**: Setup 3 with two CNCs served by one robot, or a second shift without operator.
-  This needs the generalisation listed in §14 ("Add a new setup"); first remove the hard-coded
-  `setup === 1/2` branches so a setup is just a list of machines plus a plant description.
-
-Effort: 5+ sessions each.
+1. A second CNC served by the same Robot 1.
+2. A process before (e.g. cutting the raw blocks) and after (e.g. deburring, washing, inspection,
+   packing), connected by buffers.
+3. Several part types, each with its own route and times.
+4. Three more lines in parallel.
+5. Simulator: a factory overview with zoom into each cell.
+6. Verification: each cell template once (with faults) together with its interface to the buffers;
+   the whole factory with an abstract model where each cell is a black box, plus long simulation.
+7. Factory studies: how parts are dispatched to lines, bottlenecks, utilization.
+8. PLC: one generated program per cell plus a line or factory coordinator.
 
 ### How to run each step with the agent
 
-1. One branch per step (`git switch -c timed-verification`), merged only when every check is green.
-2. Start the prompt with this file: *"Read PROJECT_STATUS.md. Goal: … Keep the model the single
-   source. Do not change the round-1 documents."*
-3. Ask for the change to the model first, then the generators, then the checks; ask it to run lint
-   and the tests after every change and to report failures with the output.
-4. Review by looking: open the regenerated diagrams and the simulator, and read the diff of
-   `cell-model.js` yourself. Every human-caught error so far was found this way.
-5. When a step is done, update §0, §2, §11 and §13 of this file in the same commit.
+1. One branch per step (`git switch -c a1-plc`), merged into `main` only when every check is green.
+2. Start the prompt with this file: *"Read PROJECT_STATUS.md. Goal: … Setup 2 only. Keep the model
+   the single source. Do not change the legacy branch or the round-1 documents."*
+3. Change the model first, then the generators, then the checks. Ask it to run lint and the tests
+   after every change and to report failures with their output.
+4. Review by looking: open the regenerated diagrams and the simulator and read the diff of
+   `cell-model.js`. Every human-caught error so far was found this way.
+5. When a step is done, update §0, §2, §11, §13 and this section in the same commit.
 
 ---
 
