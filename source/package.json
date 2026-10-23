@@ -1,16 +1,15 @@
 {
   "name": "week2-sensors-design",
   "private": true,
-  "description": "The model of the cell and the scripts that generate the diagrams, the simulator, the verification and the Word report",
+  "description": "The model of the cell (Setup 2) and the scripts that generate the diagrams, the simulator and the verification",
   "scripts": {
-    "diagrams": "node render.js out",
-    "sim": "node build_sim.js",
+    "build": "node build_all.js",
+    "check": "node build_all.js --check",
     "test": "node test_sim.js all",
-    "verify": "node --max-old-space-size=10000 verify.js",
-    "report": "node build_report.js"
+    "regress": "node regress.js --compare ../regression/setup2_reference.json",
+    "verify": "node --max-old-space-size=10000 verify.js"
   },
   "dependencies": {
-    "docx": "^9.8.1",
     "puppeteer-core": "^25.12.0"
   }
 }

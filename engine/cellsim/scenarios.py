@@ -12,6 +12,7 @@ from .sim import CellSim
 
 
 def run_random(setup, hours, faults=True, seed=1, model=None, step=10.0):
+    """setup must be 2 (kept as a parameter for the callers)."""
     rnd = random.Random(seed)
     sim = CellSim(setup=setup, seed=seed, model=model, instant_verify=True)
     injected, actions = {}, {"clear": 0, "verify": 0, "reset": 0, "release": 0}
@@ -25,7 +26,7 @@ def run_random(setup, hours, faults=True, seed=1, model=None, step=10.0):
         t += step
         if faults and rnd.random() < 0.012:                     # about one disturbance every 14 min
             k = rnd.random()
-            cps = ["CP-1", "CP-2", "CP-3", "CP-4"] + (["CP-5"] if setup == 2 else [])
+            cps = ["CP-1", "CP-2", "CP-3", "CP-4", "CP-5"]
             cp = cps[int(rnd.random() * len(cps))]
             if k < 0.3:
                 sim.inject_glitch(cp); inj("glitch")
@@ -37,7 +38,7 @@ def run_random(setup, hours, faults=True, seed=1, model=None, step=10.0):
                 sim.inject_camera_failure(); inj("camera failure")
             elif k < 0.85:
                 sim.inject_grip_miss(); inj("grip miss")
-            elif setup == 2:
+            else:
                 sim.inject_undersized(); inj("undersized part")
         # the operator is sometimes away: the input pallet runs empty (Robot 1 waits in W1)
         if faults and rnd.random() < 0.003:

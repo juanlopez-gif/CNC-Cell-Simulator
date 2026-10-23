@@ -1,7 +1,7 @@
 """cellsim: the simulation engine of the CNC machine-tending cell, without graphics.
 
     from cellsim import CellSim
-    sim = CellSim(setup=1, seed=1)
+    sim = CellSim(seed=1)          # Setup 2 (the only setup)
     sim.advance(3600)
     print(sim.kpis())
 """

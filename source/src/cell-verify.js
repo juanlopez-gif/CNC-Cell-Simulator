@@ -29,6 +29,7 @@
 
   // ------------------------------------------------------------------ build
   function build(setup, opts) {
+    if (setup !== 2) throw new Error('only Setup 2 is modelled (Setup 1 is in the branch legacy-setup1-setup2)');
     opts = Object.assign({ faults: 'all', slots: 2 }, opts || {});
     if (opts.faults === true) opts.faults = 'all';
     // fault classes: sensor = camera / proximity mismatches and camera faults; process = missed picks,
@@ -36,8 +37,8 @@
     const FL = { mismatch: ['sensor', 'all'], camera: ['sensor', 'all'], grip: ['process', 'all'], timeout: ['process', 'all'], nok: ['process', 'all'] };
     const F = Object.fromEntries(Object.keys(FL).map((k) => [k, FL[k].includes(opts.faults)]));
     const N = opts.slots;
-    const PART = setup === 1 ? ['none', 'raw', 'fin'] : ['none', 'raw', 'ok', 'nok'];
-    const FIN = setup === 1 ? ['fin'] : ['ok', 'nok'];
+    const PART = ['none', 'raw', 'ok', 'nok'];
+    const FIN = ['ok', 'nok'];
     const vars = [], VI = {};
     const addVar = (name, dom, init, note) => { VI[name] = vars.length; vars.push({ name, dom, init, note }); };
     const B = [false, true];
@@ -81,10 +82,10 @@
       addVar(slot, ms.locs, (m.initial.do || []).some(blocking) ? 'I_0' : 'I_x', `location of the ${slot} machine (state_step)`);
       if (m.hold || m.fault) addVar(slot + '_res', ms.res, 'none', `where ${slot} continues after HOLD / FAULT`);
     });
-    const PLC_VARS = ['partPlaced', 'pickAllowed', 'partPicked', 'CAM_FAULT'].concat(setup === 2 ? ['QH'] : []);
+    const PLC_VARS = ['partPlaced', 'pickAllowed', 'partPicked', 'CAM_FAULT', 'QH'];
     PLC_VARS.forEach((v) => addVar(v, B, false, 'PLC variable'));
     addVar('mismatches', range(0, M.RULES.mismatchLimit), 0, 'mismatches in the window');
-    if (setup === 2) addVar('consecNok', range(0, M.RULES.consecutiveNokHold), 0, 'NOK parts in a row');
+    addVar('consecNok', range(0, M.RULES.consecutiveNokHold), 0, 'NOK parts in a row');
     // check results belong to the machine that made the check
     const CPV = (slot, cp) => `res_${slot}_${san(cp)}`;
     SL.forEach((slot) => {
@@ -99,7 +100,7 @@
     addVar('vise', ['open', 'clamped'], 'open', 'vise');
     addVar('cnc', PART, 'none', 'part in the fixture');
     addVar('run', B, false, 'CNC machining');
-    (setup === 1 ? ['r1S'] : ['r1A', 'r1B']).forEach((g) => addVar(g, PART, 'none', 'part in Robot 1 gripper ' + g.slice(2)));
+    ['r1A', 'r1B'].forEach((g) => addVar(g, PART, 'none', 'part in Robot 1 gripper ' + g.slice(2)));
     addVar('r2S', PART, 'none', 'part in the Robot 2 gripper');
     ['beltEntry', 'beltMid', 'beltExit'].forEach((b) => addVar(b, PART, 'none', 'part on the belt'));
     addVar('moving', B, false, 'belt moving');
@@ -109,12 +110,10 @@
     addVar('outCount', range(0, N), range(0, N - 1), `parts on the output pallet (capacity ${N} in the abstract model)`);
     addVar('r1Home', B, true, 'Robot 1 at home');
     addVar('r2Home', B, true, 'Robot 2 at home');
-    if (setup === 2) {
-      addVar('nest', PART, 'none', 'part in the gauge nest');
-      addVar('measured', B, false, 'gauge reading valid');
-      addVar('zeroed', B, false, 'gauge zeroed with the master cube');
-      addVar('pe65', B, false, 'PE-65 saw a part fall');
-    }
+    addVar('nest', PART, 'none', 'part in the gauge nest');
+    addVar('measured', B, false, 'gauge reading valid');
+    addVar('zeroed', B, false, 'gauge zeroed with the master cube');
+    addVar('pe65', B, false, 'PE-65 saw a part fall');
     const has = (v) => v in VI;
 
     // ---- signals of the model -> IR
@@ -128,7 +127,7 @@
       'CNC.done': () => and(not(bv('run')), inn('cnc', FIN)), 'CNC.empty': () => and(not(bv('run')), eq('cnc', 'none')),
       'ZS-31': () => eq('door', 'open'), 'ZS-32': () => eq('door', 'closed'), 'ZS-33': () => bv('lock'),
       'ZS-34': () => eq('vise', 'open'), 'ZS-35': () => eq('vise', 'clamped'), 'PS-36': () => not(eq('cnc', 'none')),
-      'GR-21': () => not(eq('r1S', 'none')), 'GR-21A': () => not(eq('r1A', 'none')), 'GR-21B': () => not(eq('r1B', 'none')),
+      'GR-21A': () => not(eq('r1A', 'none')), 'GR-21B': () => not(eq('r1B', 'none')),
       'GR-51': () => not(eq('r2S', 'none')),
       'ENC-43': () => bv('moving'), 'PE-42': () => not(eq('beltExit', 'none')), 'ROI-C': () => not(eq('beltExit', 'none')),
       'PX-52': () => bv('outPresent'), 'CAM-2.slot': () => TT,
@@ -405,8 +404,7 @@
 
     // ---- plant and environment
     const plant = (proc, label, guard, upd) => addCmd({ proc, at: null, guard, upd, label });
-    if (setup === 1) plant('CNC', 'CNC: cycle complete', and(bv('run'), eq('cnc', 'raw')), { run: VAL(false), cnc: VAL('fin') });
-    else plant('CNC', 'CNC: cycle complete (part OK or undersized)', and(bv('run'), eq('cnc', 'raw')), { run: VAL(false), cnc: F.nok ? ONEOF(['ok', 'nok']) : VAL('ok') });
+    plant('CNC', 'CNC: cycle complete (part OK or undersized)', and(bv('run'), eq('cnc', 'raw')), { run: VAL(false), cnc: F.nok ? ONEOF(['ok', 'nok']) : VAL('ok') });
     plant('CNC', 'CNC: cycle complete (empty)', and(bv('run'), not(eq('cnc', 'raw'))), { run: VAL(false) });
     plant('CNC', 'CNC: guard lock released after the cycle', and(not(bv('run')), bv('lock'), inn('cnc', FIN)), { lock: VAL(false) });
     const MOTOR = SIG(M.OUTPUTS['BELT.motor'].def), LT53 = SIG(M.OUTPUTS['LT-53'].def);
@@ -426,7 +424,7 @@
     });
 
     // ---- properties
-    const props = M.PROPERTIES.filter((p) => !p.setup || p.setup === setup).map((p) => {
+    const props = M.PROPERTIES.map((p) => {
       const q = { id: p.id, text: p.text };
       if (p.never) { q.kind = 'never'; q.e = SIG(p.never); }
       if (p.start) { q.kind = 'start'; q.jobs = p.start; q.e = SIG(p.require); }

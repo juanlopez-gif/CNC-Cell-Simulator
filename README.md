@@ -1,15 +1,20 @@
 # CNC Cell Simulator
 
+[![checks](https://github.com/juanlopez-gif/CNC-Cell-Simulator/actions/workflows/checks.yml/badge.svg)](https://github.com/juanlopez-gif/CNC-Cell-Simulator/actions/workflows/checks.yml)
+
 Sensors design and live state-machine simulation of a CNC machine-tending cell: a CNC with a
-robot-operated door, two UR10e robots, a conveyor, and input and output pallets.
+robot-operated door, a UR10e robot with a dual gripper, a conveyor, a second UR10e with a
+dimensional gauge, and input and output pallets.
 
 **Live simulator:** https://juanlopez-gif.github.io/CNC-Cell-Simulator/ (runs in the browser, nothing to install)
 
-![CNC Cell Simulator, Setup 1 with a faulty PE-41 sensor: the camera value is used and 2 of 3 mismatches are in the 10-minute window](simulation/sim_setup1_warning.png)
+![CNC Cell Simulator with a faulty PE-41 sensor: the camera value is used and 2 of 3 mismatches are in the 10-minute window](simulation/sim_warning.png)
 
-This is the solution to the Week 2 Sensors Design Task, Setup 1 and Setup 2: sensor selection and
-placement, work-flow logic, state diagrams, the camera + proximity cross-check rule, the dimensional
-check and the CNC-time optimization.
+The project started as the solution to the Week 2 Sensors Design Task (Setup 1 and Setup 2). Since
+2026-10-23 it continues with **Setup 2 only**: Robot 1 exchanges the parts at the CNC with a dual
+gripper, and Robot 2 measures every part and sorts undersized ones into a NOK chute. The version with
+both setups is kept in the branch `legacy-setup1-setup2`; the original submission is in
+`submission/`.
 
 ## The state machines are one model
 
@@ -20,51 +25,47 @@ properties the design must keep. The other parts are generated from it or run it
 | Part | What it takes from the model |
 |---|---|
 | State diagrams (`src/cell-diagrams.js`) | Every box and arrow; the arrow labels are generated from the guards. The generator stops if a transition cannot be drawn |
-| Timing chart and CNC idle KPI | The step times of the states in the CNC idle band (36.5 s and 20.5 s are now computed, not typed) |
+| Timing chart and CNC idle KPI | The step times of the states in the CNC idle band (20.5 s is computed, not typed) |
 | Browser simulation (`sim-src/app.js`) | Nothing about states is written there: an interpreter runs the machines; the file only holds the plant (robot motions, CNC, belt, sensors, operator) and the drawing |
-| Python engine (`engine/`) | The same interpreter and plant without graphics, for long runs and analysis; it reads the model exported to JSON (`node source/export_model.js`) and gives the same state changes at the same instants as the browser |
+| Python engine (`engine/`) | The same interpreter and plant without graphics, for long runs and analysis; it reads the model exported to JSON and gives the same state changes at the same instants as the browser |
 | Verification (`src/cell-verify.js`, `verify.js`) | An abstract model of the same machines, explored state by state, exported to NuSMV (`verification/*.smv`) and checked again with NuSMV |
 
-Checks: `M.lint()` (every name used exists, every sensor named in a diagram text is used, every state
-is reachable), `node test_sim.js conform` (20 h of simulated operation with random faults: every
-state change must be a transition of the model, every job must take its model time, no property may
-be violated, and without faults the CNC idle time must equal the KPI) and `node verify.js` (every
-reachable state of the abstract model, nominal and with sensor or process faults; see
-`verification/results.md`). All 13 properties hold in all six verification runs (up to 14.7 million
-states) and there is no deadlock. NuSMV 2.7.1, an independent symbolic model checker, checked the six
-exported `.smv` files and agrees with the search on every property, on the absence of deadlocks, on
-which machine states can be reached and on the number of reachable states. Both read the same
-generated model, so this is additional evidence that the search and the export are consistent, not a
-check of the abstraction itself. The abstract model assumes the camera is never wrong and keeps a
-2-slot output pallet; `PROJECT_STATUS.md` (§1.1) lists what each check does and does not show. The
-design has not been validated on a real cell.
+## What has been checked, and what has not
 
-These checks found five problems, all fixed in the model:
+- `M.lint()`: every name used exists, every sensor named in a diagram text is used, every state is
+  reachable.
+- `node test_sim.js conform`: 20 h of simulated operation with random faults; every state change is
+  a transition of the model, every job takes its model time, no property is violated, and without
+  faults the CNC idle time equals the KPI.
+- `node verify.js`: every reachable state of the abstract model, nominal and with sensor or process
+  faults (up to 14.7 million states). All 13 properties hold and there is no deadlock. NuSMV 2.7.1,
+  an independent symbolic model checker, agrees with the search on every property and on the number
+  of reachable states. Both read the same generated model, so this is additional evidence that the
+  search and the export are consistent, not a check of the abstraction.
+- Every push runs these checks on GitHub (badge above), plus a regression check against a recorded
+  reference of Setup 2 (`regression/`).
+
+Limits: the abstract model assumes the camera is never wrong and uses a 2-slot output pallet; sensor
+and process faults are not combined; the times are planning estimates. The design has not been
+validated on a real cell. `PROJECT_STATUS.md` (§1.1 and §13) lists what each check does and does not
+show.
+
+These checks found five problems of the first version, all fixed in the model:
 
 - Two latent problems of the original design, hidden by the timing of the simulation (found by the
   verifier): the cycle-start handshake waited for the short "CNC in cycle" signal, and Robot 2 did
-  not consume the "pick allowed" signal, so it could try a second pick at an empty exit. Robot 1 now
-  accepts "in cycle or cycle complete" and Robot 2 clears "pick allowed" when it reports the pick.
+  not consume the "pick allowed" signal, so it could try a second pick at an empty exit.
 - One rule the original design left open: "wait until CP-2 shows the entry clear". The old
   simulation waited on the true part position, which a PLC cannot read. Robot 1 now waits until the
   conveyor has taken over the previous part (found by the random simulation run).
-- Two errors of the first version of the model, caught before release: after a line stop the
-  conveyor re-checked a part that Robot 2 had already picked (too general hold rule, random run), and
-  one machine read a check result written by another one (verifier). The conveyor now waits through
-  a line stop in C1 and C5, and each machine uses only its own checks.
-
-The Word report and the PDFs are the course submission. They describe the first version, in which
-the state machines were written separately for the diagrams and the simulation, and they were not
-regenerated after these changes.
+- Two errors of the first version of the model, caught before release: a too general hold rule, and
+  one machine reading a check result written by another one.
 
 ## Roadmap
 
-From 2026-10-23 the project continues with **Setup 2 only**; the version with both setups is kept in
-the branch `legacy-setup1-setup2`. The next steps, in order:
-
-1. **Solid, demonstrable base**: continuous integration and one build command; closing the design
-   gaps (camera errors in the cross-check rule, the gauge's measurement definition, sources and
-   tolerances of the times, KPI definitions, combined faults); a PLC program in IEC 61131-3
+1. **Solid, demonstrable base**: continuous integration and one build command (done); closing the
+   design gaps (camera errors in the cross-check rule, the gauge's measurement definition, sources
+   and tolerances of the times, KPI definitions, combined faults); a PLC program in IEC 61131-3
    Structured Text generated from the model and run in OpenPLC (a software PLC) against the Python
    engine as the plant; timed verification with UPPAAL; studies with the Python engine; a more
    realistic plant.
@@ -72,40 +73,38 @@ the branch `legacy-setup1-setup2`. The next steps, in order:
    the configuration and the part types as data.
 3. **Factory**: more CNCs, processes before and after, several part types and parallel lines.
 
-Details in `PROJECT_STATUS.md`, section 15.
+Details and progress in `PROJECT_STATUS.md`, section 15.
 
 ## Contents
 
 | Path | What it is |
 |---|---|
-| `PROJECT_STATUS.md` | Detailed technical reference: state of every part, how it works, checks, limitations and how to extend it |
-| `Week2_Assignment_Answer.docx` / `.pdf` | The short assignment answer (4 pages): how it works, sensor list with brand and price, Setup 2 figures |
-| `Sensors_Design_Report.docx` / `.pdf` | The full write-up (27 pages, 15 figures, 9 tables) |
+| `PROJECT_STATUS.md` | Detailed technical reference: state of every part, how it works, checks, limitations, plan and decision log |
 | `simulation/index.html` | Interactive simulation of all state machines. Double-click to open it in a browser |
-| `simulation/*.png` | Two screenshots of the simulation (also in the report) |
-| `diagrams/` | Every figure as PNG (with title) and SVG (editable). Numbers match the report |
+| `simulation/*.png` | Screenshots of the simulation |
+| `diagrams/` | Every figure as PNG and SVG (editable), generated from the model |
 | `verification/` | NuSMV models of the cell, the NuSMV outputs and the results of the exhaustive verification |
 | `engine/` | The simulation engine in Python, without graphics (see `engine/README.md`) |
-| `source/` | The model and the scripts that generate the diagrams, the simulation, the verification and the report |
+| `regression/` | Recorded fingerprints of Setup 2 used to show that a change of the code did not change the behaviour |
+| `source/` | The model and the scripts that generate the diagrams, the simulation and the verification |
+| `submission/` | The original course submission (answer, report, video), historical and not regenerated |
 
 ## Figures
 
-| Figure | File |
+| File | What it shows |
 |---|---|
-| 1 | `fig01_layout_setup1` – cell layout and sensor placement, Setup 1 |
-| 2 | `fig02_control_architecture` – the four state machines and their handshakes |
-| 3 | `fig03_crosscheck_flow` – camera + proximity decision logic |
-| 4 | `fig04_supervisor_states` – cross-check supervisor state diagram |
-| 5 | `fig05_flow_setup1` – work flow of one part, Setup 1 |
-| 6 | `fig06_states_robot1_setup1` – Robot 1 + CNC state diagram, Setup 1 |
-| 7 | `fig07_states_conveyor` – conveyor state diagram |
-| 8 | `fig08_states_robot2_setup1` – Robot 2 + output pallet state diagram, Setup 1 |
-| 9 | `fig09_layout_setup2` – cell layout, Setup 2 |
-| 10 | `fig10_timing_setup1_vs_setup2` – CNC idle time, Setup 1 vs Setup 2 |
-| 11 | `fig11_flow_setup2` – work flow of one part, Setup 2 |
-| 12 | `fig12_states_robot1_setup2` – Robot 1 + CNC state diagram, Setup 2 (dual gripper) |
-| 13 | `fig13_states_robot2_setup2` – Robot 2 + gauge + sorting state diagram, Setup 2 |
-| – | `fig14_dual_gripper_exchange` – how Robot 1 swaps the parts with the dual gripper (used in the short answer) |
+| `fig02_control_architecture` | The four state machines and their handshakes |
+| `fig03_crosscheck_flow` | Camera + proximity decision logic |
+| `fig04_supervisor_states` | Cross-check supervisor state diagram |
+| `fig07_states_conveyor` | Conveyor state diagram |
+| `fig09_layout_setup2` | Cell layout and sensor placement |
+| `fig10_timing_setup1_vs_setup2` | Timing of one CNC cycle against the Setup 1 baseline |
+| `fig11_flow_setup2` | Work flow of one part |
+| `fig12_states_robot1_setup2` | Robot 1 + CNC state diagram (dual gripper) |
+| `fig13_states_robot2_setup2` | Robot 2 + gauge + sorting state diagram |
+| `fig14_dual_gripper_exchange` | How Robot 1 swaps the parts with the dual gripper |
+
+The numbers follow the original report; the figures that showed only Setup 1 (1, 5, 6, 8) were removed.
 
 ## The cross-check rule in one paragraph
 
@@ -115,47 +114,43 @@ agree. If they disagree, the sequence uses the camera value and logs a mismatch.
 within a 10-minute sliding window stop the line in a controlled way (the CNC finishes its part, the
 robots park, the belt starts no new transport) until a technician verifies the sensors and resets.
 Safety signals (door interlock, E-stops, scanners) are hardwired and never overridden by the camera.
+This rule has not yet been tested against camera errors; that is the next step of the plan.
 
-## Key numbers
+## Key numbers (nominal)
 
-| | Setup 1 | Setup 2 |
+| | Setup 1 baseline | Setup 2 |
 |---|---|---|
 | CNC idle per part | 36.5 s | 20.5 s |
-| CNC utilization | 76.7 % | 85.4 % |
+| Share of the cycle spent machining | 76.7 % | 85.4 % |
 | Output | 23.0 parts/h | 25.6 parts/h |
 
-Setup 2 rejects any part with a length, width or height below 48.00 mm into a locked NOK chute.
+Nominal values from planning times, without material shortages, pallet changes, holds or repairs.
+Every part with a length, width or height below 48.00 mm goes to a locked NOK chute.
 
 ## Using the simulation
 
-Open the live link above, or open `simulation/index.html` from a local copy. Choose Setup 1 or Setup 2, set the speed and watch the active state
-move on the diagrams. Try **Fault** on CP-2: every part placed on the belt gives a mismatch, the camera
-keeps the line running, and the third mismatch within 10 minutes stops the line. Then start the sensor
-verification and reset. In Setup 2, press **Next part undersized** twice to see the NOK chute and the
-quality hold. The page needs an internet connection only for its fonts.
+Open the live link above, or open `simulation/index.html` from a local copy. Set the speed and watch
+the active state move on the diagrams. Try **Fault** on CP-2: every part placed on the belt gives a
+mismatch, the camera keeps the line running, and the third mismatch within 10 minutes stops the line.
+Then start the sensor verification and reset. Press **Next part undersized** twice to see the NOK
+chute and the quality hold. The page needs an internet connection only for its fonts.
 
 ## Rebuilding
 
-Requires Node.js and Google Chrome. From `source/`:
+Requires Node.js, Python 3.9+ and Google Chrome (set `CHROME=<path>` if it is not in the usual
+place). From `source/`:
 
 ```
 npm install
-node render.js out        # diagrams -> out/ (full) and out/doc/ (report versions)
-node build_sim.js         # simulation -> out/sim/index.html
-node export_model.js      # model -> ../engine/cellsim/cell_model.json (Python engine)
-node test_sim.js all      # headless tests of the simulation, including the conformance run and
-                          # the comparison with the Python engine (needs Python 3.9+)
-node --max-old-space-size=10000 verify.js   # exhaustive verification -> out/verification/
-node capture_sim.js       # simulation screenshots for the report
-node build_report.js      # report -> out/Sensors_Design_Report.docx
+npm run build      # diagrams/, simulation/index.html and the model JSON of the Python engine
+npm run check      # lint + every generated file is what the sources give
+npm test           # headless browser tests, conformance runs, browser-vs-Python comparison
+npm run regress    # Setup 2 identical to the recorded reference
+npm run verify     # exhaustive verification -> out/verification/ (copy to ../verification/)
+cd ../engine && python -m unittest -v test_engine
 ```
 
-With `NUSMV=<path to NuSMV.exe>` (or NuSMV on the PATH), `verify.js` also checks the six `.smv` files
+With `NUSMV=<path to NuSMV>` (or NuSMV on the PATH), `verify.js` also checks the three `.smv` files
 with NuSMV and compares the verdicts; `NUSMV_ONLY=1` runs only that part again. NuSMV 2.7.1 is free
 (LGPL) from https://nusmv.fbk.eu. The NuSMV checks take about an hour on a laptop with
-`NUSMV_JOBS=8` (8 runs at a time), most of it for Setup 2 with sensor faults.
-
-`render.js` and the other scripts expect Chrome at `C:/Program Files/Google/Chrome/Application/chrome.exe`.
-The state machines, step times and rules live in `src/cell-model.js`; change them there and rebuild
-(including `node export_model.js`, so that the Python engine runs the same model).
-The largest verification run (Setup 2 with sensor faults) needs a few minutes and about 2 GB of memory.
+`NUSMV_JOBS=8`, most of it for the run with sensor faults, which also needs about 2 GB of memory.

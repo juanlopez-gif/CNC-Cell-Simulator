@@ -5,7 +5,6 @@
   "unlock": 0.5,
   "lock": 0.5,
   "cycleStart": 0.5,
-  "homeToDoor": 1.5,
   "doorToHome": 1.5,
   "park": 1.5,
   "doorOpen": 4,
@@ -61,8 +60,7 @@
    "prox": "PX-11",
    "cam": "CAM-1",
    "roi": "ROI-A",
-   "fact": "Input pallet present and seated",
-   "setup": 1
+   "fact": "Input pallet present and seated"
   },
   {
    "id": "CP-2",
@@ -70,8 +68,7 @@
    "prox": "PE-41",
    "cam": "CAM-1",
    "roi": "ROI-B",
-   "fact": "Part at conveyor entry",
-   "setup": 1
+   "fact": "Part at conveyor entry"
   },
   {
    "id": "CP-3",
@@ -79,8 +76,7 @@
    "prox": "PE-42",
    "cam": "CAM-2",
    "roi": "ROI-C",
-   "fact": "Part at the end stop",
-   "setup": 1
+   "fact": "Part at the end stop"
   },
   {
    "id": "CP-4",
@@ -88,8 +84,7 @@
    "prox": "PX-52",
    "cam": "CAM-2",
    "roi": "ROI-D",
-   "fact": "Output pallet present",
-   "setup": 1
+   "fact": "Output pallet present"
   },
   {
    "id": "CP-5",
@@ -97,8 +92,7 @@
    "prox": "PX-64",
    "cam": "CAM-2",
    "roi": "ROI-E",
-   "fact": "Part in gauge nest",
-   "setup": 2
+   "fact": "Part in gauge nest"
   }
  ],
  "SLOTS": {
@@ -235,11 +229,6 @@
     "Part in the",
     "vise? {PS-36}"
    ]
-  },
-  "GR-21": {
-   "kind": "sensor",
-   "on": "{GR-21} grip OK",
-   "off": "{GR-21} gripper open"
   },
   "GR-21A": {
    "kind": "sensor",
@@ -500,8 +489,7 @@
    "id": "P4",
    "text": "The door is opened only after the cycle, with the guard lock released",
    "start": [
-    "R1.openDoor",
-    "R1.openDoorFromHome"
+    "R1.openDoor"
    ],
    "require": "!CNC.run & !ZS-33"
   },
@@ -509,7 +497,6 @@
    "id": "P5",
    "text": "A part is placed on the conveyor only at a free entry of a stopped belt",
    "start": [
-    "R1.placeConv",
     "R1.placeConvB"
    ],
    "require": "!TRUE.entryPart & !ENC-43"
@@ -525,7 +512,6 @@
   {
    "id": "P7",
    "text": "An undersized part never reaches the output pallet",
-   "setup": 2,
    "start": [
     "R2.placePallet"
    ],
@@ -534,7 +520,6 @@
   {
    "id": "P8",
    "text": "No CYCLE START during a quality hold",
-   "setup": 2,
    "start": [
     "CNC.start"
    ],
@@ -572,7 +557,7 @@
    "text": "conveyor motor ON"
   },
   "LT-53": {
-   "def": "R2=D4 | R2=E7",
+   "def": "R2=E7",
    "text": "blue beacon: output pallet ready for pickup"
   },
   "LT-01.red": {
@@ -607,18 +592,6 @@
    "at": "home",
    "text": "park at home"
   },
-  "R1.openDoorFromHome": {
-   "robot": "R1",
-   "time": [
-    "homeToDoor",
-    "doorOpen"
-   ],
-   "zone": "door",
-   "set": {
-    "door": "open"
-   },
-   "text": "open the CNC door"
-  },
   "R1.openDoor": {
    "robot": "R1",
    "time": [
@@ -640,80 +613,6 @@
     "door": "closed"
    },
    "text": "close the CNC door"
-  },
-  "R1.unload": {
-   "robot": "R1",
-   "time": [
-    "enterCnc",
-    "grip",
-    "viseOpen",
-    "lift",
-    "exitCnc"
-   ],
-   "zone": "cnc",
-   "move": [
-    "cnc",
-    "r1S"
-   ],
-   "set": {
-    "vise": "open"
-   },
-   "text": "unload the CNC"
-  },
-  "R1.toConveyor": {
-   "robot": "R1",
-   "time": [
-    "doorToConv"
-   ],
-   "zone": "free",
-   "text": "move above the conveyor entry"
-  },
-  "R1.placeConv": {
-   "robot": "R1",
-   "time": [
-    "placeConv"
-   ],
-   "zone": "conv",
-   "move": [
-    "r1S",
-    "entry"
-   ],
-   "text": "place on the conveyor"
-  },
-  "R1.pickRaw": {
-   "robot": "R1",
-   "time": [
-    "convToPallet",
-    "pickPallet"
-   ],
-   "zone": "pallet",
-   "move": [
-    "in",
-    "r1S"
-   ],
-   "canFail": "grip",
-   "text": "pick a raw part"
-  },
-  "R1.load": {
-   "robot": "R1",
-   "time": [
-    "palletToDoor",
-    "enterCnc",
-    "placeInVise",
-    "viseClamp",
-    "seatCheck",
-    "release",
-    "exitCnc"
-   ],
-   "zone": "cnc",
-   "move": [
-    "r1S",
-    "cnc"
-   ],
-   "set": {
-    "vise": "clamped"
-   },
-   "text": "load the CNC"
   },
   "R1.pickRawA": {
    "robot": "R1",
@@ -944,305 +843,6 @@
   }
  },
  "MACHINES": {
-  "R1S1": {
-   "slot": "R1",
-   "setup": 1,
-   "title": "State diagram: Robot 1 + CNC (Setup 1, single gripper)",
-   "sub": "Arrow label = the confirmation that allows the transition · {TAG} sensor · [CP-n] camera + proximity cross-check",
-   "initial": {
-    "to": "A0",
-    "when": "HMI.auto"
-   },
-   "hold": {
-    "desc": [
-     "LINE STOP: finish the step,",
-     "park, wait for the reset"
-    ],
-    "do": [
-     {
-      "job": "R1.park"
-     }
-    ],
-    "exit": "!HOLD.req"
-   },
-   "fault": {
-    "desc": [
-     "From any state: timeout or a",
-     "missing confirmation · red light"
-    ],
-    "exit": "HMI.clear"
-   },
-   "note": [
-    "*F FAULT* and *H HOLD* can be entered from any state. FAULT = a confirmation is missing or a timeout",
-    "expired (the alarm names the sensor, no automatic robot retries). HOLD = LINE STOP from the cross-check",
-    "supervisor: the robot finishes the running step, parks, and continues from there after the reset."
-   ],
-   "view": {
-    "main": [
-     "A0",
-     "A1",
-     "A2",
-     "Q_A2",
-     "A3",
-     "A4",
-     "A5",
-     "A6",
-     "A7",
-     "A8"
-    ],
-    "side": {
-     "W1": "A5"
-    }
-   },
-   "states": {
-    "A0": {
-     "name": "START-UP CHECKS",
-     "desc": [
-      "Home robot · check CNC ready and",
-      "door closed ({ZS-32})"
-     ],
-     "do": [
-      {
-       "job": "R1.home",
-       "when": "!R1.home"
-      }
-     ],
-     "next": [
-      {
-       "to": "A1",
-       "when": "R1.home & CNC.ready & ZS-32"
-      }
-     ]
-    },
-    "A1": {
-     "name": "WAIT FOR CNC",
-     "band": "run",
-     "wait": true,
-     "desc": [
-      "Move home, clear of CNC and conveyor ·",
-      "CNC machining the part (120 s)"
-     ],
-     "do": [
-      {
-       "job": "R1.home",
-       "when": "!R1.home"
-      }
-     ],
-     "next": [
-      {
-       "to": "A2",
-       "when": "(CNC.done & !ZS-33) | CNC.empty"
-      }
-     ]
-    },
-    "A2": {
-     "name": "OPEN CNC DOOR",
-     "band": "idle",
-     "short": "door",
-     "desc": [
-      "Empty gripper grips the door handle, slides",
-      "the door open, releases it, retracts"
-     ],
-     "do": [
-      {
-       "job": "R1.openDoorFromHome"
-      }
-     ],
-     "next": [
-      {
-       "to": "Q_A2",
-       "when": "ZS-31 & !ZS-32"
-      }
-     ]
-    },
-    "Q_A2": {
-     "choice": "PS-36",
-     "yes": "A3",
-     "no": "A5",
-     "yesText": "finished part",
-     "noText": "CNC empty (first cycle)"
-    },
-    "A3": {
-     "name": "UNLOAD CNC",
-     "band": "idle",
-     "short": "unload",
-     "desc": [
-      "Enter · grip finished part · open vise ·",
-      "lift the part out · exit the machine"
-     ],
-     "do": [
-      {
-       "job": "R1.unload"
-      }
-     ],
-     "next": [
-      {
-       "to": "A4",
-       "when": "GR-21 & ZS-34 & !PS-36 & R1.clearCnc"
-      }
-     ]
-    },
-    "A4": {
-     "name": "PLACE ON CONVEYOR",
-     "band": "idle",
-     "short": "to belt",
-     "desc": [
-      "Wait for belt stopped ({ENC-43} = 0) and",
-      "entry clear ([CP-2]) · place · release"
-     ],
-     "do": [
-      {
-       "job": "R1.toConveyor"
-      },
-      {
-       "await": "BELT.free"
-      },
-      {
-       "check": "CP-2",
-       "quick": true,
-       "confirm": "!CP-2"
-      },
-      {
-       "job": "R1.placeConv"
-      },
-      {
-       "check": "CP-2"
-      },
-      {
-       "set": {
-        "partPlaced": true
-       },
-       "when": "CP-2"
-      }
-     ],
-     "next": [
-      {
-       "to": "A5",
-       "when": "CP-2 & R1.clearConv"
-      }
-     ]
-    },
-    "A5": {
-     "name": "PICK RAW PART",
-     "band": "idle",
-     "short": "pick",
-     "desc": [
-      "[CP-1] pallet present ({PX-11} + {CAM-1}) ·",
-      "{CAM-1} gives the pick pose · pick"
-     ],
-     "do": [
-      {
-       "check": "CP-1"
-      },
-      {
-       "job": "R1.pickRaw",
-       "when": "CP-1 & CAM-1.part"
-      }
-     ],
-     "next": [
-      {
-       "to": "A6",
-       "when": "GR-21"
-      },
-      {
-       "to": "W1",
-       "when": "!CP-1 | !CAM-1.part"
-      }
-     ]
-    },
-    "A6": {
-     "name": "LOAD CNC",
-     "band": "idle",
-     "short": "load",
-     "desc": [
-      "Enter · place part in the vise · clamp ·",
-      "open gripper · exit the machine"
-     ],
-     "do": [
-      {
-       "job": "R1.load"
-      }
-     ],
-     "next": [
-      {
-       "to": "A7",
-       "when": "ZS-35 & PS-36 & !GR-21 & R1.clearCnc"
-      }
-     ]
-    },
-    "A7": {
-     "name": "CLOSE CNC DOOR",
-     "band": "idle",
-     "short": "door",
-     "desc": [
-      "Empty gripper slides the door closed,",
-      "releases the handle · guard lock engages"
-     ],
-     "do": [
-      {
-       "job": "R1.closeDoor"
-      },
-      {
-       "job": "DOOR.lock"
-      }
-     ],
-     "next": [
-      {
-       "to": "A8",
-       "when": "ZS-32 & ZS-33"
-      }
-     ]
-    },
-    "A8": {
-     "name": "START CYCLE",
-     "band": "idle",
-     "short": "start",
-     "desc": [
-      "Send CYCLE START through the CNC",
-      "robot interface"
-     ],
-     "do": [
-      {
-       "job": "CNC.start"
-      }
-     ],
-     "next": [
-      {
-       "to": "A1",
-       "when": "CNC.run | CNC.done"
-      }
-     ]
-    },
-    "W1": {
-     "name": "WAIT FOR INPUT PALLET",
-     "kind": "op",
-     "wait": true,
-     "desc": [
-      "HMI: \"Load input pallet\"",
-      "amber light · robot waits"
-     ],
-     "log": "Input pallet empty → HMI: \"Load input pallet\" · amber light",
-     "hmi": {
-      "cls": "op",
-      "title": "Input pallet empty",
-      "text": "CAM-1 finds no raw parts. Robot 1 waits at home; load a new pallet.",
-      "act": "load"
-     },
-     "do": [
-      {
-       "job": "R1.park",
-       "when": "!R1.home"
-      }
-     ],
-     "next": [
-      {
-       "to": "A5",
-       "when": "HMI.loaded"
-      }
-     ]
-    }
-   }
-  },
   "R1S2": {
    "slot": "R1",
    "setup": 2,
@@ -1720,189 +1320,6 @@
     }
    }
   },
-  "R2S1": {
-   "slot": "R2",
-   "setup": 1,
-   "title": "State diagram: Robot 2 + output pallet (Setup 1)",
-   "sub": "The blue light {LT-53} is the \"pallet ready for pickup\" signal required by the assignment.",
-   "initial": {
-    "to": "D0",
-    "when": "HMI.auto"
-   },
-   "hold": {
-    "desc": [
-     "LINE STOP: finish the step,",
-     "park, wait for the reset"
-    ],
-    "do": [
-     {
-      "job": "R2.park"
-     }
-    ],
-    "exit": "!HOLD.req"
-   },
-   "fault": {
-    "desc": [
-     "From any state: timeout or a",
-     "missing confirmation · red light"
-    ],
-    "exit": "HMI.clear"
-   },
-   "note": [
-    "*F FAULT* and *H HOLD* can be entered from any state. FAULT = a confirmation is missing or a timeout",
-    "expired (the alarm names the sensor, no automatic robot retries). HOLD = LINE STOP from the cross-check",
-    "supervisor: the robot finishes the running step, parks, and continues from there after the reset."
-   ],
-   "view": {
-    "main": [
-     "D0",
-     "D1",
-     "D2",
-     "D3",
-     "Q_D3"
-    ],
-    "side": {
-     "D4": "Q_D3"
-    }
-   },
-   "states": {
-    "D0": {
-     "name": "START-UP CHECKS",
-     "desc": [
-      "Home · [CP-4] pallet present ({PX-52} + {CAM-2})",
-      "{CAM-2} reads the slot map, sets the count"
-     ],
-     "do": [
-      {
-       "job": "R2.home",
-       "when": "!R2.home"
-      },
-      {
-       "check": "CP-4"
-      }
-     ],
-     "next": [
-      {
-       "to": "D1",
-       "when": "R2.home & CP-4 & !PALLET.full"
-      }
-     ]
-    },
-    "D1": {
-     "name": "WAIT FOR PART",
-     "wait": true,
-     "desc": [
-      "Move home, clear of the conveyor"
-     ],
-     "do": [
-      {
-       "job": "R2.home",
-       "when": "!R2.home"
-      }
-     ],
-     "next": [
-      {
-       "to": "D2",
-       "when": "CONV=C5 & pickAllowed & !ENC-43"
-      }
-     ]
-    },
-    "D2": {
-     "name": "PICK FROM CONVEYOR",
-     "short": "pick",
-     "desc": [
-      "Move to the {CAM-2} pick pose · grip ·",
-      "lift · retract · [CP-3] exit clear"
-     ],
-     "do": [
-      {
-       "job": "R2.pickConv"
-      },
-      {
-       "check": "CP-3",
-       "quick": true
-      },
-      {
-       "set": {
-        "partPicked": true,
-        "pickAllowed": false
-       },
-       "when": "GR-51 & !CP-3"
-      }
-     ],
-     "next": [
-      {
-       "to": "D3",
-       "when": "GR-51 & !CP-3 & R2.clearConv"
-      }
-     ]
-    },
-    "D3": {
-     "name": "PLACE ON OUTPUT PALLET",
-     "desc": [
-      "[CP-4] pallet present ({PX-52} + {CAM-2}) ·",
-      "{CAM-2} next free slot · place · release"
-     ],
-     "do": [
-      {
-       "check": "CP-4",
-       "confirm": "CP-4"
-      },
-      {
-       "job": "R2.placePallet"
-      }
-     ],
-     "next": [
-      {
-       "to": "Q_D3",
-       "when": "CAM-2.slot & !GR-51"
-      }
-     ]
-    },
-    "Q_D3": {
-     "choice": "PALLET.full",
-     "yes": "D4",
-     "no": "D1"
-    },
-    "D4": {
-     "name": "WAIT FOR PALLET SWAP",
-     "kind": "op",
-     "wait": true,
-     "desc": [
-      "{LT-53} blue light ON · wait until",
-      "the full pallet is gone, then",
-      "check the new one ([CP-4])"
-     ],
-     "log": "Output pallet full → LT-53 blue light ON · HMI: \"Pallet ready for pickup\"",
-     "hmi": {
-      "cls": "op",
-      "title": "Output pallet full · ready for pickup",
-      "text": "LT-53 blue light ON. Robot 2 waits until the full pallet is taken away and CP-4 confirms a new empty pallet.",
-      "act": "swap"
-     },
-     "do": [
-      {
-       "job": "R2.home",
-       "when": "!R2.home"
-      },
-      {
-       "await": "PALLET.empty"
-      },
-      {
-       "check": "CP-4",
-       "until": "CP-4"
-      }
-     ],
-     "next": [
-      {
-       "to": "D1",
-       "when": "CP-4 & PALLET.empty",
-       "text": "pallet swapped:"
-      }
-     ]
-    }
-   }
-  },
   "R2S2": {
    "slot": "R2",
    "setup": 2,
@@ -2322,12 +1739,6 @@
   }
  },
  "SETUP_MACHINES": {
-  "1": [
-   "R1S1",
-   "CONV",
-   "R2S1",
-   "SUP"
-  ],
   "2": [
    "R1S2",
    "CONV",
@@ -2336,13 +1747,9 @@
   ]
  },
  "KPI": {
-  "idle1": 36.5,
   "idle2": 20.5,
-  "cycle1": 156.5,
   "cycle2": 140.5,
-  "util1": 0.7667731629392971,
   "util2": 0.8540925266903915,
-  "pph1": 23.003194888178914,
   "pph2": 25.622775800711743
  }
 }

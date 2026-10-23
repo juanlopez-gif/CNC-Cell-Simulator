@@ -2,13 +2,9 @@
   <header class="bar">
     <div class="brand">
       <h1>CNC Cell Simulator</h1>
-      <p>Sensors design task · live state machines · camera + proximity cross-check</p>
+      <p>Setup 2: dual gripper and gauge · live state machines · camera + proximity cross-check</p>
     </div>
     <div class="controls">
-      <div class="seg" role="group" aria-label="Setup">
-        <button type="button" id="btnS1" aria-pressed="true">Setup 1</button>
-        <button type="button" id="btnS2" aria-pressed="false">Setup 2</button>
-      </div>
       <button type="button" class="btn primary" id="btnRun">Pause</button>
       <button type="button" class="btn" id="btnStep" title="Run until the next state change">Step</button>
       <label class="speed" for="selSpeed">Speed
@@ -95,7 +91,7 @@
             <button type="button" class="btn" id="btnGripMiss">Robot 1 misses a pick</button>
             <button type="button" class="btn" id="btnUnder">Next part undersized</button>
           </div>
-          <p id="underNote">Setup 2 only: the gauge rejects parts with any dimension below 48.00 mm.</p>
+          <p id="underNote">The gauge measures every part; any dimension below 48.00 mm goes to the NOK chute. Two NOK parts in a row trigger a quality hold.</p>
         </div>
         <div class="grp">
           <h3>Operator</h3>

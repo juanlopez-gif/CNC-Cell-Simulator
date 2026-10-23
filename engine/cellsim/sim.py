@@ -78,10 +78,10 @@ class CellSim:
     press("verify" | "resume" | "clear" | "qh" | "swap" | "load"), auto_operator.
     """
 
-    def __init__(self, setup=1, seed=None, model=None, auto_operator=True, instant_verify=False,
+    def __init__(self, setup=2, seed=None, model=None, auto_operator=True, instant_verify=False,
                  verify_step_time=0.65):
-        if setup not in (1, 2):
-            raise ValueError("setup must be 1 or 2")
+        if setup != 2:
+            raise ValueError("only Setup 2 is simulated (Setup 1 is in the branch legacy-setup1-setup2)")
         self.M = model or load()
         self.T, self.RU = self.M.T, self.M.RULES
         self.setup = setup
@@ -216,7 +216,7 @@ class CellSim:
         st = self.stats
         util = st["run_time"] / (self.t - st["first_start"]) if st["first_start"] is not None and self.t > st["first_start"] else None
         mean_idle = st["idle_sum"] / st["idle_n"] if st["idle_n"] else None
-        design_idle = self.M.KPI["idle1" if self.setup == 1 else "idle2"]
+        design_idle = self.M.KPI["idle2"]
         cycle = self.T["cncCycle"] + (mean_idle if mean_idle is not None else design_idle)
         return {
             "sim_time_h": self.t / 3600, "parts_on_pallet": self.ok_parts, "nok_parts": self.nok_parts,
@@ -310,8 +310,6 @@ class CellSim:
             return c["vise"] == "clamped"
         if name == "PS-36":
             return c["part"] is not None
-        if name == "GR-21":
-            return r1.hold["S"] is not None
         if name == "GR-21A":
             return r1.hold["A"] is not None
         if name == "GR-21B":
@@ -655,7 +653,7 @@ class CellSim:
 
     # ================================================================== property monitors (same properties as the verifier)
     def _props(self):
-        return [p for p in self.M.PROPERTIES if not p.get("setup") or p["setup"] == self.setup]
+        return list(self.M.PROPERTIES)
 
     def _violated(self, p):
         self.stats["violations"] += 1
@@ -758,11 +756,9 @@ class CellSim:
             steps.append(f"{self.cam_fault}: cable reseated, lens cleaned, trigger test OK")
         steps.append("Check brackets and the alignment LEDs of the through-beams")
         for c in self.cps.values():
-            if c["setup"] <= self.setup:
-                steps.append(f"Test {c['id']} with a test part: {c['prox']} ON and {c['cam']} part · removed: both OFF")
+            steps.append(f"Test {c['id']} with a test part: {c['prox']} ON and {c['cam']} part · removed: both OFF")
         steps.append("Camera calibration target: CAM-1 and CAM-2 position error < 1 mm")
-        if self.setup == 2:
-            steps.append("Master cube 50.000 mm: LS-61 / LS-62 / LS-63 within ±0.02 mm")
+        steps.append("Master cube 50.000 mm: LS-61 / LS-62 / LS-63 within ±0.02 mm")
         self.verify = {"steps": steps, "i": 0, "done": False}
         self.log("stop", "Sensor verification started: all equipment stopped, technician in the cell")
         if self.instant_verify:
@@ -858,25 +854,6 @@ class CellSim:
             yield from self._wait(T["cycleStart"])
             self.cnc["start_cmd"] = True
 
-        def unload(r):
-            yield from self._move(r, "doorway", T["enterCnc"] / 2)
-            yield from self._move(r, "fixture", T["enterCnc"] / 2)
-            yield from self._wait(T["grip"])
-            self.cnc["vise"] = "open"
-            yield from self._wait(T["viseOpen"])
-            p = self.cnc["part"]
-            self.cnc["part"] = None
-            if p:
-                p.loc = {"k": "r1", "g": "S"}
-                r.hold["S"] = p
-            yield from self._wait(T["lift"])
-            yield from self._move(r, "doorway", T["exitCnc"] / 2)
-            yield from self._move(r, "outside", T["exitCnc"] / 2)
-
-        def load(r):
-            yield from self._move(r, "outside", T["palletToDoor"])
-            yield from self._load_vise(r, "S", T["enterCnc"])
-
         def to_conveyor(r):
             yield from self._move(r, "conv_above", T["doorToConv"])
 
@@ -970,14 +947,12 @@ class CellSim:
 
         return {
             "R1.home": home("doorToHome"), "R1.park": home("park"), "R2.home": home("r2Home"), "R2.park": home("park"),
-            "R1.openDoorFromHome": lambda r: self._slide_door(r, 0.0, 1.0, T["homeToDoor"]),
             "R1.openDoor": lambda r: self._slide_door(r, 0.0, 1.0, 0.0),
             "R1.closeDoor": lambda r: self._slide_door(r, 1.0, 0.0, 0.0),
             "DOOR.lock": door_lock, "CNC.start": cnc_start,
-            "R1.unload": unload, "R1.load": load,
-            "R1.toConveyor": to_conveyor, "R1.toConveyorB": to_conveyor,
-            "R1.placeConv": lambda r: self._place_on_belt(r, "S"), "R1.placeConvB": lambda r: self._place_on_belt(r, "B"),
-            "R1.pickRaw": lambda r: self._pick_raw(r, "S"), "R1.pickRawA": lambda r: self._pick_raw(r, "A"),
+            "R1.toConveyorB": to_conveyor,
+            "R1.placeConvB": lambda r: self._place_on_belt(r, "B"),
+            "R1.pickRawA": lambda r: self._pick_raw(r, "A"),
             "R1.toDoorReady": lambda r: self._move(r, "door_ready", T["palletToDoor"]),
             "R1.enterCnc": enter_cnc, "R1.unloadB": unload_b, "R1.loadA": load_a,
             "R2.pickConv": pick_conv, "R2.placePallet": place_pallet, "R2.loadGauge": load_gauge,
@@ -992,7 +967,7 @@ class CellSim:
         yield from self._wait(T["grip"])
         if self.inject["grip_miss"] or slot < 0:
             self.inject["grip_miss"] = False
-            self.log("fault", f"{'GR-21' if g == 'S' else 'GR-21' + g}: fingers fully closed, no part at the input pallet")
+            self.log("fault", f"GR-21{g}: fingers fully closed, no part at the input pallet")
         else:
             p = self._part_in(slot)
             p.loc = {"k": "r1", "g": g}

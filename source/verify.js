@@ -1,11 +1,11 @@
 // Exhaustive verification of the state machines of the shared model.
 //   node --max-old-space-size=14000 verify.js [outDir]
-// For each setup and fault class it builds the abstract model (src/cell-verify.js), explores every
+// For each fault class of Setup 2 it builds the abstract model (src/cell-verify.js), explores every
 // reachable state, checks the properties of M.PROPERTIES and writes
-//   cell_setupN_<faults>.smv   the same model for NuSMV (run with: NuSMV -dynamic -dcx -r file.smv)
+//   cell_setup2_<faults>.smv   the same model for NuSMV (run with: NuSMV -dynamic -dcx -r file.smv)
 //   results.md / results.json  states, properties, unreachable states, counterexample traces
 // If NuSMV is on the PATH (or in the NUSMV environment variable) the .smv files are checked with it
-// too (output in cell_setupN_<faults>.nusmv.txt) and the report compares its verdicts with the search.
+// too (output in cell_setup2_<faults>.nusmv.txt) and the report compares its verdicts with the search.
 //   ONLY=setup2_sensor,...  re-runs some analyses and keeps the others from the last results.json
 //   NUSMV_ONLY=1            keeps the results of the search and runs only NuSMV
 //   NUSMV_JOBS=n            NuSMV runs at the same time (default 4), NUSMV_TIMEOUT=s per run (default 4 h)
@@ -19,7 +19,7 @@ const V = require('./src/cell-verify.js');
 const OUT = process.argv[2] || path.join(__dirname, 'out', 'verification');
 fs.mkdirSync(OUT, { recursive: true });
 const RUNS = [];
-[1, 2].forEach((setup) => ['none', 'sensor', 'process'].forEach((faults) => RUNS.push({ setup, faults })));
+['none', 'sensor', 'process'].forEach((faults) => RUNS.push({ setup: 2, faults }));   // Setup 2 only (Setup 1: branch legacy-setup1-setup2)
 const ONLY = process.env.ONLY ? process.env.ONLY.split(',') : null;
 const { REPORT_ONLY, NUSMV_ONLY } = process.env;
 const selected = (tag) => !ONLY || ONLY.includes(tag);

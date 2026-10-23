@@ -37,9 +37,9 @@
   let logDirty = true, statesDirty = true, bannerKey = '';
 
   // ------------------------------------------------------------------ world
-  function newSim(setup) {
+  function newSim() {
     S = {
-      t: 0, speed: +$('#selSpeed').value || 10, running: true, setup, step: false,
+      t: 0, speed: +$('#selSpeed').value || 10, running: true, setup: 2, step: false,
       autoOp: $('#chkAuto').checked, logAll: $('#chkAll').checked,
       inject: { under: 0, gripMiss: false, frames: { 'CAM-1': 0, 'CAM-2': 0 } }, faults: {}, camFault: null, verify: null,
       stopReason: '', vars: {}, cp: {}, inputs: { verify: false, reset: false, release: false, clearAt: -1 },
@@ -58,7 +58,7 @@
     for (let i = 3; i < 12; i++) addPart('raw', { k: 'in', slot: i });
     for (let i = 0; i < 8; i++) addPart('fin', { k: 'out', slot: i });
     SUP = { events: [] };
-    const keys = M.SETUP_MACHINES[setup];
+    const keys = M.SETUP_MACHINES[2];
     SLOTS.forEach((k) => { MCH[k] = { key: keys.find((mk) => M.MACHINES[mk].slot === k), state: '', since: 0, why: '', prev: '', job: null }; });
     procs = [];
     TRACE.length = 0;
@@ -70,12 +70,12 @@
     spawn(runMachine('SUP'));
     spawn(operatorProc());
     logs.length = 0; logDirty = true;
-    log('info', `Setup ${setup} started · input pallet 9 raw parts · output pallet 8 of 12 · CNC empty`);
+    log('info', `Setup 2 started · input pallet 9 raw parts · output pallet 8 of 12 · CNC empty`);
     buildUi();
   }
   function robot(base, dual) { return { base, tool: base.home.slice(), anim: null, fing: 'open', hold: { A: null, B: null, S: null }, zone: 'free', job: null, dual, active: 'A', rot: null }; }
-  // Dual gripper (Setup 2): the wrist turns 180° so that gripper `to` faces the work, while the robot moves.
-  function startTurn(r, to, dur) { if (!r.dual || S.setup !== 2 || r.active === to || r.rot) return; r.rot = { t0: S.t, t1: S.t + dur, to }; }
+  // Dual gripper of Robot 1: the wrist turns 180° so that gripper `to` faces the work, while the robot moves.
+  function startTurn(r, to, dur) { if (!r.dual || r.active === to || r.rot) return; r.rot = { t0: S.t, t1: S.t + dur, to }; }
   function addPart(st, loc) { const p = { id: W.nextId++, st, loc, dims: [50, 50, 50], meas: null, nok: false }; W.parts.push(p); return p; }
   const partIn = (slot) => W.parts.find((p) => p.loc.k === 'in' && p.loc.slot === slot);
   function firstRaw() { for (let i = 0; i < 12; i++) if (partIn(i)) return i; return -1; }
@@ -124,7 +124,7 @@
     'CNC.empty': () => !W.cnc.part && W.cnc.state !== 'RUN',
     'ZS-31': () => doorPos() > 0.99, 'ZS-32': () => doorPos() < 0.01, 'ZS-33': () => W.cnc.locked,
     'ZS-34': () => W.cnc.vise === 'open', 'ZS-35': () => W.cnc.vise === 'clamped', 'PS-36': () => !!W.cnc.part,
-    'GR-21': () => !!W.r1.hold.S, 'GR-21A': () => !!W.r1.hold.A, 'GR-21B': () => !!W.r1.hold.B, 'GR-51': () => !!W.r2.hold.S,
+    'GR-21A': () => !!W.r1.hold.A, 'GR-21B': () => !!W.r1.hold.B, 'GR-51': () => !!W.r2.hold.S,
     'ENC-43': () => W.belt.v > 0.5,
     'PE-42': () => proxLive('CP-3'), 'ROI-C': () => truth['CP-3']() && S.camFault !== 'CAM-2',
     'PX-52': () => proxLive('CP-4'),
@@ -336,7 +336,7 @@
   }
 
   // ------------------------------------------------------------------ property monitors (same properties as the verifier)
-  const PROPS = () => M.PROPERTIES.filter((p) => !p.setup || p.setup === S.setup);
+  const PROPS = () => M.PROPERTIES;
   function violated(p) {
     W.stats.violations++;
     const msg = `PROPERTY ${p.id} VIOLATED: ${p.text}`;
@@ -436,7 +436,6 @@
     W.door.pos = to; W.door.anim = null; r.fing = 'open';
     yield* wait(0.5);
   }
-  const g1 = (r) => (r.dual && S.setup === 2 ? 'A' : 'S');
 
   // ------------------------------------------------------------------ jobs: the plant side of every job of the model
   // Each one takes exactly the time of its components in M.JOBS (runJob reports any difference).
@@ -445,25 +444,12 @@
     'R1.park': function* (r) { yield* moveTo(r, r.base.home, T.park); },
     'R2.home': function* (r) { yield* moveTo(r, r.base.home, T.r2Home); },
     'R2.park': function* (r) { yield* moveTo(r, r.base.home, T.park); },
-    'R1.openDoorFromHome': function* (r) { yield* slideDoor(r, 0, 1, T.homeToDoor); },
     'R1.openDoor': function* (r) { yield* slideDoor(r, 0, 1, 0); },
     'R1.closeDoor': function* (r) { yield* slideDoor(r, 1, 0, 0); },
     'DOOR.lock': function* () { yield* wait(T.lock); W.cnc.locked = true; },
     'CNC.start': function* () { yield* wait(T.cycleStart); W.cnc.startCmd = true; },
-    'R1.unload': function* (r) {
-      yield* moveTo(r, P.doorway, T.enterCnc / 2); yield* moveTo(r, P.fixture, T.enterCnc / 2);
-      r.fing = 'grip'; yield* wait(T.grip);
-      W.cnc.vise = 'open'; yield* wait(T.viseOpen);
-      const p = W.cnc.part; W.cnc.part = null; if (p) { p.loc = { k: 'r1', g: 'S' }; r.hold.S = p; }
-      yield* wait(T.lift);
-      yield* moveTo(r, P.doorway, T.exitCnc / 2); yield* moveTo(r, P.outside, T.exitCnc / 2);
-    },
-    'R1.load': function* (r) { yield* moveTo(r, P.outside, T.palletToDoor); yield* loadVise(r, 'S', T.enterCnc); },
-    'R1.toConveyor': function* (r) { yield* moveTo(r, P.convAbove, T.doorToConv); },
     'R1.toConveyorB': function* (r) { startTurn(r, 'B', 1.2); yield* moveTo(r, P.convAbove, T.doorToConv); },
-    'R1.placeConv': function* (r) { yield* placeOnBelt(r, 'S'); },
     'R1.placeConvB': function* (r) { yield* placeOnBelt(r, 'B'); },
-    'R1.pickRaw': function* (r) { yield* pickRaw(r, 'S'); },
     'R1.pickRawA': function* (r) { startTurn(r, 'A', 1.2); yield* pickRaw(r, 'A'); },
     'R1.toDoorReady': function* (r) { startTurn(r, 'B', 1.2); yield* moveTo(r, r.base.doorReady, T.palletToDoor); },
     'R1.enterCnc': function* (r) { yield* moveTo(r, P.doorway, T.enterCnc / 2); yield* moveTo(r, P.fixture, T.enterCnc / 2); },
@@ -538,7 +524,7 @@
     if (S.inject.gripMiss || slot < 0) {
       S.inject.gripMiss = false;
       r.fing = 'closed';                           // fingers closed on nothing: GR-21 stays OFF
-      log('fault', `${g === 'S' ? 'GR-21' : 'GR-21' + g}: fingers fully closed, no part at the input pallet`);
+      log('fault', `GR-21${g}: fingers fully closed, no part at the input pallet`);
     } else { const p = partIn(slot); p.loc = { k: 'r1', g }; r.hold[g] = p; }
     yield* wait(T.pickPallet - 0.7 - T.grip);
   }
@@ -679,7 +665,7 @@
       const fin = (side) => { const ox = cx + px * side * w, oy = cy + py * side * w; return `<line class="ly-finger" x1="${fx2(ox - fx * 12)}" y1="${fx2(oy - fy * 12)}" x2="${fx2(ox + fx * 5)}" y2="${fx2(oy + fy * 5)}"/>`; };
       return `<line class="ly-finger" x1="${fx2(cx - fx * 12 + px * w)}" y1="${fx2(cy - fy * 12 + py * w)}" x2="${fx2(cx - fx * 12 - px * w)}" y2="${fx2(cy - fy * 12 - py * w)}"/>` + fin(1) + fin(-1);
     };
-    if (!(r.dual && S.setup === 2)) {
+    if (!r.dual) {
       if (r.hold.S) s += D.partSvg(g.tx, g.ty, partCls(r.hold.S));
       return s + head(g.tx, g.ty, r.fing);
     }
@@ -742,7 +728,7 @@
     s += pill(120, 200, c[0], c[1], c[2]);
     const mk = (slot, x, y) => { const id = MCH[slot].state; s += pill(x, y, id, stateName(slot, id), kindOf(slot, id)); };
     mk('R1', L.r1.x, L.r1.y + 56);
-    if (S.setup === 2) s += pill(L.r1.x, L.r1.y + 80, 'GRIPPERS', gripperText(W.r1), '');
+    s += pill(L.r1.x, L.r1.y + 80, 'GRIPPERS', gripperText(W.r1), '');
     mk('CONV', 646, 318);
     mk('R2', L.r2.x + 6, L.r2.y - 50);
     mk('SUP', 700, 24);
@@ -750,7 +736,7 @@
     const dp = doorPos();
     const v = {
       'PX-11': proxLive('CP-1'), 'PE-41': proxLive('CP-2'), 'PE-42': proxLive('CP-3'), 'PX-52': proxLive('CP-4'),
-      'PX-64': S.setup === 2 && proxLive('CP-5'), 'ENC-43': W.belt.v > 0.5,
+      'PX-64': proxLive('CP-5'), 'ENC-43': W.belt.v > 0.5,
       'ZS-31': dp > 0.99, 'ZS-32': dp < 0.01, 'ZS-33': W.cnc.locked, 'ZS-34': W.cnc.vise === 'open',
       'ZS-35': W.cnc.vise === 'clamped', 'PS-36': !!W.cnc.part, 'PE-65': S.t - W.pe65 < 0.8,
     };
@@ -776,23 +762,21 @@
   // ------------------------------------------------------------------ UI
   let tab = 'R1';
   function buildUi() {
-    $('#mimic').innerHTML = D.layoutSvg({ setup: S.setup, noTitle: true, standalone: false, sim: true });
+    $('#mimic').innerHTML = D.layoutSvg({ noTitle: true, standalone: false, sim: true });
     svgRoot = $('#mimic svg');
     dyn = $('#ly-dyn', svgRoot); doorEl = $('#ly-door', svgRoot); beltEl = $('#ly-beltlines', svgRoot);
     leds = {}; $$('[data-led]', svgRoot).forEach((el) => { (leds[el.dataset.led] = leds[el.dataset.led] || []).push(el); });
     lamps = {}; $$('[data-lamp]', svgRoot).forEach((el) => { lamps[el.dataset.lamp] = el; });
     fovs = {}; $$('[data-fov]', svgRoot).forEach((el) => { fovs[el.dataset.fov] = el; });
     rois = {}; $$('rect[data-roi]', svgRoot).forEach((el) => { rois[el.dataset.roi] = el; });
-    $('#btnS1').setAttribute('aria-pressed', S.setup === 1); $('#btnS2').setAttribute('aria-pressed', S.setup === 2);
-    $('#btnUnder').disabled = S.setup !== 2;
-    $('#underNote').textContent = S.setup === 2 ? 'The gauge measures every part; any dimension below 48.00 mm goes to the NOK chute. Two NOK parts in a row trigger a quality hold.' : 'Setup 2 only: the gauge station rejects parts with any dimension below 48.00 mm.';
+    $('#underNote').textContent = 'The gauge measures every part; any dimension below 48.00 mm goes to the NOK chute. Two NOK parts in a row trigger a quality hold.';
     const tb = $('#cpTable tbody');
-    tb.innerHTML = CPS.map((c) => `<tr data-cp="${c.id}"${c.setup > S.setup ? ' class="dis"' : ''}>
+    tb.innerHTML = CPS.map((c) => `<tr data-cp="${c.id}">
       <td><span class="cpid">${c.id}</span><span class="cpw">${esc(c.where)}</span></td>
       <td><span class="led"></span><span class="tag">${c.prox}</span><span class="flt" hidden>FAULT</span></td>
       <td><span class="tag">${c.cam}</span> <span class="cr"></span></td>
       <td><span class="res"></span><span class="ago"></span></td>
-      <td><div class="inj"><button type="button" class="btn sm" data-inj="glitch"${c.setup > S.setup ? ' disabled' : ''}>Glitch</button><button type="button" class="btn sm" data-inj="fault"${c.setup > S.setup ? ' disabled' : ''}>Fault</button></div></td></tr>`).join('');
+      <td><div class="inj"><button type="button" class="btn sm" data-inj="glitch">Glitch</button><button type="button" class="btn sm" data-inj="fault">Fault</button></div></td></tr>`).join('');
     buildChips();
     showTab(tab);
     statesDirty = true; logDirty = true; bannerKey = '';
@@ -845,8 +829,7 @@
     CPS.forEach((c) => {
       const tr = $(`#cpTable tr[data-cp="${c.id}"]`);
       if (!tr) return;
-      const active = c.setup <= S.setup;
-      $('.led', tr).classList.toggle('on', active && proxLive(c.id));
+      $('.led', tr).classList.toggle('on', proxLive(c.id));
       $('.flt', tr).hidden = !c.fault;
       const res = $('.res', tr), ago = $('.ago', tr), cr = $('.cr', tr);
       if (c.last) {
@@ -854,7 +837,7 @@
         res.className = 'res ' + (c.last.agree ? 'ok' : 'bad');
         ago.textContent = `${Math.round(S.t - c.last.t)} s ago · ${c.count} mismatch${c.count === 1 ? '' : 'es'}`;
         cr.textContent = c.last.cam ? (c.id === 'CP-1' || c.id === 'CP-4' ? '✓ pallet' : '✓ part') : '– none';
-      } else { res.textContent = active ? 'waiting' : 'Setup 2'; res.className = 'res'; ago.textContent = ''; cr.textContent = ''; }
+      } else { res.textContent = 'waiting'; res.className = 'res'; ago.textContent = ''; cr.textContent = ''; }
       $$('[data-inj]', tr).forEach((b) => {
         if (b.dataset.inj === 'fault') { b.textContent = c.fault ? 'Faulty' : 'Fault'; b.classList.toggle('bad', c.fault); }
         else b.classList.toggle('warn', c.glitch);
@@ -870,10 +853,10 @@
     const st = W.stats;
     const util = st.firstStart != null && S.t - st.firstStart > 1 ? `${(100 * st.runTime / (S.t - st.firstStart)).toFixed(1)}<small> %</small>` : '–';
     const idle = st.lastIdle != null ? `${st.lastIdle.toFixed(1)}<small> s</small>` : '–';
-    const design = S.setup === 1 ? M.KPI.idle1 : M.KPI.idle2;
+    const design = M.KPI.idle2;
     const avg = st.idleN ? T.cncCycle + st.idleSum / st.idleN : T.cncCycle + design;
     const items = [
-      ['Parts on pallet', `${W.ok}`], ['NOK parts', S.setup === 2 ? `${W.nok}` : '<small>Setup 2</small>'],
+      ['Parts on pallet', `${W.ok}`], ['NOK parts', `${W.nok}`],
       ['CNC utilization', util], [`Last CNC idle (design ${design} s)`, idle],
       ['Parts per hour', `${(3600 / avg).toFixed(1)}`], ['Mismatches · stops', `${st.mism} · ${st.stops}`],
     ];
@@ -954,9 +937,9 @@
     if (tags.length) steps.push(`Inspect ${tags.join(', ')}: ${faulty.length ? 'dirty / misaligned lens found on ' + faulty.join(', ') + ' → cleaned and realigned' : 'lens cleaned, bracket tight'}`);
     if (S.camFault) steps.push(`${S.camFault}: cable reseated, lens cleaned, trigger test OK`);
     steps.push('Check brackets and the alignment LEDs of the through-beams');
-    CPS.filter((c) => c.setup <= S.setup).forEach((c) => steps.push(`Test ${c.id} with a test part: ${c.prox} ON and ${c.cam} part · removed: both OFF`));
+    CPS.forEach((c) => steps.push(`Test ${c.id} with a test part: ${c.prox} ON and ${c.cam} part · removed: both OFF`));
     steps.push('Camera calibration target: CAM-1 and CAM-2 position error < 1 mm');
-    if (S.setup === 2) steps.push('Master cube 50.000 mm: LS-61 / LS-62 / LS-63 within ±0.02 mm');
+    steps.push('Master cube 50.000 mm: LS-61 / LS-62 / LS-63 within ±0.02 mm');
     S.verify = { steps, i: 0, done: false };
     log('stop', 'Sensor verification started: all equipment stopped, technician in the cell');
     if (instant) { S.verify.i = steps.length - 1; }
@@ -977,9 +960,7 @@
   // ------------------------------------------------------------------ controls
   function syncRun() { $('#btnRun').textContent = S.running ? 'Pause' : 'Run'; }
   function bind() {
-    $('#btnS1').addEventListener('click', () => { if (S.setup !== 1) newSim(1); });
-    $('#btnS2').addEventListener('click', () => { if (S.setup !== 2) newSim(2); });
-    $('#btnReset').addEventListener('click', () => newSim(S.setup));
+    $('#btnReset').addEventListener('click', () => newSim());
     $('#btnRun').addEventListener('click', () => { S.running = !S.running; S.step = false; syncRun(); });
     $('#btnStep').addEventListener('click', () => { S.step = true; S.running = true; syncRun(); });
     $('#selSpeed').addEventListener('change', (e) => { S.speed = +e.target.value; });
@@ -1030,7 +1011,7 @@
     requestAnimationFrame(frame);
   }
   bind();
-  newSim(1);
+  newSim();
   syncRun();
   requestAnimationFrame(frame);
   // hooks for the headless tests: run without drawing, read the trace and the counters

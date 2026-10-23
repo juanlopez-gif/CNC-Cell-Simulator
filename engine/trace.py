@@ -1,7 +1,7 @@
 """Print the state-change trace of one scenario as JSON (used by source/test_sim.js engine to
 compare the Python engine with the browser simulator).
 
-    python trace.py <setup> <seconds> <nominal|cp2fault>
+    python trace.py 2 <seconds> <nominal|cp2fault>      (2 = Setup 2, the only setup)
 """
 import json
 import sys

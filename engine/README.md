@@ -1,4 +1,4 @@
-# cellsim: the simulation engine without graphics (Python)
+# cellsim: the simulation engine without graphics (Python, Setup 2)
 
 The same engine as the browser simulator, separated from the drawing: an interpreter runs the four
 state machines of the shared model, and a plant model supplies the robots, the CNC, the belt, the
@@ -12,14 +12,14 @@ run the export again (the tests check that the JSON is up to date).
 ## Use
 
 ```
-python run.py                                  # Setup 1, 8 h, nominal
-python run.py --setup 2 --hours 24 --faults    # random disturbances (seeded)
-python run.py --setup 2 --hours 2 --log 30     # also the last 30 log lines
+python run.py                          # 8 h, nominal
+python run.py --hours 24 --faults      # random disturbances (seeded)
+python run.py --hours 2 --log 30       # also the last 30 log lines
 ```
 
 ```python
 from cellsim import CellSim
-sim = CellSim(setup=2, seed=1)
+sim = CellSim(seed=1)              # Setup 2, the only setup
 sim.advance(3600)                  # one hour of simulated time
 sim.inject_undersized()            # disturbances: also inject_glitch(cp), toggle_sensor_fault(cp),
                                    # inject_bad_frame(), inject_camera_failure(), inject_grip_miss()
@@ -39,7 +39,9 @@ violated property); it must stay empty.
   back; two undersized parts cause a quality hold with no cycle start; 4 h runs with random
   disturbances where every state change is a transition of the model and no property is violated.
 - `node source/test_sim.js engine`: the browser simulator and this engine give the same state
-  changes at the same instants (one hour of each setup, nominal and with a faulty CP-2 sensor).
+  changes at the same instants (one hour, nominal and with a faulty CP-2 sensor).
+- `python regress.py`: fingerprints of deterministic and seeded random runs, used by
+  `source/regress.js` to show that a reorganization of the code did not change the behaviour.
 
 ## Files
 
@@ -52,3 +54,4 @@ violated property); it must stay empty.
 | `run.py` | Command line |
 | `test_engine.py` | Tests |
 | `trace.py` | Trace of a scenario as JSON, for the comparison with the browser simulator |
+| `regress.py` | Fingerprints of fixed scenarios for the regression check (`source/regress.js`) |

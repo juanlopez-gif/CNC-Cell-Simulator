@@ -7,6 +7,7 @@
 const fs = require('fs');
 const path = require('path');
 const puppeteer = require('puppeteer-core');
+const { CHROME } = require('./chrome.js');
 const M = require('./src/cell-model.js');
 const shot = (n) => path.join(__dirname, 'out', 'sim', n);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -40,7 +41,7 @@ function conformance(trace, setup) {
 }
 
 (async () => {
-  const browser = await puppeteer.launch({ executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: 'new', args: ['--no-sandbox'] });
+  const browser = await puppeteer.launch({ executablePath: CHROME, headless: 'new', args: ['--no-sandbox'] });
   const html = fs.readFileSync(path.join(__dirname, 'out', 'sim', 'index.html'), 'utf8');
   let failed = false;
   const open = async () => {
@@ -68,7 +69,7 @@ function conformance(trace, setup) {
     await page.select('#selSpeed', '60');
     if (mode === 'basic') {
       for (let i = 0; i < 6; i++) { await sleep(2500); console.log(JSON.stringify(await state(page))); }
-      await page.screenshot({ path: shot('shot_s1.png'), fullPage: true });
+      await page.screenshot({ path: shot('shot_basic.png'), fullPage: true });
     }
     if (mode === 'fault') {
       await sleep(3000);
@@ -85,7 +86,6 @@ function conformance(trace, setup) {
       const s = await state(page); console.log('after reset:', s.status, s.chips.join(' / ')); console.log(s.log.join('\n'));
     }
     if (mode === 's2') {
-      await page.click('#btnS2');
       await sleep(1500);
       await page.click('#btnUnder'); await page.click('#btnUnder');
       for (let i = 0; i < 14; i++) { await sleep(2500); const s = await state(page); console.log(s.clock, '|', s.status, '|', s.banner, '|', s.chips.join(' / ')); }
@@ -106,7 +106,7 @@ function conformance(trace, setup) {
     if (mode === 'engine') {
       // the Python engine (engine/) must give the same state changes at the same instants
       await page.click('#btnRun');
-      for (const [setup, scenario] of [[1, 'nominal'], [1, 'cp2fault'], [2, 'nominal'], [2, 'cp2fault']]) {
+      for (const [setup, scenario] of [[2, 'nominal'], [2, 'cp2fault']]) {
         const js = await page.evaluate((setup, scenario) => {
           const C = window.CellSim;
           C.instantVerify = true;
@@ -137,8 +137,8 @@ function conformance(trace, setup) {
     if (mode === 'conform') {
       await page.click('#btnRun');                                  // pause the animation; the test drives the clock
       const runs = [
-        { setup: 1, hours: 2, faults: false, seed: 1 }, { setup: 2, hours: 2, faults: false, seed: 2 },
-        { setup: 1, hours: 8, faults: true, seed: 3 }, { setup: 2, hours: 8, faults: true, seed: 4 },
+        { setup: 2, hours: 2, faults: false, seed: 2 }, { setup: 2, hours: 2, faults: true, seed: 1 },
+        { setup: 2, hours: 8, faults: true, seed: 3 }, { setup: 2, hours: 8, faults: true, seed: 4 },
       ];
       for (const run of runs) {
         const res = await page.evaluate((run) => {
@@ -156,7 +156,7 @@ function conformance(trace, setup) {
             const S = C.S;
             if (run.faults && rnd() < 0.012) {                       // about one disturbance every 14 min
               const k = rnd();
-              const cps = ['CP-1', 'CP-2', 'CP-3', 'CP-4'].concat(run.setup === 2 ? ['CP-5'] : []);
+              const cps = ['CP-1', 'CP-2', 'CP-3', 'CP-4', 'CP-5'];
               const cp = cps[Math.floor(rnd() * cps.length)];
               const row = document.querySelector(`#cpTable tr[data-cp="${cp}"]`);
               if (k < 0.3) { row.querySelector('button[data-inj="glitch"]').click(); inj('glitch'); }
@@ -164,7 +164,7 @@ function conformance(trace, setup) {
               else if (k < 0.6) { document.querySelector('#btnBadFrame').click(); inj('bad frame'); }
               else if (k < 0.7) { document.querySelector('#btnCamFail').click(); inj('camera failure'); }
               else if (k < 0.85) { document.querySelector('#btnGripMiss').click(); inj('grip miss'); }
-              else if (run.setup === 2) { document.querySelector('#btnUnder').click(); inj('undersized part'); }
+              else { document.querySelector('#btnUnder').click(); inj('undersized part'); }
             }
             // the operator is sometimes away: the input pallet runs empty (Robot 1 waits in W1)
             if (run.faults && rnd() < 0.003) { S.autoOp = !S.autoOp; inj(S.autoOp ? 'operator back' : 'operator away'); }
@@ -179,7 +179,7 @@ function conformance(trace, setup) {
           return { trace: C.TRACE.slice(), stats: st, avgIdle: st.idleN ? st.idleSum / st.idleN : null, idles: null, act, t: C.S.t, ok: C.W.ok, nok: C.W.nok };
         }, run);
         const c = conformance(res.trace, run.setup);
-        const kpi = run.setup === 1 ? M.KPI.idle1 : M.KPI.idle2;
+        const kpi = M.KPI.idle2;
         console.log(`\n[conform] Setup ${run.setup}, ${run.hours} h ${run.faults ? 'with' : 'without'} faults: ${res.trace.length} state changes, ${res.stats.jobs} jobs, ${res.stats.cycles} CNC cycles, ${res.ok} parts on the pallet, ${res.nok} NOK, ${res.stats.mism} mismatches, ${res.stats.stops} line stops`);
         if (run.faults) console.log('  injected:', JSON.stringify(res.act.injected), ' operator:', JSON.stringify({ clear: res.act.clear, verify: res.act.verify, reset: res.act.reset, release: res.act.release }));
         console.log('  transitions not in the model:', c.errs.length ? '\n  ' + c.errs.slice(0, 20).join('\n  ') : 'none');

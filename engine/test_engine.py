@@ -1,10 +1,10 @@
-"""Tests of the Python engine.   python -m unittest -v test_engine   (from engine/)
+"""Tests of the Python engine (Setup 2).   python -m unittest -v test_engine   (from engine/)
 
 - the model export is up to date with source/src/cell-model.js (needs Node; skipped without it)
 - nominal operation: the CNC idle time of every cycle equals the KPI derived from the model
 - a faulty CP-2 sensor: the camera keeps the line running, the 3rd mismatch stops it, the sensor
   verification and the reset bring it back
-- Setup 2: two undersized parts in a row cause a quality hold; no cycle start during the hold
+- two undersized parts in a row cause a quality hold; no cycle start during the hold
 - long runs with random disturbances: every state change is a transition of the model, no property
   is violated and every job takes its model time
 """
@@ -31,18 +31,16 @@ class EngineTest(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stderr)
 
     def test_nominal_idle_equals_kpi(self):
-        for setup in (1, 2):
-            with self.subTest(setup=setup):
-                sim = CellSim(setup=setup, seed=1)
-                sim.advance(2 * 3600)
-                self.assertClean(sim)
-                kpi = sim.M.KPI["idle1" if setup == 1 else "idle2"]
-                self.assertGreater(len(sim.stats["idles"]), 30)
-                for idle in sim.stats["idles"]:
-                    self.assertAlmostEqual(idle, kpi, delta=0.005)
+        sim = CellSim(seed=1)
+        sim.advance(2 * 3600)
+        self.assertClean(sim)
+        kpi = sim.M.KPI["idle2"]
+        self.assertGreater(len(sim.stats["idles"]), 30)
+        for idle in sim.stats["idles"]:
+            self.assertAlmostEqual(idle, kpi, delta=0.005)
 
     def test_faulty_sensor_stops_the_line(self):
-        sim = CellSim(setup=1, seed=1, instant_verify=True)
+        sim = CellSim(seed=1, instant_verify=True)
         sim.advance(300)
         sim.toggle_sensor_fault("CP-2")
         while sim.state("SUP") != "X3" and sim.t < 3600:
@@ -68,7 +66,7 @@ class EngineTest(unittest.TestCase):
         self.assertClean(sim)
 
     def test_quality_hold_after_two_nok_parts(self):
-        sim = CellSim(setup=2, seed=1)
+        sim = CellSim(seed=1)
         sim.advance(600)
         sim.inject_undersized()
         sim.inject_undersized()
@@ -87,9 +85,9 @@ class EngineTest(unittest.TestCase):
         self.assertClean(sim)
 
     def test_random_disturbances(self):
-        for setup, seed in ((1, 3), (2, 4)):
-            with self.subTest(setup=setup):
-                sim, injected, actions = run_random(setup, 4, faults=True, seed=seed)
+        for seed in (3, 4):
+            with self.subTest(seed=seed):
+                sim, injected, actions = run_random(2, 4, faults=True, seed=seed)
                 self.assertClean(sim)
                 self.assertGreater(sum(injected.values()), 5)
                 self.assertGreater(sim.stats["cycles"], 30)          # nominal ~92 in 4 h; stops and faults cost time

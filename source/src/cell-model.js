@@ -1,13 +1,14 @@
-/* Shared model of the machine-tending cell: timing, rules, sensors, checkpoints and the four
-   state machines (states, steps, transitions and guards) as data.
-   The diagram generator, the browser simulation, the Word report and the NuSMV export read this
-   file. None of them contains state names, transitions or guard texts of its own. */
+/* Shared model of the machine-tending cell (Setup 2: dual gripper and gauge): timing, rules,
+   sensors, checkpoints and the four state machines (states, steps, transitions and guards) as data.
+   The diagram generator, the browser simulation, the Python engine (through the JSON export) and the
+   verifier with its NuSMV export read this file. None of them contains state names, transitions or
+   guard texts of its own. Setup 1 (single gripper) is kept only in the branch legacy-setup1-setup2. */
 (function (root) {
   // ---------------------------------------------------------------- timing (s)
   const T = {
     cncCycle: 120,
     unlock: 0.5, lock: 0.5, cycleStart: 0.5,
-    homeToDoor: 1.5, doorToHome: 1.5, park: 1.5,
+    doorToHome: 1.5, park: 1.5,
     doorOpen: 4.0, doorClose: 4.0,           // robot grips handle, slides door, releases
     enterCnc: 2.0, exitCnc: 2.0,
     grip: 0.5, release: 0.5,
@@ -23,7 +24,7 @@
   };
   // Names of the time components, used in the CNC idle build-up table.
   const TLABEL = {
-    unlock: 'Door unlock', lock: 'Door lock', cycleStart: 'Cycle start', homeToDoor: 'Home to door',
+    unlock: 'Door unlock', lock: 'Door lock', cycleStart: 'Cycle start',
     doorToHome: 'Door to home', park: 'Park at home', doorOpen: 'Open door', doorClose: 'Close door',
     enterCnc: 'Enter CNC', exitCnc: 'Exit CNC', grip: 'Grip part', release: 'Release', viseOpen: 'Open vise',
     viseClamp: 'Clamp', lift: 'Lift out', placeInVise: 'Place in vise', seatCheck: 'Seat check',
@@ -51,133 +52,133 @@
 
   // ---------------------------------------------------------------- checkpoints
   const CHECKPOINTS = [
-    { id: 'CP-1', where: 'Input pallet', prox: 'PX-11', cam: 'CAM-1', roi: 'ROI-A', fact: 'Input pallet present and seated', setup: 1 },
-    { id: 'CP-2', where: 'Conveyor entry', prox: 'PE-41', cam: 'CAM-1', roi: 'ROI-B', fact: 'Part at conveyor entry', setup: 1 },
-    { id: 'CP-3', where: 'Conveyor exit', prox: 'PE-42', cam: 'CAM-2', roi: 'ROI-C', fact: 'Part at the end stop', setup: 1 },
-    { id: 'CP-4', where: 'Output pallet', prox: 'PX-52', cam: 'CAM-2', roi: 'ROI-D', fact: 'Output pallet present', setup: 1 },
-    { id: 'CP-5', where: 'Gauge nest', prox: 'PX-64', cam: 'CAM-2', roi: 'ROI-E', fact: 'Part in gauge nest', setup: 2 },
+    { id: 'CP-1', where: 'Input pallet', prox: 'PX-11', cam: 'CAM-1', roi: 'ROI-A', fact: 'Input pallet present and seated' },
+    { id: 'CP-2', where: 'Conveyor entry', prox: 'PE-41', cam: 'CAM-1', roi: 'ROI-B', fact: 'Part at conveyor entry' },
+    { id: 'CP-3', where: 'Conveyor exit', prox: 'PE-42', cam: 'CAM-2', roi: 'ROI-C', fact: 'Part at the end stop' },
+    { id: 'CP-4', where: 'Output pallet', prox: 'PX-52', cam: 'CAM-2', roi: 'ROI-D', fact: 'Output pallet present' },
+    { id: 'CP-5', where: 'Gauge nest', prox: 'PX-64', cam: 'CAM-2', roi: 'ROI-E', fact: 'Part in gauge nest' },
   ];
 
   // ---------------------------------------------------------------- sensors / signals
   // group: zone name; kind: prox | cam | door | safety | vise | enc | grip | laser | light | robot | cnc | ctrl
   const SENSORS = [
-    { tag: 'PX-11', zone: 'Input pallet', kind: 'prox', setup: 1,
+    { tag: 'PX-11', zone: 'Input pallet', kind: 'prox',
       type: 'IR diffuse photoelectric proximity sensor, M18, PNP',
       where: 'Input-pallet locating corner, looking at the pallet edge',
       confirms: 'Input pallet present and seated against the locators (CP-1)',
       example: 'AutomationDirect FFI7-0P-1E (IR diffuse, 400 mm) or Balluff BOS 18M' },
-    { tag: 'CAM-1', zone: 'Robot 1 area', kind: 'cam', setup: 1,
+    { tag: 'CAM-1', zone: 'Robot 1 area', kind: 'cam',
       type: '2D industrial camera with LED bar light, calibrated to the robot frame',
       where: 'Overhead frame (~2 m) above the input pallet and the conveyor entry',
       confirms: 'ROI-A: pallet present, part positions (x, y, angle), parts left. ROI-B: part at conveyor entry (CP-1, CP-2)',
       example: 'Cognex In-Sight 2800 / Keyence IV3, or Luxonis OAK-D Pro PoE (budget)' },
-    { tag: 'GR-21', zone: 'Robot 1', kind: 'grip', setup: 1,
-      type: 'Electric parallel gripper with grip detection and finger-width feedback',
-      where: 'Robot 1 tool flange (Setup 2: dual gripper GR-21A / GR-21B)',
-      confirms: 'Part gripped (fingers stop at about 50 mm) or missed (fingers fully closed)',
-      example: 'OnRobot RG2 or Robotiq 2F-85; Setup 2: OnRobot Dual Quick Changer + 2 grippers' },
-    { tag: 'R1 / R2', zone: 'Robots', kind: 'robot', setup: 1,
+    { tag: 'GR-21A / GR-21B', zone: 'Robot 1', kind: 'grip',
+      type: 'Dual electric parallel gripper (A: raw part, B: finished part) with grip detection and finger-width feedback',
+      where: 'Robot 1 tool flange, two grippers on a dual quick changer',
+      confirms: 'Part gripped (fingers stop at about 50 mm) or missed (fingers fully closed), for each gripper',
+      example: 'OnRobot Dual Quick Changer + 2 x OnRobot RG2 (or Robotiq 2F-85)' },
+    { tag: 'R1 / R2', zone: 'Robots', kind: 'robot',
       type: 'UR10e controller status and configurable safety I/O',
       where: 'Robot control boxes',
       confirms: 'Robot at home, clear of CNC, clear of conveyor (safety planes), program state',
       example: 'Universal Robots UR10e (EtherNet/IP, PROFINET, Modbus TCP; 17 safety functions)' },
-    { tag: 'CNC I/O', zone: 'CNC', kind: 'cnc', setup: 1,
+    { tag: 'CNC I/O', zone: 'CNC', kind: 'cnc',
       type: 'Robot interface of the CNC (discrete I/O or fieldbus, M-code handshake)',
       where: 'CNC control cabinet (manufacturer robot-interface kit)',
       confirms: 'CNC ready, in cycle, cycle complete, spindle stopped, alarm; cell sends cycle start',
       example: 'Machine builder robot interface (for example the Haas robot interface box)' },
-    { tag: 'ZS-31', zone: 'CNC door', kind: 'door', setup: 1,
+    { tag: 'ZS-31', zone: 'CNC door', kind: 'door',
       type: 'Non-contact door position sensor (inductive or coded magnetic) - door kit',
       where: 'End of the door track, open position',
       confirms: 'Door fully open: robot may enter the machine',
       example: 'Supplied in the CNC door kit (inductive M12 type)' },
-    { tag: 'ZS-32', zone: 'CNC door', kind: 'door', setup: 1,
+    { tag: 'ZS-32', zone: 'CNC door', kind: 'door',
       type: 'Non-contact door position sensor - door kit',
       where: 'Door frame, closed position',
       confirms: 'Door fully closed',
       example: 'Supplied in the CNC door kit' },
-    { tag: 'ZS-33', zone: 'CNC door', kind: 'safety', setup: 1,
+    { tag: 'ZS-33', zone: 'CNC door', kind: 'safety',
       type: 'Safety interlock switch with guard locking (solenoid, coded, dual channel)',
       where: 'Door frame, closed position',
       confirms: 'Door locked; stays locked while the spindle turns, unlocks only when stopped',
       example: 'Supplied in the CNC door kit (IDEM KL1-P-221002 if not supplied)' },
-    { tag: 'ZS-34 / ZS-35', zone: 'CNC vise', kind: 'vise', setup: 1,
+    { tag: 'ZS-34 / ZS-35', zone: 'CNC vise', kind: 'vise',
       type: 'Cylinder position sensors (magnetic reed) on the pneumatic vise',
       where: 'Vise cylinder',
       confirms: 'Vise open (ZS-34) / vise clamped (ZS-35)',
       example: 'SMC D-M9 series auto switches (workholding kit)' },
-    { tag: 'PS-36', zone: 'CNC vise', kind: 'vise', setup: 1,
+    { tag: 'PS-36', zone: 'CNC vise', kind: 'vise',
       type: 'Air-gap (air catch) sensor in the fixture datum',
       where: 'Vise fixed jaw / datum face',
       confirms: 'Part seated flat on the datum, no chip under the part',
       example: 'SMC ISA3 digital gap sensor' },
-    { tag: 'PE-41', zone: 'Conveyor', kind: 'prox', setup: 1,
+    { tag: 'PE-41', zone: 'Conveyor', kind: 'prox',
       type: 'IR through-beam photoelectric pair across the belt',
       where: 'Conveyor entry (place position of Robot 1)',
       confirms: 'Part at conveyor entry (CP-2)',
       example: 'AutomationDirect QMIHD-0P-0F (IR through-beam pair)' },
-    { tag: 'PE-42', zone: 'Conveyor', kind: 'prox', setup: 1,
+    { tag: 'PE-42', zone: 'Conveyor', kind: 'prox',
       type: 'IR through-beam photoelectric pair across the belt',
       where: 'Conveyor exit, 30 mm before the hard stop',
       confirms: 'Part at the end stop: stop the belt (CP-3)',
       example: 'AutomationDirect QMIHD-0P-0F (IR through-beam pair)' },
-    { tag: 'ENC-43', zone: 'Conveyor', kind: 'enc', setup: 1,
+    { tag: 'ENC-43', zone: 'Conveyor', kind: 'enc',
       type: 'Incremental rotary encoder, 600 ppr, on an idler roller',
       where: 'Idler (non-driven) roller, so it follows the real belt motion',
       confirms: 'Belt moving or at zero speed; detects slip or a drive that does not move',
       example: 'Koyo TRD-N600-RZWD' },
-    { tag: 'CAM-2', zone: 'Robot 2 area', kind: 'cam', setup: 1,
+    { tag: 'CAM-2', zone: 'Robot 2 area', kind: 'cam',
       type: '2D industrial camera with LED bar light',
       where: 'Overhead above the conveyor exit and the output pallet (Setup 2: also gauge and NOK chute)',
       confirms: 'ROI-C: part at exit + pick pose. ROI-D: pallet present + slot occupancy. ROI-E: part in gauge (CP-3, CP-4, CP-5)',
       example: 'Same model as CAM-1' },
-    { tag: 'GR-51', zone: 'Robot 2', kind: 'grip', setup: 1,
+    { tag: 'GR-51', zone: 'Robot 2', kind: 'grip',
       type: 'Electric parallel gripper with grip detection',
       where: 'Robot 2 tool flange',
       confirms: 'Part gripped / released',
       example: 'OnRobot RG2' },
-    { tag: 'PX-52', zone: 'Output pallet', kind: 'prox', setup: 1,
+    { tag: 'PX-52', zone: 'Output pallet', kind: 'prox',
       type: 'IR diffuse photoelectric proximity sensor',
       where: 'Output-pallet locating corner',
       confirms: 'Output pallet present (CP-4); OFF then ON = pallet swapped',
       example: 'AutomationDirect FFI7-0P-1E' },
-    { tag: 'LT-53', zone: 'Output pallet', kind: 'light', setup: 1,
+    { tag: 'LT-53', zone: 'Output pallet', kind: 'light',
       type: 'Blue LED beacon (IEC 60204-1: operator action required)',
       where: 'Pole at the output pallet, visible from the aisle',
       confirms: 'Output pallet full: ready to be picked up',
       example: 'Patlite 1-tier LED signal light, blue lens' },
-    { tag: 'LT-01', zone: 'Cell', kind: 'light', setup: 1,
+    { tag: 'LT-01', zone: 'Cell', kind: 'light',
       type: 'Stack light red / amber / green with buzzer',
       where: 'Cell control cabinet',
       confirms: 'Green running, amber warning (mismatch, pallet empty), red line stopped / fault',
       example: 'Patlite LR6 3-tier (LR6-302WJBW-RYG)' },
-    { tag: 'SC-01 / SC-02', zone: 'Cell', kind: 'safety', setup: 1,
+    { tag: 'SC-01 / SC-02', zone: 'Cell', kind: 'safety',
       type: 'Safety laser scanner (or light curtain) at the operator stations',
       where: 'Input and output pallet loading sides',
       confirms: 'Operator in the loading zone: robot reduced speed / protective stop',
       example: 'SICK nanoScan3 or Keyence SZ-V' },
-    { tag: 'PLC-01', zone: 'Cell', kind: 'ctrl', setup: 1,
+    { tag: 'PLC-01', zone: 'Cell', kind: 'ctrl',
       type: 'Cell PLC + HMI + safety relay',
       where: 'Cell control cabinet',
       confirms: 'Runs the state machines, the camera/proximity cross-check and the alarms',
       example: 'AutomationDirect BRX BX-DM1E-18ED13-D (budget) or Allen-Bradley CompactLogix' },
     // ------------------------------------------------ Setup 2 additions
-    { tag: 'LS-61 / 62 / 63', zone: 'Gauge station', kind: 'laser', setup: 2,
+    { tag: 'LS-61 / 62 / 63', zone: 'Gauge station', kind: 'laser',
       type: 'Laser displacement sensors (triangulation), one per axis',
       where: 'Gauge nest, facing the three free faces (length X, width Y, height Z)',
       confirms: 'Length, width and height of every part; reject if any value < 48.00 mm',
       example: 'Keyence IL-065 (55-105 mm range, 2 um repeatability) + IL amplifiers' },
-    { tag: 'PX-64', zone: 'Gauge station', kind: 'prox', setup: 2,
+    { tag: 'PX-64', zone: 'Gauge station', kind: 'prox',
       type: 'IR diffuse photoelectric proximity sensor',
       where: 'Gauge nest base',
       confirms: 'Part in the nest (CP-5)',
       example: 'AutomationDirect FFI7-0P-1E' },
-    { tag: 'PE-65', zone: 'NOK chute', kind: 'prox', setup: 2,
+    { tag: 'PE-65', zone: 'NOK chute', kind: 'prox',
       type: 'IR through-beam photoelectric pair',
       where: 'Mouth of the non-conforming chute',
       confirms: 'Rejected part really dropped into the locked NOK bin',
       example: 'AutomationDirect QMIHD-0P-0F' },
-    { tag: 'MST-60', zone: 'Gauge station', kind: 'ctrl', setup: 2,
+    { tag: 'MST-60', zone: 'Gauge station', kind: 'ctrl',
       type: 'Certified 50.000 mm master cube + holder',
       where: 'Next to the gauge, reachable by Robot 2',
       confirms: 'Zero-setting of LS-61/62/63 at start-up and after every sensor verification',
@@ -185,8 +186,7 @@
   ];
 
   // ================================================================ STATE MACHINES AS DATA
-  // Four machines run in parallel in the cell PLC. Each one fills a slot; the Robot 1 and Robot 2
-  // slots hold a different machine in Setup 1 and Setup 2.
+  // Four machines run in parallel in the cell PLC. Each one fills a slot.
   const SLOTS = {
     R1: { label: 'Robot 1 + CNC', ref: 'Robot 1' },
     CONV: { label: 'Conveyor', ref: 'Conveyor' },
@@ -232,7 +232,6 @@
     'ZS-35': { kind: 'sensor', on: '{ZS-35} clamped', off: '{ZS-35} = OFF' },
     'PS-36': { kind: 'sensor', on: '{PS-36} part seated', off: '{PS-36} = OFF (fixture empty)', ask: ['Part in the', 'vise? {PS-36}'] },
     // grippers
-    'GR-21': { kind: 'sensor', on: '{GR-21} grip OK', off: '{GR-21} gripper open' },
     'GR-21A': { kind: 'sensor', on: '{GR-21A} grip OK', off: '{GR-21A} gripper A open' },
     'GR-21B': { kind: 'sensor', on: '{GR-21B} part in gripper B', off: '{GR-21B} gripper B empty', ask: ['Finished part', 'in B? {GR-21B}'] },
     'GR-51': { kind: 'sensor', on: '{GR-51} grip OK', off: '{GR-51} gripper open' },
@@ -299,11 +298,11 @@
     { id: 'P1', text: 'No robot is at the conveyor while the belt moves', never: '(!R1.clearConv | !R2.clearConv) & ENC-43' },
     { id: 'P2', text: 'CYCLE START only with the door closed and the guard locked', start: ['CNC.start'], require: 'ZS-32 & ZS-33' },
     { id: 'P3', text: 'Robot 1 is inside the CNC only with the door open and the spindle stopped', never: '!R1.clearCnc & (!ZS-31 | CNC.run)' },
-    { id: 'P4', text: 'The door is opened only after the cycle, with the guard lock released', start: ['R1.openDoor', 'R1.openDoorFromHome'], require: '!CNC.run & !ZS-33' },
-    { id: 'P5', text: 'A part is placed on the conveyor only at a free entry of a stopped belt', start: ['R1.placeConv', 'R1.placeConvB'], require: '!TRUE.entryPart & !ENC-43' },
+    { id: 'P4', text: 'The door is opened only after the cycle, with the guard lock released', start: ['R1.openDoor'], require: '!CNC.run & !ZS-33' },
+    { id: 'P5', text: 'A part is placed on the conveyor only at a free entry of a stopped belt', start: ['R1.placeConvB'], require: '!TRUE.entryPart & !ENC-43' },
     { id: 'P6', text: 'Robot 2 places a part only on an output pallet that is in place and not full', start: ['R2.placePallet'], require: 'TRUE.outPallet & outCount<slots' },
-    { id: 'P7', text: 'An undersized part never reaches the output pallet', setup: 2, start: ['R2.placePallet'], require: '!TRUE.r2Nok' },
-    { id: 'P8', text: 'No CYCLE START during a quality hold', setup: 2, start: ['CNC.start'], require: '!QH' },
+    { id: 'P7', text: 'An undersized part never reaches the output pallet', start: ['R2.placePallet'], require: '!TRUE.r2Nok' },
+    { id: 'P8', text: 'No CYCLE START during a quality hold', start: ['CNC.start'], require: '!QH' },
     { id: 'P9', text: 'Three mismatches in the window always stop the line', never: 'mismatches>=limit & !lineStop' },
     { id: 'P10', text: 'A camera fault always stops the line', never: 'CAM_FAULT & !lineStop' },
     { id: 'L1', text: 'A new CNC cycle can always be started again', eventually: 'R1.job=CNC.start' },
@@ -314,7 +313,7 @@
   // PLC outputs that follow the states (Moore outputs).
   const OUTPUTS = {
     'BELT.motor': { def: 'CONV=C3', text: 'conveyor motor ON' },
-    'LT-53': { def: 'R2=D4 | R2=E7', text: 'blue beacon: output pallet ready for pickup' },
+    'LT-53': { def: 'R2=E7', text: 'blue beacon: output pallet ready for pickup' },
     'LT-01.red': { def: 'lineStop | FAULT.any', text: 'stack light red' },
     'LT-01.amber': { def: '!lineStop & !FAULT.any & (mismatches>0 | QH | R1=W1)', text: 'stack light amber' },
     'LT-01.green': { def: '!lineStop & !FAULT.any & !(mismatches>0 | QH | R1=W1)', text: 'stack light green' },
@@ -328,14 +327,8 @@
   const JOBS = {
     'R1.home': { robot: 'R1', time: ['doorToHome'], zone: 'free', at: 'home', text: 'move home' },
     'R1.park': { robot: 'R1', time: ['park'], zone: 'free', at: 'home', text: 'park at home' },
-    'R1.openDoorFromHome': { robot: 'R1', time: ['homeToDoor', 'doorOpen'], zone: 'door', set: { door: 'open' }, text: 'open the CNC door' },
     'R1.openDoor': { robot: 'R1', time: ['doorOpen'], zone: 'door', set: { door: 'open' }, text: 'open the CNC door (gripper B)' },
     'R1.closeDoor': { robot: 'R1', time: ['doorClose'], zone: 'door', set: { door: 'closed' }, text: 'close the CNC door' },
-    'R1.unload': { robot: 'R1', time: ['enterCnc', 'grip', 'viseOpen', 'lift', 'exitCnc'], zone: 'cnc', move: ['cnc', 'r1S'], set: { vise: 'open' }, text: 'unload the CNC' },
-    'R1.toConveyor': { robot: 'R1', time: ['doorToConv'], zone: 'free', text: 'move above the conveyor entry' },
-    'R1.placeConv': { robot: 'R1', time: ['placeConv'], zone: 'conv', move: ['r1S', 'entry'], text: 'place on the conveyor' },
-    'R1.pickRaw': { robot: 'R1', time: ['convToPallet', 'pickPallet'], zone: 'pallet', move: ['in', 'r1S'], canFail: 'grip', text: 'pick a raw part' },
-    'R1.load': { robot: 'R1', time: ['palletToDoor', 'enterCnc', 'placeInVise', 'viseClamp', 'seatCheck', 'release', 'exitCnc'], zone: 'cnc', move: ['r1S', 'cnc'], set: { vise: 'clamped' }, text: 'load the CNC' },
     'R1.pickRawA': { robot: 'R1', time: ['convToPallet', 'pickPallet'], zone: 'pallet', move: ['in', 'r1A'], canFail: 'grip', labels: { pickPallet: 'Gripper A picks raw part' }, text: 'pick a raw part with gripper A' },
     'R1.toDoorReady': { robot: 'R1', time: ['palletToDoor'], zone: 'free', text: 'move to the CNC door' },
     'R1.enterCnc': { robot: 'R1', time: ['enterCnc'], zone: 'cnc', text: 'enter the CNC' },
@@ -411,55 +404,6 @@
   };
 
   const MACHINES = {
-    R1S1: {
-      slot: 'R1', setup: 1,
-      title: 'State diagram: Robot 1 + CNC (Setup 1, single gripper)',
-      sub: 'Arrow label = the confirmation that allows the transition · {TAG} sensor · [CP-n] camera + proximity cross-check',
-      initial: { to: 'A0', when: 'HMI.auto' },
-      ...ROBOT_FH('R1'), note: HOLD_NOTE,
-      view: { main: ['A0', 'A1', 'A2', 'Q_A2', 'A3', 'A4', 'A5', 'A6', 'A7', 'A8'], side: { W1: 'A5' } },
-      states: {
-        A0: { name: 'START-UP CHECKS', desc: ['Home robot · check CNC ready and', 'door closed ({ZS-32})'],
-          do: [{ job: 'R1.home', when: '!R1.home' }],
-          next: [{ to: 'A1', when: 'R1.home & CNC.ready & ZS-32' }] },
-        A1: { name: 'WAIT FOR CNC', band: 'run', wait: true,
-          desc: ['Move home, clear of CNC and conveyor ·', 'CNC machining the part (120 s)'],
-          do: [{ job: 'R1.home', when: '!R1.home' }],
-          next: [{ to: 'A2', when: '(CNC.done & !ZS-33) | CNC.empty' }] },
-        A2: { name: 'OPEN CNC DOOR', band: 'idle', short: 'door',
-          desc: ['Empty gripper grips the door handle, slides', 'the door open, releases it, retracts'],
-          do: [{ job: 'R1.openDoorFromHome' }],
-          next: [{ to: 'Q_A2', when: 'ZS-31 & !ZS-32' }] },
-        Q_A2: { choice: 'PS-36', yes: 'A3', no: 'A5', yesText: 'finished part', noText: 'CNC empty (first cycle)' },
-        A3: { name: 'UNLOAD CNC', band: 'idle', short: 'unload',
-          desc: ['Enter · grip finished part · open vise ·', 'lift the part out · exit the machine'],
-          do: [{ job: 'R1.unload' }],
-          next: [{ to: 'A4', when: 'GR-21 & ZS-34 & !PS-36 & R1.clearCnc' }] },
-        A4: { name: 'PLACE ON CONVEYOR', band: 'idle', short: 'to belt',
-          desc: ['Wait for belt stopped ({ENC-43} = 0) and', 'entry clear ([CP-2]) · place · release'],
-          do: [{ job: 'R1.toConveyor' }, { await: 'BELT.free' }, { check: 'CP-2', quick: true, confirm: '!CP-2' },
-            { job: 'R1.placeConv' }, { check: 'CP-2' }, { set: { partPlaced: true }, when: 'CP-2' }],
-          next: [{ to: 'A5', when: 'CP-2 & R1.clearConv' }] },
-        A5: { name: 'PICK RAW PART', band: 'idle', short: 'pick',
-          desc: ['[CP-1] pallet present ({PX-11} + {CAM-1}) ·', '{CAM-1} gives the pick pose · pick'],
-          do: [{ check: 'CP-1' }, { job: 'R1.pickRaw', when: 'CP-1 & CAM-1.part' }],
-          next: [{ to: 'A6', when: 'GR-21' }, { to: 'W1', when: '!CP-1 | !CAM-1.part' }] },
-        A6: { name: 'LOAD CNC', band: 'idle', short: 'load',
-          desc: ['Enter · place part in the vise · clamp ·', 'open gripper · exit the machine'],
-          do: [{ job: 'R1.load' }],
-          next: [{ to: 'A7', when: 'ZS-35 & PS-36 & !GR-21 & R1.clearCnc' }] },
-        A7: { name: 'CLOSE CNC DOOR', band: 'idle', short: 'door',
-          desc: ['Empty gripper slides the door closed,', 'releases the handle · guard lock engages'],
-          do: [{ job: 'R1.closeDoor' }, { job: 'DOOR.lock' }],
-          next: [{ to: 'A8', when: 'ZS-32 & ZS-33' }] },
-        A8: { name: 'START CYCLE', band: 'idle', short: 'start',
-          desc: ['Send CYCLE START through the CNC', 'robot interface'],
-          do: [{ job: 'CNC.start' }],
-          next: [{ to: 'A1', when: 'CNC.run | CNC.done' }] },
-        W1: W1('A5'),
-      },
-    },
-
     R1S2: {
       slot: 'R1', setup: 2,
       title: 'State diagram: Robot 1 + CNC (Setup 2, dual gripper A / B)',
@@ -540,29 +484,6 @@
       },
     },
 
-    R2S1: {
-      slot: 'R2', setup: 1,
-      title: 'State diagram: Robot 2 + output pallet (Setup 1)',
-      sub: 'The blue light {LT-53} is the "pallet ready for pickup" signal required by the assignment.',
-      initial: { to: 'D0', when: 'HMI.auto' },
-      ...ROBOT_FH('R2'), note: HOLD_NOTE,
-      view: { main: ['D0', 'D1', 'D2', 'D3', 'Q_D3'], side: { D4: 'Q_D3' } },
-      states: {
-        D0: { name: 'START-UP CHECKS', desc: ['Home · [CP-4] pallet present ({PX-52} + {CAM-2})', '{CAM-2} reads the slot map, sets the count'],
-          do: [{ job: 'R2.home', when: '!R2.home' }, { check: 'CP-4' }],
-          next: [{ to: 'D1', when: 'R2.home & CP-4 & !PALLET.full' }] },
-        D1: { name: 'WAIT FOR PART', wait: true, desc: ['Move home, clear of the conveyor'],
-          do: [{ job: 'R2.home', when: '!R2.home' }],
-          next: [{ to: 'D2', when: 'CONV=C5 & pickAllowed & !ENC-43' }] },
-        D2: Object.assign({}, PICK_CONV, { next: [{ to: 'D3', when: 'GR-51 & !CP-3 & R2.clearConv' }] }),
-        D3: { name: 'PLACE ON OUTPUT PALLET', desc: ['[CP-4] pallet present ({PX-52} + {CAM-2}) ·', '{CAM-2} next free slot · place · release'],
-          do: [{ check: 'CP-4', confirm: 'CP-4' }, { job: 'R2.placePallet' }],
-          next: [{ to: 'Q_D3', when: 'CAM-2.slot & !GR-51' }] },
-        Q_D3: { choice: 'PALLET.full', yes: 'D4', no: 'D1' },
-        D4: FULL('D1'),
-      },
-    },
-
     R2S2: {
       slot: 'R2', setup: 2,
       title: 'State diagram: Robot 2 + gauge + sorting (Setup 2)',
@@ -628,8 +549,9 @@
       },
     },
   };
-  const SETUP_MACHINES = { 1: ['R1S1', 'CONV', 'R2S1', 'SUP'], 2: ['R1S2', 'CONV', 'R2S2', 'SUP'] };
-  const IDLE_MACHINE = { 1: 'R1S1', 2: 'R1S2' };
+  // Only Setup 2 is developed (decision of 2026-10-23); the key 2 keeps the names of the generated files.
+  const SETUP_MACHINES = { 2: ['R1S2', 'CONV', 'R2S2', 'SUP'] };
+  const IDLE_MACHINE = { 2: 'R1S2' };
 
   // ================================================================ guard expressions
   // or := and ('|' and)* ; and := unary ('&' unary)* ; unary := '!' unary | '(' or ')' | name [rel value]
@@ -789,17 +711,16 @@
     m.view.main.forEach((id) => { if (m.states[id].band === 'idle') rows = rows.concat(stateSteps(mk, id)); });
     return rows;
   }
-  const idleSetup1 = idleList(1), idleSetup2 = idleList(2);
+  const idleSetup2 = idleList(2);
   const sum = (a) => r1(a.reduce((s, x) => s + x[1], 0));
   const KPI = (() => {
-    const i1 = sum(idleSetup1), i2 = sum(idleSetup2);
-    const c1 = T.cncCycle + i1, c2 = T.cncCycle + i2;
-    return {
-      idle1: i1, idle2: i2, cycle1: c1, cycle2: c2,
-      util1: T.cncCycle / c1, util2: T.cncCycle / c2,
-      pph1: 3600 / c1, pph2: 3600 / c2,
-    };
+    const i2 = sum(idleSetup2), c2 = T.cncCycle + i2;
+    return { idle2: i2, cycle2: c2, util2: T.cncCycle / c2, pph2: 3600 / c2 };
   })();
+  // Reference for the comparison: Setup 1 (single gripper), computed by this model before Setup 1 was
+  // removed. Fixed numbers, not derived from the current machines.
+  const BASELINE = { idle: 36.5, cycle: 156.5, util: 120 / 156.5, pph: 3600 / 156.5,
+    text: 'Setup 1, single gripper (branch legacy-setup1-setup2, commit 1f4b8ad)' };
 
   // ================================================================ consistency checks
   // Returns a list of problems; empty = the model is consistent.
@@ -899,7 +820,7 @@
   }
 
   const MODEL = {
-    T, TLABEL, KPI, RULES, CHECKPOINTS, SENSORS, STATES, idleSetup1, idleSetup2,
+    T, TLABEL, KPI, BASELINE, RULES, CHECKPOINTS, SENSORS, STATES, idleSetup2,
     SLOTS, SIGNALS, CONST, OUTPUTS, RUNGS, PROPERTIES, JOBS, MACHINES, SETUP_MACHINES, IDLE_MACHINE,
     expr: { parse, evaluate, names, terms, label, plain, visible, constVal },
     jobTime, stateSteps, stateTime, lint,

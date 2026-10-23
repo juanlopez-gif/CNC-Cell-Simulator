@@ -2,18 +2,18 @@
 const fs = require('fs');
 const path = require('path');
 const puppeteer = require('puppeteer-core');
+const { CHROME } = require('./chrome.js');
 const html = fs.readFileSync(path.join(__dirname, 'out', 'sim', 'index.html'), 'utf8');
 const out = (n) => path.join(__dirname, 'out', n);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 (async () => {
-  const browser = await puppeteer.launch({ executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: 'new', args: ['--no-sandbox'] });
+  const browser = await puppeteer.launch({ executablePath: CHROME, headless: 'new', args: ['--no-sandbox'] });
   const page = await browser.newPage();
   await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'light' }]);
   await page.setViewport({ width: 1500, height: 1000, deviceScaleFactor: 2 });
   await page.setContent(html, { waitUntil: 'load', timeout: 60000 });
   await page.evaluate(() => document.fonts.ready);
-  await page.click('#btnS2');
   await page.select('#selSpeed', '60');
   const r1 = () => page.evaluate(() => document.querySelector('#chips .chip[data-m="R1"] .id').textContent);
   const waitFor = async (id, max) => { for (let i = 0; i < (max || 600); i++) { if ((await r1()) === id) return true; await sleep(50); } return false; };

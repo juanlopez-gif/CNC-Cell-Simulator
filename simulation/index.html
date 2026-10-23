@@ -88,10 +88,6 @@ button, select, input { font: inherit; color: inherit; }
 .brand h1 { margin: 0; font-family: var(--font-c); font-weight: 700; font-size: 22px; letter-spacing: .01em; text-wrap: balance; }
 .brand p { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
 .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.seg { display: inline-flex; border: 1px solid var(--rule); border-radius: 7px; overflow: hidden; }
-.seg button { border: 0; background: var(--panel-2); padding: 7px 13px; cursor: pointer; font-family: var(--font-c); font-weight: 700; font-size: 14px; letter-spacing: .02em; color: var(--muted); }
-.seg button + button { border-left: 1px solid var(--rule); }
-.seg button[aria-pressed="true"] { background: var(--ink-2); color: var(--panel); }
 .btn { border: 1px solid var(--rule); background: var(--panel-2); border-radius: 7px; padding: 7px 12px; cursor: pointer; font-weight: 600; font-size: 13.5px; }
 .btn:hover { border-color: var(--muted); }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; min-width: 76px; }
@@ -177,7 +173,6 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
 table.cp { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 470px; }
 table.cp th { text-align: left; font-family: var(--font-c); font-weight: 700; font-size: 11.5px; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); padding: 4px 6px; border-bottom: 1px solid var(--rule); }
 table.cp td { padding: 6px 6px; border-bottom: 1px solid var(--rule-2); vertical-align: middle; }
-table.cp tr.dis td { opacity: .38; }
 .cpid { font-family: var(--font-m); font-weight: 600; color: var(--cp); }
 .cpw { display: block; font-size: 11.5px; color: var(--muted); }
 .tag { font-family: var(--font-m); font-size: 12px; font-weight: 500; }
@@ -357,13 +352,9 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
   <header class="bar">
     <div class="brand">
       <h1>CNC Cell Simulator</h1>
-      <p>Sensors design task · live state machines · camera + proximity cross-check</p>
+      <p>Setup 2: dual gripper and gauge · live state machines · camera + proximity cross-check</p>
     </div>
     <div class="controls">
-      <div class="seg" role="group" aria-label="Setup">
-        <button type="button" id="btnS1" aria-pressed="true">Setup 1</button>
-        <button type="button" id="btnS2" aria-pressed="false">Setup 2</button>
-      </div>
       <button type="button" class="btn primary" id="btnRun">Pause</button>
       <button type="button" class="btn" id="btnStep" title="Run until the next state change">Step</button>
       <label class="speed" for="selSpeed">Speed
@@ -450,7 +441,7 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
             <button type="button" class="btn" id="btnGripMiss">Robot 1 misses a pick</button>
             <button type="button" class="btn" id="btnUnder">Next part undersized</button>
           </div>
-          <p id="underNote">Setup 2 only: the gauge rejects parts with any dimension below 48.00 mm.</p>
+          <p id="underNote">The gauge measures every part; any dimension below 48.00 mm goes to the NOK chute. Two NOK parts in a row trigger a quality hold.</p>
         </div>
         <div class="grp">
           <h3>Operator</h3>
@@ -471,16 +462,17 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
 </div>
 
 <script>
-/* Shared model of the machine-tending cell: timing, rules, sensors, checkpoints and the four
-   state machines (states, steps, transitions and guards) as data.
-   The diagram generator, the browser simulation, the Word report and the NuSMV export read this
-   file. None of them contains state names, transitions or guard texts of its own. */
+/* Shared model of the machine-tending cell (Setup 2: dual gripper and gauge): timing, rules,
+   sensors, checkpoints and the four state machines (states, steps, transitions and guards) as data.
+   The diagram generator, the browser simulation, the Python engine (through the JSON export) and the
+   verifier with its NuSMV export read this file. None of them contains state names, transitions or
+   guard texts of its own. Setup 1 (single gripper) is kept only in the branch legacy-setup1-setup2. */
 (function (root) {
   // ---------------------------------------------------------------- timing (s)
   const T = {
     cncCycle: 120,
     unlock: 0.5, lock: 0.5, cycleStart: 0.5,
-    homeToDoor: 1.5, doorToHome: 1.5, park: 1.5,
+    doorToHome: 1.5, park: 1.5,
     doorOpen: 4.0, doorClose: 4.0,           // robot grips handle, slides door, releases
     enterCnc: 2.0, exitCnc: 2.0,
     grip: 0.5, release: 0.5,
@@ -496,7 +488,7 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
   };
   // Names of the time components, used in the CNC idle build-up table.
   const TLABEL = {
-    unlock: 'Door unlock', lock: 'Door lock', cycleStart: 'Cycle start', homeToDoor: 'Home to door',
+    unlock: 'Door unlock', lock: 'Door lock', cycleStart: 'Cycle start',
     doorToHome: 'Door to home', park: 'Park at home', doorOpen: 'Open door', doorClose: 'Close door',
     enterCnc: 'Enter CNC', exitCnc: 'Exit CNC', grip: 'Grip part', release: 'Release', viseOpen: 'Open vise',
     viseClamp: 'Clamp', lift: 'Lift out', placeInVise: 'Place in vise', seatCheck: 'Seat check',
@@ -524,133 +516,133 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
 
   // ---------------------------------------------------------------- checkpoints
   const CHECKPOINTS = [
-    { id: 'CP-1', where: 'Input pallet', prox: 'PX-11', cam: 'CAM-1', roi: 'ROI-A', fact: 'Input pallet present and seated', setup: 1 },
-    { id: 'CP-2', where: 'Conveyor entry', prox: 'PE-41', cam: 'CAM-1', roi: 'ROI-B', fact: 'Part at conveyor entry', setup: 1 },
-    { id: 'CP-3', where: 'Conveyor exit', prox: 'PE-42', cam: 'CAM-2', roi: 'ROI-C', fact: 'Part at the end stop', setup: 1 },
-    { id: 'CP-4', where: 'Output pallet', prox: 'PX-52', cam: 'CAM-2', roi: 'ROI-D', fact: 'Output pallet present', setup: 1 },
-    { id: 'CP-5', where: 'Gauge nest', prox: 'PX-64', cam: 'CAM-2', roi: 'ROI-E', fact: 'Part in gauge nest', setup: 2 },
+    { id: 'CP-1', where: 'Input pallet', prox: 'PX-11', cam: 'CAM-1', roi: 'ROI-A', fact: 'Input pallet present and seated' },
+    { id: 'CP-2', where: 'Conveyor entry', prox: 'PE-41', cam: 'CAM-1', roi: 'ROI-B', fact: 'Part at conveyor entry' },
+    { id: 'CP-3', where: 'Conveyor exit', prox: 'PE-42', cam: 'CAM-2', roi: 'ROI-C', fact: 'Part at the end stop' },
+    { id: 'CP-4', where: 'Output pallet', prox: 'PX-52', cam: 'CAM-2', roi: 'ROI-D', fact: 'Output pallet present' },
+    { id: 'CP-5', where: 'Gauge nest', prox: 'PX-64', cam: 'CAM-2', roi: 'ROI-E', fact: 'Part in gauge nest' },
   ];
 
   // ---------------------------------------------------------------- sensors / signals
   // group: zone name; kind: prox | cam | door | safety | vise | enc | grip | laser | light | robot | cnc | ctrl
   const SENSORS = [
-    { tag: 'PX-11', zone: 'Input pallet', kind: 'prox', setup: 1,
+    { tag: 'PX-11', zone: 'Input pallet', kind: 'prox',
       type: 'IR diffuse photoelectric proximity sensor, M18, PNP',
       where: 'Input-pallet locating corner, looking at the pallet edge',
       confirms: 'Input pallet present and seated against the locators (CP-1)',
       example: 'AutomationDirect FFI7-0P-1E (IR diffuse, 400 mm) or Balluff BOS 18M' },
-    { tag: 'CAM-1', zone: 'Robot 1 area', kind: 'cam', setup: 1,
+    { tag: 'CAM-1', zone: 'Robot 1 area', kind: 'cam',
       type: '2D industrial camera with LED bar light, calibrated to the robot frame',
       where: 'Overhead frame (~2 m) above the input pallet and the conveyor entry',
       confirms: 'ROI-A: pallet present, part positions (x, y, angle), parts left. ROI-B: part at conveyor entry (CP-1, CP-2)',
       example: 'Cognex In-Sight 2800 / Keyence IV3, or Luxonis OAK-D Pro PoE (budget)' },
-    { tag: 'GR-21', zone: 'Robot 1', kind: 'grip', setup: 1,
-      type: 'Electric parallel gripper with grip detection and finger-width feedback',
-      where: 'Robot 1 tool flange (Setup 2: dual gripper GR-21A / GR-21B)',
-      confirms: 'Part gripped (fingers stop at about 50 mm) or missed (fingers fully closed)',
-      example: 'OnRobot RG2 or Robotiq 2F-85; Setup 2: OnRobot Dual Quick Changer + 2 grippers' },
-    { tag: 'R1 / R2', zone: 'Robots', kind: 'robot', setup: 1,
+    { tag: 'GR-21A / GR-21B', zone: 'Robot 1', kind: 'grip',
+      type: 'Dual electric parallel gripper (A: raw part, B: finished part) with grip detection and finger-width feedback',
+      where: 'Robot 1 tool flange, two grippers on a dual quick changer',
+      confirms: 'Part gripped (fingers stop at about 50 mm) or missed (fingers fully closed), for each gripper',
+      example: 'OnRobot Dual Quick Changer + 2 x OnRobot RG2 (or Robotiq 2F-85)' },
+    { tag: 'R1 / R2', zone: 'Robots', kind: 'robot',
       type: 'UR10e controller status and configurable safety I/O',
       where: 'Robot control boxes',
       confirms: 'Robot at home, clear of CNC, clear of conveyor (safety planes), program state',
       example: 'Universal Robots UR10e (EtherNet/IP, PROFINET, Modbus TCP; 17 safety functions)' },
-    { tag: 'CNC I/O', zone: 'CNC', kind: 'cnc', setup: 1,
+    { tag: 'CNC I/O', zone: 'CNC', kind: 'cnc',
       type: 'Robot interface of the CNC (discrete I/O or fieldbus, M-code handshake)',
       where: 'CNC control cabinet (manufacturer robot-interface kit)',
       confirms: 'CNC ready, in cycle, cycle complete, spindle stopped, alarm; cell sends cycle start',
       example: 'Machine builder robot interface (for example the Haas robot interface box)' },
-    { tag: 'ZS-31', zone: 'CNC door', kind: 'door', setup: 1,
+    { tag: 'ZS-31', zone: 'CNC door', kind: 'door',
       type: 'Non-contact door position sensor (inductive or coded magnetic) - door kit',
       where: 'End of the door track, open position',
       confirms: 'Door fully open: robot may enter the machine',
       example: 'Supplied in the CNC door kit (inductive M12 type)' },
-    { tag: 'ZS-32', zone: 'CNC door', kind: 'door', setup: 1,
+    { tag: 'ZS-32', zone: 'CNC door', kind: 'door',
       type: 'Non-contact door position sensor - door kit',
       where: 'Door frame, closed position',
       confirms: 'Door fully closed',
       example: 'Supplied in the CNC door kit' },
-    { tag: 'ZS-33', zone: 'CNC door', kind: 'safety', setup: 1,
+    { tag: 'ZS-33', zone: 'CNC door', kind: 'safety',
       type: 'Safety interlock switch with guard locking (solenoid, coded, dual channel)',
       where: 'Door frame, closed position',
       confirms: 'Door locked; stays locked while the spindle turns, unlocks only when stopped',
       example: 'Supplied in the CNC door kit (IDEM KL1-P-221002 if not supplied)' },
-    { tag: 'ZS-34 / ZS-35', zone: 'CNC vise', kind: 'vise', setup: 1,
+    { tag: 'ZS-34 / ZS-35', zone: 'CNC vise', kind: 'vise',
       type: 'Cylinder position sensors (magnetic reed) on the pneumatic vise',
       where: 'Vise cylinder',
       confirms: 'Vise open (ZS-34) / vise clamped (ZS-35)',
       example: 'SMC D-M9 series auto switches (workholding kit)' },
-    { tag: 'PS-36', zone: 'CNC vise', kind: 'vise', setup: 1,
+    { tag: 'PS-36', zone: 'CNC vise', kind: 'vise',
       type: 'Air-gap (air catch) sensor in the fixture datum',
       where: 'Vise fixed jaw / datum face',
       confirms: 'Part seated flat on the datum, no chip under the part',
       example: 'SMC ISA3 digital gap sensor' },
-    { tag: 'PE-41', zone: 'Conveyor', kind: 'prox', setup: 1,
+    { tag: 'PE-41', zone: 'Conveyor', kind: 'prox',
       type: 'IR through-beam photoelectric pair across the belt',
       where: 'Conveyor entry (place position of Robot 1)',
       confirms: 'Part at conveyor entry (CP-2)',
       example: 'AutomationDirect QMIHD-0P-0F (IR through-beam pair)' },
-    { tag: 'PE-42', zone: 'Conveyor', kind: 'prox', setup: 1,
+    { tag: 'PE-42', zone: 'Conveyor', kind: 'prox',
       type: 'IR through-beam photoelectric pair across the belt',
       where: 'Conveyor exit, 30 mm before the hard stop',
       confirms: 'Part at the end stop: stop the belt (CP-3)',
       example: 'AutomationDirect QMIHD-0P-0F (IR through-beam pair)' },
-    { tag: 'ENC-43', zone: 'Conveyor', kind: 'enc', setup: 1,
+    { tag: 'ENC-43', zone: 'Conveyor', kind: 'enc',
       type: 'Incremental rotary encoder, 600 ppr, on an idler roller',
       where: 'Idler (non-driven) roller, so it follows the real belt motion',
       confirms: 'Belt moving or at zero speed; detects slip or a drive that does not move',
       example: 'Koyo TRD-N600-RZWD' },
-    { tag: 'CAM-2', zone: 'Robot 2 area', kind: 'cam', setup: 1,
+    { tag: 'CAM-2', zone: 'Robot 2 area', kind: 'cam',
       type: '2D industrial camera with LED bar light',
       where: 'Overhead above the conveyor exit and the output pallet (Setup 2: also gauge and NOK chute)',
       confirms: 'ROI-C: part at exit + pick pose. ROI-D: pallet present + slot occupancy. ROI-E: part in gauge (CP-3, CP-4, CP-5)',
       example: 'Same model as CAM-1' },
-    { tag: 'GR-51', zone: 'Robot 2', kind: 'grip', setup: 1,
+    { tag: 'GR-51', zone: 'Robot 2', kind: 'grip',
       type: 'Electric parallel gripper with grip detection',
       where: 'Robot 2 tool flange',
       confirms: 'Part gripped / released',
       example: 'OnRobot RG2' },
-    { tag: 'PX-52', zone: 'Output pallet', kind: 'prox', setup: 1,
+    { tag: 'PX-52', zone: 'Output pallet', kind: 'prox',
       type: 'IR diffuse photoelectric proximity sensor',
       where: 'Output-pallet locating corner',
       confirms: 'Output pallet present (CP-4); OFF then ON = pallet swapped',
       example: 'AutomationDirect FFI7-0P-1E' },
-    { tag: 'LT-53', zone: 'Output pallet', kind: 'light', setup: 1,
+    { tag: 'LT-53', zone: 'Output pallet', kind: 'light',
       type: 'Blue LED beacon (IEC 60204-1: operator action required)',
       where: 'Pole at the output pallet, visible from the aisle',
       confirms: 'Output pallet full: ready to be picked up',
       example: 'Patlite 1-tier LED signal light, blue lens' },
-    { tag: 'LT-01', zone: 'Cell', kind: 'light', setup: 1,
+    { tag: 'LT-01', zone: 'Cell', kind: 'light',
       type: 'Stack light red / amber / green with buzzer',
       where: 'Cell control cabinet',
       confirms: 'Green running, amber warning (mismatch, pallet empty), red line stopped / fault',
       example: 'Patlite LR6 3-tier (LR6-302WJBW-RYG)' },
-    { tag: 'SC-01 / SC-02', zone: 'Cell', kind: 'safety', setup: 1,
+    { tag: 'SC-01 / SC-02', zone: 'Cell', kind: 'safety',
       type: 'Safety laser scanner (or light curtain) at the operator stations',
       where: 'Input and output pallet loading sides',
       confirms: 'Operator in the loading zone: robot reduced speed / protective stop',
       example: 'SICK nanoScan3 or Keyence SZ-V' },
-    { tag: 'PLC-01', zone: 'Cell', kind: 'ctrl', setup: 1,
+    { tag: 'PLC-01', zone: 'Cell', kind: 'ctrl',
       type: 'Cell PLC + HMI + safety relay',
       where: 'Cell control cabinet',
       confirms: 'Runs the state machines, the camera/proximity cross-check and the alarms',
       example: 'AutomationDirect BRX BX-DM1E-18ED13-D (budget) or Allen-Bradley CompactLogix' },
     // ------------------------------------------------ Setup 2 additions
-    { tag: 'LS-61 / 62 / 63', zone: 'Gauge station', kind: 'laser', setup: 2,
+    { tag: 'LS-61 / 62 / 63', zone: 'Gauge station', kind: 'laser',
       type: 'Laser displacement sensors (triangulation), one per axis',
       where: 'Gauge nest, facing the three free faces (length X, width Y, height Z)',
       confirms: 'Length, width and height of every part; reject if any value < 48.00 mm',
       example: 'Keyence IL-065 (55-105 mm range, 2 um repeatability) + IL amplifiers' },
-    { tag: 'PX-64', zone: 'Gauge station', kind: 'prox', setup: 2,
+    { tag: 'PX-64', zone: 'Gauge station', kind: 'prox',
       type: 'IR diffuse photoelectric proximity sensor',
       where: 'Gauge nest base',
       confirms: 'Part in the nest (CP-5)',
       example: 'AutomationDirect FFI7-0P-1E' },
-    { tag: 'PE-65', zone: 'NOK chute', kind: 'prox', setup: 2,
+    { tag: 'PE-65', zone: 'NOK chute', kind: 'prox',
       type: 'IR through-beam photoelectric pair',
       where: 'Mouth of the non-conforming chute',
       confirms: 'Rejected part really dropped into the locked NOK bin',
       example: 'AutomationDirect QMIHD-0P-0F' },
-    { tag: 'MST-60', zone: 'Gauge station', kind: 'ctrl', setup: 2,
+    { tag: 'MST-60', zone: 'Gauge station', kind: 'ctrl',
       type: 'Certified 50.000 mm master cube + holder',
       where: 'Next to the gauge, reachable by Robot 2',
       confirms: 'Zero-setting of LS-61/62/63 at start-up and after every sensor verification',
@@ -658,8 +650,7 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
   ];
 
   // ================================================================ STATE MACHINES AS DATA
-  // Four machines run in parallel in the cell PLC. Each one fills a slot; the Robot 1 and Robot 2
-  // slots hold a different machine in Setup 1 and Setup 2.
+  // Four machines run in parallel in the cell PLC. Each one fills a slot.
   const SLOTS = {
     R1: { label: 'Robot 1 + CNC', ref: 'Robot 1' },
     CONV: { label: 'Conveyor', ref: 'Conveyor' },
@@ -705,7 +696,6 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
     'ZS-35': { kind: 'sensor', on: '{ZS-35} clamped', off: '{ZS-35} = OFF' },
     'PS-36': { kind: 'sensor', on: '{PS-36} part seated', off: '{PS-36} = OFF (fixture empty)', ask: ['Part in the', 'vise? {PS-36}'] },
     // grippers
-    'GR-21': { kind: 'sensor', on: '{GR-21} grip OK', off: '{GR-21} gripper open' },
     'GR-21A': { kind: 'sensor', on: '{GR-21A} grip OK', off: '{GR-21A} gripper A open' },
     'GR-21B': { kind: 'sensor', on: '{GR-21B} part in gripper B', off: '{GR-21B} gripper B empty', ask: ['Finished part', 'in B? {GR-21B}'] },
     'GR-51': { kind: 'sensor', on: '{GR-51} grip OK', off: '{GR-51} gripper open' },
@@ -772,11 +762,11 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
     { id: 'P1', text: 'No robot is at the conveyor while the belt moves', never: '(!R1.clearConv | !R2.clearConv) & ENC-43' },
     { id: 'P2', text: 'CYCLE START only with the door closed and the guard locked', start: ['CNC.start'], require: 'ZS-32 & ZS-33' },
     { id: 'P3', text: 'Robot 1 is inside the CNC only with the door open and the spindle stopped', never: '!R1.clearCnc & (!ZS-31 | CNC.run)' },
-    { id: 'P4', text: 'The door is opened only after the cycle, with the guard lock released', start: ['R1.openDoor', 'R1.openDoorFromHome'], require: '!CNC.run & !ZS-33' },
-    { id: 'P5', text: 'A part is placed on the conveyor only at a free entry of a stopped belt', start: ['R1.placeConv', 'R1.placeConvB'], require: '!TRUE.entryPart & !ENC-43' },
+    { id: 'P4', text: 'The door is opened only after the cycle, with the guard lock released', start: ['R1.openDoor'], require: '!CNC.run & !ZS-33' },
+    { id: 'P5', text: 'A part is placed on the conveyor only at a free entry of a stopped belt', start: ['R1.placeConvB'], require: '!TRUE.entryPart & !ENC-43' },
     { id: 'P6', text: 'Robot 2 places a part only on an output pallet that is in place and not full', start: ['R2.placePallet'], require: 'TRUE.outPallet & outCount<slots' },
-    { id: 'P7', text: 'An undersized part never reaches the output pallet', setup: 2, start: ['R2.placePallet'], require: '!TRUE.r2Nok' },
-    { id: 'P8', text: 'No CYCLE START during a quality hold', setup: 2, start: ['CNC.start'], require: '!QH' },
+    { id: 'P7', text: 'An undersized part never reaches the output pallet', start: ['R2.placePallet'], require: '!TRUE.r2Nok' },
+    { id: 'P8', text: 'No CYCLE START during a quality hold', start: ['CNC.start'], require: '!QH' },
     { id: 'P9', text: 'Three mismatches in the window always stop the line', never: 'mismatches>=limit & !lineStop' },
     { id: 'P10', text: 'A camera fault always stops the line', never: 'CAM_FAULT & !lineStop' },
     { id: 'L1', text: 'A new CNC cycle can always be started again', eventually: 'R1.job=CNC.start' },
@@ -787,7 +777,7 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
   // PLC outputs that follow the states (Moore outputs).
   const OUTPUTS = {
     'BELT.motor': { def: 'CONV=C3', text: 'conveyor motor ON' },
-    'LT-53': { def: 'R2=D4 | R2=E7', text: 'blue beacon: output pallet ready for pickup' },
+    'LT-53': { def: 'R2=E7', text: 'blue beacon: output pallet ready for pickup' },
     'LT-01.red': { def: 'lineStop | FAULT.any', text: 'stack light red' },
     'LT-01.amber': { def: '!lineStop & !FAULT.any & (mismatches>0 | QH | R1=W1)', text: 'stack light amber' },
     'LT-01.green': { def: '!lineStop & !FAULT.any & !(mismatches>0 | QH | R1=W1)', text: 'stack light green' },
@@ -801,14 +791,8 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
   const JOBS = {
     'R1.home': { robot: 'R1', time: ['doorToHome'], zone: 'free', at: 'home', text: 'move home' },
     'R1.park': { robot: 'R1', time: ['park'], zone: 'free', at: 'home', text: 'park at home' },
-    'R1.openDoorFromHome': { robot: 'R1', time: ['homeToDoor', 'doorOpen'], zone: 'door', set: { door: 'open' }, text: 'open the CNC door' },
     'R1.openDoor': { robot: 'R1', time: ['doorOpen'], zone: 'door', set: { door: 'open' }, text: 'open the CNC door (gripper B)' },
     'R1.closeDoor': { robot: 'R1', time: ['doorClose'], zone: 'door', set: { door: 'closed' }, text: 'close the CNC door' },
-    'R1.unload': { robot: 'R1', time: ['enterCnc', 'grip', 'viseOpen', 'lift', 'exitCnc'], zone: 'cnc', move: ['cnc', 'r1S'], set: { vise: 'open' }, text: 'unload the CNC' },
-    'R1.toConveyor': { robot: 'R1', time: ['doorToConv'], zone: 'free', text: 'move above the conveyor entry' },
-    'R1.placeConv': { robot: 'R1', time: ['placeConv'], zone: 'conv', move: ['r1S', 'entry'], text: 'place on the conveyor' },
-    'R1.pickRaw': { robot: 'R1', time: ['convToPallet', 'pickPallet'], zone: 'pallet', move: ['in', 'r1S'], canFail: 'grip', text: 'pick a raw part' },
-    'R1.load': { robot: 'R1', time: ['palletToDoor', 'enterCnc', 'placeInVise', 'viseClamp', 'seatCheck', 'release', 'exitCnc'], zone: 'cnc', move: ['r1S', 'cnc'], set: { vise: 'clamped' }, text: 'load the CNC' },
     'R1.pickRawA': { robot: 'R1', time: ['convToPallet', 'pickPallet'], zone: 'pallet', move: ['in', 'r1A'], canFail: 'grip', labels: { pickPallet: 'Gripper A picks raw part' }, text: 'pick a raw part with gripper A' },
     'R1.toDoorReady': { robot: 'R1', time: ['palletToDoor'], zone: 'free', text: 'move to the CNC door' },
     'R1.enterCnc': { robot: 'R1', time: ['enterCnc'], zone: 'cnc', text: 'enter the CNC' },
@@ -884,55 +868,6 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
   };
 
   const MACHINES = {
-    R1S1: {
-      slot: 'R1', setup: 1,
-      title: 'State diagram: Robot 1 + CNC (Setup 1, single gripper)',
-      sub: 'Arrow label = the confirmation that allows the transition · {TAG} sensor · [CP-n] camera + proximity cross-check',
-      initial: { to: 'A0', when: 'HMI.auto' },
-      ...ROBOT_FH('R1'), note: HOLD_NOTE,
-      view: { main: ['A0', 'A1', 'A2', 'Q_A2', 'A3', 'A4', 'A5', 'A6', 'A7', 'A8'], side: { W1: 'A5' } },
-      states: {
-        A0: { name: 'START-UP CHECKS', desc: ['Home robot · check CNC ready and', 'door closed ({ZS-32})'],
-          do: [{ job: 'R1.home', when: '!R1.home' }],
-          next: [{ to: 'A1', when: 'R1.home & CNC.ready & ZS-32' }] },
-        A1: { name: 'WAIT FOR CNC', band: 'run', wait: true,
-          desc: ['Move home, clear of CNC and conveyor ·', 'CNC machining the part (120 s)'],
-          do: [{ job: 'R1.home', when: '!R1.home' }],
-          next: [{ to: 'A2', when: '(CNC.done & !ZS-33) | CNC.empty' }] },
-        A2: { name: 'OPEN CNC DOOR', band: 'idle', short: 'door',
-          desc: ['Empty gripper grips the door handle, slides', 'the door open, releases it, retracts'],
-          do: [{ job: 'R1.openDoorFromHome' }],
-          next: [{ to: 'Q_A2', when: 'ZS-31 & !ZS-32' }] },
-        Q_A2: { choice: 'PS-36', yes: 'A3', no: 'A5', yesText: 'finished part', noText: 'CNC empty (first cycle)' },
-        A3: { name: 'UNLOAD CNC', band: 'idle', short: 'unload',
-          desc: ['Enter · grip finished part · open vise ·', 'lift the part out · exit the machine'],
-          do: [{ job: 'R1.unload' }],
-          next: [{ to: 'A4', when: 'GR-21 & ZS-34 & !PS-36 & R1.clearCnc' }] },
-        A4: { name: 'PLACE ON CONVEYOR', band: 'idle', short: 'to belt',
-          desc: ['Wait for belt stopped ({ENC-43} = 0) and', 'entry clear ([CP-2]) · place · release'],
-          do: [{ job: 'R1.toConveyor' }, { await: 'BELT.free' }, { check: 'CP-2', quick: true, confirm: '!CP-2' },
-            { job: 'R1.placeConv' }, { check: 'CP-2' }, { set: { partPlaced: true }, when: 'CP-2' }],
-          next: [{ to: 'A5', when: 'CP-2 & R1.clearConv' }] },
-        A5: { name: 'PICK RAW PART', band: 'idle', short: 'pick',
-          desc: ['[CP-1] pallet present ({PX-11} + {CAM-1}) ·', '{CAM-1} gives the pick pose · pick'],
-          do: [{ check: 'CP-1' }, { job: 'R1.pickRaw', when: 'CP-1 & CAM-1.part' }],
-          next: [{ to: 'A6', when: 'GR-21' }, { to: 'W1', when: '!CP-1 | !CAM-1.part' }] },
-        A6: { name: 'LOAD CNC', band: 'idle', short: 'load',
-          desc: ['Enter · place part in the vise · clamp ·', 'open gripper · exit the machine'],
-          do: [{ job: 'R1.load' }],
-          next: [{ to: 'A7', when: 'ZS-35 & PS-36 & !GR-21 & R1.clearCnc' }] },
-        A7: { name: 'CLOSE CNC DOOR', band: 'idle', short: 'door',
-          desc: ['Empty gripper slides the door closed,', 'releases the handle · guard lock engages'],
-          do: [{ job: 'R1.closeDoor' }, { job: 'DOOR.lock' }],
-          next: [{ to: 'A8', when: 'ZS-32 & ZS-33' }] },
-        A8: { name: 'START CYCLE', band: 'idle', short: 'start',
-          desc: ['Send CYCLE START through the CNC', 'robot interface'],
-          do: [{ job: 'CNC.start' }],
-          next: [{ to: 'A1', when: 'CNC.run | CNC.done' }] },
-        W1: W1('A5'),
-      },
-    },
-
     R1S2: {
       slot: 'R1', setup: 2,
       title: 'State diagram: Robot 1 + CNC (Setup 2, dual gripper A / B)',
@@ -1013,29 +948,6 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
       },
     },
 
-    R2S1: {
-      slot: 'R2', setup: 1,
-      title: 'State diagram: Robot 2 + output pallet (Setup 1)',
-      sub: 'The blue light {LT-53} is the "pallet ready for pickup" signal required by the assignment.',
-      initial: { to: 'D0', when: 'HMI.auto' },
-      ...ROBOT_FH('R2'), note: HOLD_NOTE,
-      view: { main: ['D0', 'D1', 'D2', 'D3', 'Q_D3'], side: { D4: 'Q_D3' } },
-      states: {
-        D0: { name: 'START-UP CHECKS', desc: ['Home · [CP-4] pallet present ({PX-52} + {CAM-2})', '{CAM-2} reads the slot map, sets the count'],
-          do: [{ job: 'R2.home', when: '!R2.home' }, { check: 'CP-4' }],
-          next: [{ to: 'D1', when: 'R2.home & CP-4 & !PALLET.full' }] },
-        D1: { name: 'WAIT FOR PART', wait: true, desc: ['Move home, clear of the conveyor'],
-          do: [{ job: 'R2.home', when: '!R2.home' }],
-          next: [{ to: 'D2', when: 'CONV=C5 & pickAllowed & !ENC-43' }] },
-        D2: Object.assign({}, PICK_CONV, { next: [{ to: 'D3', when: 'GR-51 & !CP-3 & R2.clearConv' }] }),
-        D3: { name: 'PLACE ON OUTPUT PALLET', desc: ['[CP-4] pallet present ({PX-52} + {CAM-2}) ·', '{CAM-2} next free slot · place · release'],
-          do: [{ check: 'CP-4', confirm: 'CP-4' }, { job: 'R2.placePallet' }],
-          next: [{ to: 'Q_D3', when: 'CAM-2.slot & !GR-51' }] },
-        Q_D3: { choice: 'PALLET.full', yes: 'D4', no: 'D1' },
-        D4: FULL('D1'),
-      },
-    },
-
     R2S2: {
       slot: 'R2', setup: 2,
       title: 'State diagram: Robot 2 + gauge + sorting (Setup 2)',
@@ -1101,8 +1013,9 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
       },
     },
   };
-  const SETUP_MACHINES = { 1: ['R1S1', 'CONV', 'R2S1', 'SUP'], 2: ['R1S2', 'CONV', 'R2S2', 'SUP'] };
-  const IDLE_MACHINE = { 1: 'R1S1', 2: 'R1S2' };
+  // Only Setup 2 is developed (decision of 2026-10-23); the key 2 keeps the names of the generated files.
+  const SETUP_MACHINES = { 2: ['R1S2', 'CONV', 'R2S2', 'SUP'] };
+  const IDLE_MACHINE = { 2: 'R1S2' };
 
   // ================================================================ guard expressions
   // or := and ('|' and)* ; and := unary ('&' unary)* ; unary := '!' unary | '(' or ')' | name [rel value]
@@ -1262,17 +1175,16 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
     m.view.main.forEach((id) => { if (m.states[id].band === 'idle') rows = rows.concat(stateSteps(mk, id)); });
     return rows;
   }
-  const idleSetup1 = idleList(1), idleSetup2 = idleList(2);
+  const idleSetup2 = idleList(2);
   const sum = (a) => r1(a.reduce((s, x) => s + x[1], 0));
   const KPI = (() => {
-    const i1 = sum(idleSetup1), i2 = sum(idleSetup2);
-    const c1 = T.cncCycle + i1, c2 = T.cncCycle + i2;
-    return {
-      idle1: i1, idle2: i2, cycle1: c1, cycle2: c2,
-      util1: T.cncCycle / c1, util2: T.cncCycle / c2,
-      pph1: 3600 / c1, pph2: 3600 / c2,
-    };
+    const i2 = sum(idleSetup2), c2 = T.cncCycle + i2;
+    return { idle2: i2, cycle2: c2, util2: T.cncCycle / c2, pph2: 3600 / c2 };
   })();
+  // Reference for the comparison: Setup 1 (single gripper), computed by this model before Setup 1 was
+  // removed. Fixed numbers, not derived from the current machines.
+  const BASELINE = { idle: 36.5, cycle: 156.5, util: 120 / 156.5, pph: 3600 / 156.5,
+    text: 'Setup 1, single gripper (branch legacy-setup1-setup2, commit 1f4b8ad)' };
 
   // ================================================================ consistency checks
   // Returns a list of problems; empty = the model is consistent.
@@ -1372,7 +1284,7 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
   }
 
   const MODEL = {
-    T, TLABEL, KPI, RULES, CHECKPOINTS, SENSORS, STATES, idleSetup1, idleSetup2,
+    T, TLABEL, KPI, BASELINE, RULES, CHECKPOINTS, SENSORS, STATES, idleSetup2,
     SLOTS, SIGNALS, CONST, OUTPUTS, RUNGS, PROPERTIES, JOBS, MACHINES, SETUP_MACHINES, IDLE_MACHINE,
     expr: { parse, evaluate, names, terms, label, plain, visible, constVal },
     jobTime, stateSteps, stateTime, lint,
@@ -1876,7 +1788,7 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
       if (kind) {
         const a = g[main[i]], b = g[main[j]], y0 = a.top - 8, y1 = b.bottom + 8;
         d.band(X - 10, y0, W + 10 + G.BR, y1 - y0, kind);
-        const texts = kind === 'idle' ? [`CNC IDLE ≈ ${M.KPI['idle' + m.setup]} s`, 'CNC IDLE'] : BAND_TEXT[kind];
+        const texts = kind === 'idle' ? [`CNC IDLE ≈ ${M.KPI.idle2} s`, 'CNC IDLE'] : BAND_TEXT[kind];
         // the longest stretch of the strip that no horizontal arrow crosses
         const cuts = strip.filter(([p, q]) => q > y0 && p < y1).sort((u, v) => u[0] - v[0]);
         let best = [y0, y0], cur = y0;
@@ -1945,10 +1857,8 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
     d.h = bottom + 18;
     return d.svg();
   }
-  const smRobot1S1 = (o) => stateDiagram('R1S1', o);
   const smRobot1S2 = (o) => stateDiagram('R1S2', o);
   const smConveyor = (o) => stateDiagram('CONV', o);
-  const smRobot2S1 = (o) => stateDiagram('R2S1', o);
   const smRobot2S2 = (o) => stateDiagram('R2S2', o);
   const smSupervisor = (o) => stateDiagram('SUP', o);
 
@@ -2002,9 +1912,9 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
     const cnc = d.node('CNC', 40, t + 4, 240, 74, ['CNC + DOOR KIT', 'robot interface · {ZS-31} {ZS-32} {ZS-33}', 'vise {ZS-34} {ZS-35} · {PS-36}']);
     const op = d.node('OP', 620, t + 4, 240, 74, ['OPERATOR / HMI', 'loads input pallet ({PX-11}, [CP-1])', 'swaps output pallet · resets'], { kind: 'op' });
     const yb = t + 170;
-    const s1 = d.node('SM1', 40, yb + 26, 240, 92, ['SM-1  ROBOT 1 + CNC', `states ${span('R1S1')} (Setup 1)`, `or ${span('R1S2')} (Setup 2)`, '{PX-11} {CAM-1} {GR-21}']);
+    const s1 = d.node('SM1', 40, yb + 26, 240, 92, ['SM-1  ROBOT 1 + CNC', `states ${span('R1S2')}`, 'dual gripper A / B', '{PX-11} {CAM-1} {GR-21A} {GR-21B}']);
     const s2 = d.node('SM2', 360, yb + 26, 180, 92, ['SM-2  CONVEYOR', `states ${span('CONV')}`, '{PE-41} {PE-42}', '{ENC-43}']);
-    const s3 = d.node('SM3', 620, yb + 26, 240, 92, ['SM-3  ROBOT 2 + PALLET', `states ${span('R2S1')} (Setup 1)`, `or ${span('R2S2')} (Setup 2)`, '{CAM-2} {GR-51} {PX-52}']);
+    const s3 = d.node('SM3', 620, yb + 26, 240, 92, ['SM-3  ROBOT 2 + GAUGE', `states ${span('R2S2')}`, 'gauge {LS-61} {LS-62} {LS-63}', '{CAM-2} {GR-51} {PX-52}']);
     const s4 = d.node('SM4', 40, s1.bottom + 96, 820, 76, [`SM-4  CROSS-CHECK SUPERVISOR  (states ${span('SUP')})`, 'compares proximity vs camera at CP-1 … CP-5 · counts mismatches in a 10-min window', 'commands LINE STOP after 3 mismatches in 10 min']);
     d.raw(`<rect x="22" y="${yb}" width="856" height="${s4.bottom + 34 - yb}" rx="12" fill="none" stroke="var(--dg-rule,#aab4be)" stroke-width="1.4" stroke-dasharray="6 5"/><text class="dg-band-label" x="38" y="${s4.bottom + 24}">CELL PLC-01 · runs the 4 state machines</text>`, 'bg');
     d.arrow([[120, s1.top], [120, cnc.bottom]], ['cycle start,', 'door + vise', 'requests'], { at: [114, (s1.top + cnc.bottom) / 2], anchor: 'end' });
@@ -2043,44 +1953,6 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
     d.arrow([[lastL.right, lastL.cy], [gx, lastL.cy], [gx, firstR.cy], [R, firstR.cy]], null, { r: 10 });
     return { lastL, lastR: prev };
   }
-  function flowSetup1(o) {
-    const d = new Diagram(880, 0, 'Work flow of one part: Setup 1',
-      'Each box: who acts, what happens, and the signal that confirms the step before the next one starts.', o);
-    const L = 18, W = 408, R = 454, H = 66, Gp = 20;
-    const { lastL, lastR } = flowColumns(d, L, R, W, H, Gp, [
-      ['1', 'OPERATOR', 'op', ['Load the input pallet, press "Pallet loaded"', 'confirm: [CP-1] {PX-11} + {CAM-1} pallet present']],
-      ['2', 'CAMERA 1', 'cam', ['Locate the next raw part (x, y, angle)', 'confirm: part found → pick pose to Robot 1']],
-      ['3', 'ROBOT 1', '', ['Pick the raw part from the pallet', 'confirm: {GR-21} grip OK · {CAM-1} slot empty']],
-      ['4', 'ROBOT 1 + CNC', 'cnc', ['Open the CNC door (the robot slides it)', 'needs CNC stopped, {ZS-33} unlocked → {ZS-31} open']],
-      ['5', 'ROBOT 1 + CNC', 'cnc', ['Load the part in the vise and clamp', 'confirm: {ZS-35} clamped · {PS-36} seated · R1 clear']],
-      ['6', 'ROBOT 1 + CNC', 'cnc', ['Close the CNC door', 'confirm: {ZS-32} closed · {ZS-33} locked']],
-      ['7', 'CNC', 'cnc', ['Cycle start → machining (2 min)', 'confirm: in cycle → cycle complete, spindle stop']],
-    ], [
-      ['8', 'ROBOT 1 + CNC', 'cnc', ['Open the door and unload the part', 'confirm: {ZS-31} · {ZS-34} open · {PS-36} OFF · {GR-21}']],
-      ['9', 'ROBOT 1', '', ['Place the part at the conveyor entry', 'needs {ENC-43} = 0 · confirm: [CP-2] {PE-41} + {CAM-1}']],
-      ['10', 'CONVEYOR', 'conv', ['Transport to the end stop', 'confirm: {ENC-43} moving · stop on {PE-42} · = 0']],
-      ['11', 'CAMERA 2', 'cam', ['Verify the part and locate it', 'confirm: [CP-3] {PE-42} + {CAM-2} · pick pose']],
-      ['12', 'ROBOT 2', 'r2', ['Pick the part from the conveyor', 'confirm: {GR-51} grip OK · [CP-3] exit clear']],
-      ['13', 'ROBOT 2', 'r2', ['Place the part on the output pallet', 'confirm: [CP-4] {PX-52} + {CAM-2} · slot occupied']],
-    ], 'F');
-    const qc = R + W / 2, qy = lastR.bottom + 56;
-    const q = d.choice('Q', qc, qy, 224, 68, ['Output pallet', 'full (12 parts)?']);
-    d.arrow([[qc, lastR.bottom], [qc, q.top]], ['count + 1'], { at: [qc + 12, (lastR.bottom + q.top) / 2], anchor: 'start' });
-    d.arrow([[q.right, qy], [q.right + 44, qy]], ['No'], { at: [q.right + 20, qy - 13] });
-    d.conn(q.right + 57, qy, 'A');
-    d.text(['next part:', 'back to step 2'], [q.right + 57, qy + 34]);
-    d.conn(L + 2, d.st.F2.cy, 'A');
-    const lt = d.node('F14', R, q.bottom + 30, W, H, ['{LT-53} blue light ON: pallet ready for pickup', 'operator swaps it → {PX-52} OFF → ON · count = 0'], { owner: 'LIGHT + OPERATOR', ownerCls: 'light', num: '14' });
-    d.arrow([[qc, q.bottom], [qc, lt.top]], ['Yes'], { at: [qc + 12, (q.bottom + lt.top) / 2], anchor: 'start', kind: 'ok' });
-    const yN = d.note(L, lastL.bottom + 30, W, [
-      '[CP-n] = the camera and the proximity sensor must',
-      'agree. If they disagree the camera value is used',
-      'and the mismatch is logged; 3 mismatches within',
-      '10 min stop the line for sensor verification.',
-    ]);
-    d.h = Math.max(lt.bottom, yN) + 20;
-    return d.svg();
-  }
   function flowSetup2(o) {
     const d = new Diagram(880, 0, 'Work flow of one part: Setup 2 (dual gripper + dimensional gauge)',
       'Robot 1 only tends the CNC; Robot 2 measures and sorts while the CNC is already machining the next part.', o);
@@ -2103,12 +1975,12 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
     const q = d.choice('Q', qc, qy, 236, 74, ['L, W and H', '≥ 48.00 mm?']);
     d.arrow([[qc, lastR.bottom], [qc, q.top]]);
     const bw = 196, by = q.bottom + 40;
-    const ok = d.node('G12', R, by, bw, 104, ['Place on output pallet', '[CP-4] · slot occupied', 'at 12 parts → {LT-53} ON', '(as Setup 1, steps 13–14)'], { owner: 'ROBOT 2 · OK', ownerCls: 'ok', num: '12a' });
+    const ok = d.node('G12', R, by, bw, 104, ['Place on output pallet', '[CP-4] · slot occupied', 'at 12 parts → {LT-53} ON', 'wait for the pallet swap'], { owner: 'ROBOT 2 · OK', ownerCls: 'ok', num: '12a' });
     const nk = d.node('G13', R + W - bw, by, bw, 104, ['Drop in NOK chute', '{PE-65} confirms the drop', 'log L, W, H', '2 NOK in a row → hold'], { owner: 'ROBOT 2 · NOK', ownerCls: 'nok', num: '12b' });
     d.arrow([[q.left, qy], [ok.cx, qy], [ok.cx, ok.top]], ['Yes'], { at: [(q.left + ok.cx) / 2 - 6, qy - 13], kind: 'ok' });
     d.arrow([[q.right, qy], [nk.cx, qy], [nk.cx, nk.top]], ['No'], { at: [(q.right + nk.cx) / 2 + 6, qy - 13], kind: 'fault' });
     const yN = d.note(L, lastL.bottom + 30, W, [
-      `*CNC idle* = steps 4 → 6 only: ≈ ${M.KPI.idle2} s (Setup 1: ${M.KPI.idle1} s).`,
+      `*CNC idle* = steps 4 → 6 only: ≈ ${M.KPI.idle2} s (Setup 1 baseline: ${M.BASELINE.idle} s).`,
       'Steps 7 and 2 run while the CNC machines, and',
       'Robot 2 measures in parallel, so the quality',
       'check never makes the CNC wait.',
@@ -2120,7 +1992,7 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
   // ------------------------------------------------------------------ Timing chart
   function timingChart(o) {
     const T = M.T, K = M.KPI;
-    const d = new Diagram(980, 0, 'Timing of one CNC cycle: Setup 1 vs Setup 2',
+    const d = new Diagram(980, 0, 'Timing of one CNC cycle: Setup 2 against the Setup 1 baseline',
       't = 0 is "cycle complete". Amber = CNC idle (waiting for the robot), blue = machining. Axis compressed after 50 s.', o);
     const X0 = 150, BRK = 50, P1 = 10, P2 = (940 - X0 - BRK * P1) / (160 - BRK);
     const xs = (t) => (t <= BRK ? X0 + t * P1 : X0 + BRK * P1 + (t - BRK) * P2);
@@ -2159,16 +2031,14 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
       push(id, M.stateTime(mk, id), m.states[id].short || '', 'gt-move');     // steps of the waiting state (move to it)
       return { segs, end: t, ends: Object.fromEntries(segs.map((x) => [x[3], x[1]])) };
     }
-    const y1 = d.top + 30;
-    d.raw(`<text class="gt-kpi" x="20" y="${y1 - 12}">Setup 1 · single gripper · CNC idle ${K.idle1} s · cycle ${K.cycle1} s · CNC utilization ${(K.util1 * 100).toFixed(1)} % · ${K.pph1.toFixed(1)} parts/h</text>`);
-    grid(y1, y1 + 72);
-    rowT(y1 + 6, 'CNC'); rowT(y1 + 40, 'Robot 1');
-    bar(y1 + 6, 0, K.idle1, 'gt-idle', `idle ${K.idle1} s`, true);
-    bar(y1 + 6, K.idle1, K.idle1 + T.cncCycle, 'gt-mach', 'machining 120 s');
-    const row1 = robotRow(M.IDLE_MACHINE[1]);
-    row1.segs.forEach((x) => bar(y1 + 40, x[0], x[1], x[2], x[3]));
-    bar(y1 + 40, row1.end, K.idle1 + T.cncCycle, 'gt-wait', 'robot waits at home', true);
-    const y2 = y1 + 156;
+    // Baseline: Setup 1 (single gripper), fixed numbers kept in M.BASELINE; only the CNC row is drawn.
+    const B = M.BASELINE, y1 = d.top + 30;
+    d.raw(`<text class="gt-kpi" x="20" y="${y1 - 12}">Baseline · Setup 1, single gripper (legacy branch) · CNC idle ${B.idle} s · cycle ${B.cycle} s · CNC utilization ${(B.util * 100).toFixed(1)} % · ${B.pph.toFixed(1)} parts/h</text>`);
+    grid(y1, y1 + 38);
+    rowT(y1 + 6, 'CNC');
+    bar(y1 + 6, 0, B.idle, 'gt-idle', `idle ${B.idle} s`, true);
+    bar(y1 + 6, B.idle, B.idle + T.cncCycle, 'gt-mach', 'machining 120 s');
+    const y2 = y1 + 122;
     d.raw(`<text class="gt-kpi" x="20" y="${y2 - 12}">Setup 2 · dual gripper + gauge at Robot 2 · CNC idle ${K.idle2} s · cycle ${K.cycle2} s · CNC utilization ${(K.util2 * 100).toFixed(1)} % · ${K.pph2.toFixed(1)} parts/h</text>`);
     grid(y2, y2 + 140);
     rowT(y2 + 6, 'CNC'); rowT(y2 + 40, 'Robot 1'); rowT(y2 + 74, 'Conveyor'); rowT(y2 + 108, 'Robot 2');
@@ -2336,12 +2206,12 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
     return `<g class="ly-camg" data-cam="${esc(tag)}"><rect class="ly-cam" x="${x - 14}" y="${y - 9}" width="28" height="18" rx="3"/><circle cx="${x}" cy="${y}" r="5.5" fill="#ffffff"/><circle cx="${x}" cy="${y}" r="2.8" class="ly-cam"/>` +
       `<text class="ly-tag cam dg-halo" x="${x + 19}" y="${y + 4}">${esc(tag)}</text></g>`;
   }
-  // Static layout. o.setup = 1 | 2 ; o.snapshot = draw example parts and arms (report figure)
+  // Static layout of the cell (Setup 2). o.snapshot = draw example parts and arms (report figure)
   function layoutSvg(o) {
     o = o || {};
-    const L = LAYOUT, st = o.setup === 2;
-    const d = new Diagram(L.W, 0, st ? 'Cell layout and sensor placement: Setup 2' : 'Cell layout and sensor placement: Setup 1',
-      st ? 'Added: dimensional gauge station, non-conforming (NOK) chute, dual gripper on Robot 1. Top view, not to scale.' : 'Top view, not to scale. Same arrangement as the assignment layout.', o);
+    const L = LAYOUT;
+    const d = new Diagram(L.W, 0, 'Cell layout and sensor placement: Setup 2',
+      'Dimensional gauge station, non-conforming (NOK) chute, dual gripper on Robot 1. Top view, not to scale.', o);
     const oy = o.noTitle ? 0 : 70;
     d.h = L.H + oy;
     const P = [];
@@ -2359,7 +2229,7 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
     P.push(`<text class="ly-sub" x="${c.x + c.w / 2}" y="${c.y + 81}" text-anchor="middle">vise: ZS-34 · 35 · PS-36</text>`);
     P.push(`<text class="ly-sub" x="${v.x + v.w + 6}" y="${v.y + v.h / 2 + 4}">vise</text>`);
     P.push(`<text class="ly-note" x="${c.x + c.w / 2}" y="${L.work.y + 16}" text-anchor="middle">work zone</text>`);
-    if (st) P.push(`<text class="ly-note" x="${c.x + c.w / 2}" y="${c.y + c.h - 16}" text-anchor="middle">option: auto door M80/M81</text>`);
+    P.push(`<text class="ly-note" x="${c.x + c.w / 2}" y="${c.y + c.h - 16}" text-anchor="middle">option: auto door M80/M81</text>`);
     P.push(`<line class="ly-track" x1="${dr.x + dr.w + 5}" y1="${dr.y0}" x2="${dr.x + dr.w + 5}" y2="${dr.y0 + dr.len + dr.travel}"/>`);
     P.push(`<g id="ly-door"><rect class="ly-door" x="${dr.x}" y="${dr.y0}" width="${dr.w}" height="${dr.len}" rx="2"/><rect class="ly-handle" x="${dr.x + dr.w}" y="${dr.y0 + dr.len - 26}" width="7" height="16" rx="2"/></g>`);
     P.push(sensor(238, dr.y0 + 8, 'ZS-32', { shape: 'sq', tp: [250, dr.y0 + 12, 'start'], label: 'ZS-32 closed' }));
@@ -2409,11 +2279,11 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
     roi(796, cv.y - 3, 56, cv.h + 6, 'ROI-C', 800, cv.y + cv.h - 6, 'on-belt');
     roi(po.x - 6, po.y - 6, po.w + 12, po.h + 12, 'ROI-D', po.x + po.w - 30, po.y + po.h + 19);
     // robots
-    if (!o.sim) [[L.r1, 'ROBOT 1', st ? 'UR10e · dual gripper A/B' : 'UR10e'], [L.r2, 'ROBOT 2', 'UR10e']].forEach(([r, n, sub]) => {
+    if (!o.sim) [[L.r1, 'ROBOT 1', 'UR10e · dual gripper A/B'], [L.r2, 'ROBOT 2', 'UR10e']].forEach(([r, n, sub]) => {
       P.push(`<text class="ly-sub" x="${r.x}" y="${n === 'ROBOT 1' ? r.y - r.r - 9 : r.y + r.r + 16}" text-anchor="middle">${sub}</text>`);
     });
     // Setup 2 stations
-    if (st) {
+    {
       const g = L.gauge, [nx, ny] = L.nest;
       P.push(`<rect class="ly-gauge" x="${g.x}" y="${g.y}" width="${g.w}" height="${g.h}" rx="5"/>`);
       P.push(`<rect class="ly-datum" x="${nx - 18}" y="${ny - 18}" width="7" height="44"/><rect class="ly-datum" x="${nx - 18}" y="${ny - 18}" width="44" height="7"/>`);
@@ -2441,22 +2311,22 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
     const [sx, sy] = L.stack;
     P.push(`<g id="ly-stack"><rect x="${sx - 9}" y="${sy}" width="18" height="52" rx="3" fill="#39424b"/><circle class="ly-lamp-r ly-lamp-off" data-lamp="red" cx="${sx}" cy="${sy + 10}" r="6"/><circle class="ly-lamp-a ly-lamp-off" data-lamp="amber" cx="${sx}" cy="${sy + 26}" r="6"/><circle class="ly-lamp-g" data-lamp="green" cx="${sx}" cy="${sy + 42}" r="6"/></g><text class="ly-tag dg-halo" x="${sx + 16}" y="${sy + 30}">LT-01</text>`);
     // camera fields of view
-    const f1 = L.fov1, f2 = L.fov2[st ? 2 : 1];
+    const f1 = L.fov1, f2 = L.fov2[2];
     P.push(`<rect class="ly-fov" data-fov="CAM-1" x="${f1.x}" y="${f1.y}" width="${f1.w}" height="${f1.h}" rx="10"/>`);
     P.push(`<rect class="ly-fov" data-fov="CAM-2" x="${f2.x}" y="${f2.y}" width="${f2.w}" height="${f2.h}" rx="10"/>`);
     P.push(camIcon(488, 262, 'CAM-1'));
-    P.push(st ? camIcon(598, 290, 'CAM-2') : camIcon(768, 286, 'CAM-2'));
+    P.push(camIcon(598, 290, 'CAM-2'));
     // snapshot content for the report figures
     if (o.snapshot) {
       for (let i = 3; i < 12; i++) { const [x, y] = slotPos('in', i); P.push(partSvg(x, y, '')); }
       P.push(partSvg(L.fixture[0], L.fixture[1], 'fin'));
       for (let i = 0; i < 7; i++) { const [x, y] = slotPos('out', i); P.push(partSvg(x, y, 'fin')); }
       P.push(partSvg(640, 372, 'fin'));
-      if (st) P.push(partSvg(L.nest[0], L.nest[1], 'fin'));
+      P.push(partSvg(L.nest[0], L.nest[1], 'fin'));
     }
     // robots on top
     if (!o.sim) [[L.r1, 'ROBOT 1'], [L.r2, 'ROBOT 2']].forEach(([r, n], i) => {
-      if (o.snapshot) P.push(armSvg(r, r.home, i ? L.elbow.r2 : L.elbow.r1, 13, st && !i));
+      if (o.snapshot) P.push(armSvg(r, r.home, i ? L.elbow.r2 : L.elbow.r1, 13, !i));
       P.push(`<circle class="ly-robot" cx="${r.x}" cy="${r.y}" r="${r.r}"/><text class="ly-robot-t" x="${r.x}" y="${r.y + 4}" text-anchor="middle">${n}</text>`);
     });
     // legend
@@ -2482,8 +2352,8 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
 
   const API = {
     CSS, LAYOUT, slotPos, partSvg, armSvg, armGeom,
-    stateDiagram, smRobot1S1, smRobot1S2, smConveyor, smRobot2S1, smRobot2S2, smSupervisor,
-    flowCrossCheck, archDiagram, flowSetup1, flowSetup2, timingChart, layoutSvg, exchangeStrip,
+    stateDiagram, smRobot1S2, smConveyor, smRobot2S2, smSupervisor,
+    flowCrossCheck, archDiagram, flowSetup2, timingChart, layoutSvg, exchangeStrip,
   };
   root.CellDiagrams = API;
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
@@ -2530,9 +2400,9 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
   let logDirty = true, statesDirty = true, bannerKey = '';
 
   // ------------------------------------------------------------------ world
-  function newSim(setup) {
+  function newSim() {
     S = {
-      t: 0, speed: +$('#selSpeed').value || 10, running: true, setup, step: false,
+      t: 0, speed: +$('#selSpeed').value || 10, running: true, setup: 2, step: false,
       autoOp: $('#chkAuto').checked, logAll: $('#chkAll').checked,
       inject: { under: 0, gripMiss: false, frames: { 'CAM-1': 0, 'CAM-2': 0 } }, faults: {}, camFault: null, verify: null,
       stopReason: '', vars: {}, cp: {}, inputs: { verify: false, reset: false, release: false, clearAt: -1 },
@@ -2551,7 +2421,7 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
     for (let i = 3; i < 12; i++) addPart('raw', { k: 'in', slot: i });
     for (let i = 0; i < 8; i++) addPart('fin', { k: 'out', slot: i });
     SUP = { events: [] };
-    const keys = M.SETUP_MACHINES[setup];
+    const keys = M.SETUP_MACHINES[2];
     SLOTS.forEach((k) => { MCH[k] = { key: keys.find((mk) => M.MACHINES[mk].slot === k), state: '', since: 0, why: '', prev: '', job: null }; });
     procs = [];
     TRACE.length = 0;
@@ -2563,12 +2433,12 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
     spawn(runMachine('SUP'));
     spawn(operatorProc());
     logs.length = 0; logDirty = true;
-    log('info', `Setup ${setup} started · input pallet 9 raw parts · output pallet 8 of 12 · CNC empty`);
+    log('info', `Setup 2 started · input pallet 9 raw parts · output pallet 8 of 12 · CNC empty`);
     buildUi();
   }
   function robot(base, dual) { return { base, tool: base.home.slice(), anim: null, fing: 'open', hold: { A: null, B: null, S: null }, zone: 'free', job: null, dual, active: 'A', rot: null }; }
-  // Dual gripper (Setup 2): the wrist turns 180° so that gripper `to` faces the work, while the robot moves.
-  function startTurn(r, to, dur) { if (!r.dual || S.setup !== 2 || r.active === to || r.rot) return; r.rot = { t0: S.t, t1: S.t + dur, to }; }
+  // Dual gripper of Robot 1: the wrist turns 180° so that gripper `to` faces the work, while the robot moves.
+  function startTurn(r, to, dur) { if (!r.dual || r.active === to || r.rot) return; r.rot = { t0: S.t, t1: S.t + dur, to }; }
   function addPart(st, loc) { const p = { id: W.nextId++, st, loc, dims: [50, 50, 50], meas: null, nok: false }; W.parts.push(p); return p; }
   const partIn = (slot) => W.parts.find((p) => p.loc.k === 'in' && p.loc.slot === slot);
   function firstRaw() { for (let i = 0; i < 12; i++) if (partIn(i)) return i; return -1; }
@@ -2617,7 +2487,7 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
     'CNC.empty': () => !W.cnc.part && W.cnc.state !== 'RUN',
     'ZS-31': () => doorPos() > 0.99, 'ZS-32': () => doorPos() < 0.01, 'ZS-33': () => W.cnc.locked,
     'ZS-34': () => W.cnc.vise === 'open', 'ZS-35': () => W.cnc.vise === 'clamped', 'PS-36': () => !!W.cnc.part,
-    'GR-21': () => !!W.r1.hold.S, 'GR-21A': () => !!W.r1.hold.A, 'GR-21B': () => !!W.r1.hold.B, 'GR-51': () => !!W.r2.hold.S,
+    'GR-21A': () => !!W.r1.hold.A, 'GR-21B': () => !!W.r1.hold.B, 'GR-51': () => !!W.r2.hold.S,
     'ENC-43': () => W.belt.v > 0.5,
     'PE-42': () => proxLive('CP-3'), 'ROI-C': () => truth['CP-3']() && S.camFault !== 'CAM-2',
     'PX-52': () => proxLive('CP-4'),
@@ -2829,7 +2699,7 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
   }
 
   // ------------------------------------------------------------------ property monitors (same properties as the verifier)
-  const PROPS = () => M.PROPERTIES.filter((p) => !p.setup || p.setup === S.setup);
+  const PROPS = () => M.PROPERTIES;
   function violated(p) {
     W.stats.violations++;
     const msg = `PROPERTY ${p.id} VIOLATED: ${p.text}`;
@@ -2929,7 +2799,6 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
     W.door.pos = to; W.door.anim = null; r.fing = 'open';
     yield* wait(0.5);
   }
-  const g1 = (r) => (r.dual && S.setup === 2 ? 'A' : 'S');
 
   // ------------------------------------------------------------------ jobs: the plant side of every job of the model
   // Each one takes exactly the time of its components in M.JOBS (runJob reports any difference).
@@ -2938,25 +2807,12 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
     'R1.park': function* (r) { yield* moveTo(r, r.base.home, T.park); },
     'R2.home': function* (r) { yield* moveTo(r, r.base.home, T.r2Home); },
     'R2.park': function* (r) { yield* moveTo(r, r.base.home, T.park); },
-    'R1.openDoorFromHome': function* (r) { yield* slideDoor(r, 0, 1, T.homeToDoor); },
     'R1.openDoor': function* (r) { yield* slideDoor(r, 0, 1, 0); },
     'R1.closeDoor': function* (r) { yield* slideDoor(r, 1, 0, 0); },
     'DOOR.lock': function* () { yield* wait(T.lock); W.cnc.locked = true; },
     'CNC.start': function* () { yield* wait(T.cycleStart); W.cnc.startCmd = true; },
-    'R1.unload': function* (r) {
-      yield* moveTo(r, P.doorway, T.enterCnc / 2); yield* moveTo(r, P.fixture, T.enterCnc / 2);
-      r.fing = 'grip'; yield* wait(T.grip);
-      W.cnc.vise = 'open'; yield* wait(T.viseOpen);
-      const p = W.cnc.part; W.cnc.part = null; if (p) { p.loc = { k: 'r1', g: 'S' }; r.hold.S = p; }
-      yield* wait(T.lift);
-      yield* moveTo(r, P.doorway, T.exitCnc / 2); yield* moveTo(r, P.outside, T.exitCnc / 2);
-    },
-    'R1.load': function* (r) { yield* moveTo(r, P.outside, T.palletToDoor); yield* loadVise(r, 'S', T.enterCnc); },
-    'R1.toConveyor': function* (r) { yield* moveTo(r, P.convAbove, T.doorToConv); },
     'R1.toConveyorB': function* (r) { startTurn(r, 'B', 1.2); yield* moveTo(r, P.convAbove, T.doorToConv); },
-    'R1.placeConv': function* (r) { yield* placeOnBelt(r, 'S'); },
     'R1.placeConvB': function* (r) { yield* placeOnBelt(r, 'B'); },
-    'R1.pickRaw': function* (r) { yield* pickRaw(r, 'S'); },
     'R1.pickRawA': function* (r) { startTurn(r, 'A', 1.2); yield* pickRaw(r, 'A'); },
     'R1.toDoorReady': function* (r) { startTurn(r, 'B', 1.2); yield* moveTo(r, r.base.doorReady, T.palletToDoor); },
     'R1.enterCnc': function* (r) { yield* moveTo(r, P.doorway, T.enterCnc / 2); yield* moveTo(r, P.fixture, T.enterCnc / 2); },
@@ -3031,7 +2887,7 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
     if (S.inject.gripMiss || slot < 0) {
       S.inject.gripMiss = false;
       r.fing = 'closed';                           // fingers closed on nothing: GR-21 stays OFF
-      log('fault', `${g === 'S' ? 'GR-21' : 'GR-21' + g}: fingers fully closed, no part at the input pallet`);
+      log('fault', `GR-21${g}: fingers fully closed, no part at the input pallet`);
     } else { const p = partIn(slot); p.loc = { k: 'r1', g }; r.hold[g] = p; }
     yield* wait(T.pickPallet - 0.7 - T.grip);
   }
@@ -3172,7 +3028,7 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
       const fin = (side) => { const ox = cx + px * side * w, oy = cy + py * side * w; return `<line class="ly-finger" x1="${fx2(ox - fx * 12)}" y1="${fx2(oy - fy * 12)}" x2="${fx2(ox + fx * 5)}" y2="${fx2(oy + fy * 5)}"/>`; };
       return `<line class="ly-finger" x1="${fx2(cx - fx * 12 + px * w)}" y1="${fx2(cy - fy * 12 + py * w)}" x2="${fx2(cx - fx * 12 - px * w)}" y2="${fx2(cy - fy * 12 - py * w)}"/>` + fin(1) + fin(-1);
     };
-    if (!(r.dual && S.setup === 2)) {
+    if (!r.dual) {
       if (r.hold.S) s += D.partSvg(g.tx, g.ty, partCls(r.hold.S));
       return s + head(g.tx, g.ty, r.fing);
     }
@@ -3235,7 +3091,7 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
     s += pill(120, 200, c[0], c[1], c[2]);
     const mk = (slot, x, y) => { const id = MCH[slot].state; s += pill(x, y, id, stateName(slot, id), kindOf(slot, id)); };
     mk('R1', L.r1.x, L.r1.y + 56);
-    if (S.setup === 2) s += pill(L.r1.x, L.r1.y + 80, 'GRIPPERS', gripperText(W.r1), '');
+    s += pill(L.r1.x, L.r1.y + 80, 'GRIPPERS', gripperText(W.r1), '');
     mk('CONV', 646, 318);
     mk('R2', L.r2.x + 6, L.r2.y - 50);
     mk('SUP', 700, 24);
@@ -3243,7 +3099,7 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
     const dp = doorPos();
     const v = {
       'PX-11': proxLive('CP-1'), 'PE-41': proxLive('CP-2'), 'PE-42': proxLive('CP-3'), 'PX-52': proxLive('CP-4'),
-      'PX-64': S.setup === 2 && proxLive('CP-5'), 'ENC-43': W.belt.v > 0.5,
+      'PX-64': proxLive('CP-5'), 'ENC-43': W.belt.v > 0.5,
       'ZS-31': dp > 0.99, 'ZS-32': dp < 0.01, 'ZS-33': W.cnc.locked, 'ZS-34': W.cnc.vise === 'open',
       'ZS-35': W.cnc.vise === 'clamped', 'PS-36': !!W.cnc.part, 'PE-65': S.t - W.pe65 < 0.8,
     };
@@ -3269,23 +3125,21 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
   // ------------------------------------------------------------------ UI
   let tab = 'R1';
   function buildUi() {
-    $('#mimic').innerHTML = D.layoutSvg({ setup: S.setup, noTitle: true, standalone: false, sim: true });
+    $('#mimic').innerHTML = D.layoutSvg({ noTitle: true, standalone: false, sim: true });
     svgRoot = $('#mimic svg');
     dyn = $('#ly-dyn', svgRoot); doorEl = $('#ly-door', svgRoot); beltEl = $('#ly-beltlines', svgRoot);
     leds = {}; $$('[data-led]', svgRoot).forEach((el) => { (leds[el.dataset.led] = leds[el.dataset.led] || []).push(el); });
     lamps = {}; $$('[data-lamp]', svgRoot).forEach((el) => { lamps[el.dataset.lamp] = el; });
     fovs = {}; $$('[data-fov]', svgRoot).forEach((el) => { fovs[el.dataset.fov] = el; });
     rois = {}; $$('rect[data-roi]', svgRoot).forEach((el) => { rois[el.dataset.roi] = el; });
-    $('#btnS1').setAttribute('aria-pressed', S.setup === 1); $('#btnS2').setAttribute('aria-pressed', S.setup === 2);
-    $('#btnUnder').disabled = S.setup !== 2;
-    $('#underNote').textContent = S.setup === 2 ? 'The gauge measures every part; any dimension below 48.00 mm goes to the NOK chute. Two NOK parts in a row trigger a quality hold.' : 'Setup 2 only: the gauge station rejects parts with any dimension below 48.00 mm.';
+    $('#underNote').textContent = 'The gauge measures every part; any dimension below 48.00 mm goes to the NOK chute. Two NOK parts in a row trigger a quality hold.';
     const tb = $('#cpTable tbody');
-    tb.innerHTML = CPS.map((c) => `<tr data-cp="${c.id}"${c.setup > S.setup ? ' class="dis"' : ''}>
+    tb.innerHTML = CPS.map((c) => `<tr data-cp="${c.id}">
       <td><span class="cpid">${c.id}</span><span class="cpw">${esc(c.where)}</span></td>
       <td><span class="led"></span><span class="tag">${c.prox}</span><span class="flt" hidden>FAULT</span></td>
       <td><span class="tag">${c.cam}</span> <span class="cr"></span></td>
       <td><span class="res"></span><span class="ago"></span></td>
-      <td><div class="inj"><button type="button" class="btn sm" data-inj="glitch"${c.setup > S.setup ? ' disabled' : ''}>Glitch</button><button type="button" class="btn sm" data-inj="fault"${c.setup > S.setup ? ' disabled' : ''}>Fault</button></div></td></tr>`).join('');
+      <td><div class="inj"><button type="button" class="btn sm" data-inj="glitch">Glitch</button><button type="button" class="btn sm" data-inj="fault">Fault</button></div></td></tr>`).join('');
     buildChips();
     showTab(tab);
     statesDirty = true; logDirty = true; bannerKey = '';
@@ -3338,8 +3192,7 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
     CPS.forEach((c) => {
       const tr = $(`#cpTable tr[data-cp="${c.id}"]`);
       if (!tr) return;
-      const active = c.setup <= S.setup;
-      $('.led', tr).classList.toggle('on', active && proxLive(c.id));
+      $('.led', tr).classList.toggle('on', proxLive(c.id));
       $('.flt', tr).hidden = !c.fault;
       const res = $('.res', tr), ago = $('.ago', tr), cr = $('.cr', tr);
       if (c.last) {
@@ -3347,7 +3200,7 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
         res.className = 'res ' + (c.last.agree ? 'ok' : 'bad');
         ago.textContent = `${Math.round(S.t - c.last.t)} s ago · ${c.count} mismatch${c.count === 1 ? '' : 'es'}`;
         cr.textContent = c.last.cam ? (c.id === 'CP-1' || c.id === 'CP-4' ? '✓ pallet' : '✓ part') : '– none';
-      } else { res.textContent = active ? 'waiting' : 'Setup 2'; res.className = 'res'; ago.textContent = ''; cr.textContent = ''; }
+      } else { res.textContent = 'waiting'; res.className = 'res'; ago.textContent = ''; cr.textContent = ''; }
       $$('[data-inj]', tr).forEach((b) => {
         if (b.dataset.inj === 'fault') { b.textContent = c.fault ? 'Faulty' : 'Fault'; b.classList.toggle('bad', c.fault); }
         else b.classList.toggle('warn', c.glitch);
@@ -3363,10 +3216,10 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
     const st = W.stats;
     const util = st.firstStart != null && S.t - st.firstStart > 1 ? `${(100 * st.runTime / (S.t - st.firstStart)).toFixed(1)}<small> %</small>` : '–';
     const idle = st.lastIdle != null ? `${st.lastIdle.toFixed(1)}<small> s</small>` : '–';
-    const design = S.setup === 1 ? M.KPI.idle1 : M.KPI.idle2;
+    const design = M.KPI.idle2;
     const avg = st.idleN ? T.cncCycle + st.idleSum / st.idleN : T.cncCycle + design;
     const items = [
-      ['Parts on pallet', `${W.ok}`], ['NOK parts', S.setup === 2 ? `${W.nok}` : '<small>Setup 2</small>'],
+      ['Parts on pallet', `${W.ok}`], ['NOK parts', `${W.nok}`],
       ['CNC utilization', util], [`Last CNC idle (design ${design} s)`, idle],
       ['Parts per hour', `${(3600 / avg).toFixed(1)}`], ['Mismatches · stops', `${st.mism} · ${st.stops}`],
     ];
@@ -3447,9 +3300,9 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
     if (tags.length) steps.push(`Inspect ${tags.join(', ')}: ${faulty.length ? 'dirty / misaligned lens found on ' + faulty.join(', ') + ' → cleaned and realigned' : 'lens cleaned, bracket tight'}`);
     if (S.camFault) steps.push(`${S.camFault}: cable reseated, lens cleaned, trigger test OK`);
     steps.push('Check brackets and the alignment LEDs of the through-beams');
-    CPS.filter((c) => c.setup <= S.setup).forEach((c) => steps.push(`Test ${c.id} with a test part: ${c.prox} ON and ${c.cam} part · removed: both OFF`));
+    CPS.forEach((c) => steps.push(`Test ${c.id} with a test part: ${c.prox} ON and ${c.cam} part · removed: both OFF`));
     steps.push('Camera calibration target: CAM-1 and CAM-2 position error < 1 mm');
-    if (S.setup === 2) steps.push('Master cube 50.000 mm: LS-61 / LS-62 / LS-63 within ±0.02 mm');
+    steps.push('Master cube 50.000 mm: LS-61 / LS-62 / LS-63 within ±0.02 mm');
     S.verify = { steps, i: 0, done: false };
     log('stop', 'Sensor verification started: all equipment stopped, technician in the cell');
     if (instant) { S.verify.i = steps.length - 1; }
@@ -3470,9 +3323,7 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
   // ------------------------------------------------------------------ controls
   function syncRun() { $('#btnRun').textContent = S.running ? 'Pause' : 'Run'; }
   function bind() {
-    $('#btnS1').addEventListener('click', () => { if (S.setup !== 1) newSim(1); });
-    $('#btnS2').addEventListener('click', () => { if (S.setup !== 2) newSim(2); });
-    $('#btnReset').addEventListener('click', () => newSim(S.setup));
+    $('#btnReset').addEventListener('click', () => newSim());
     $('#btnRun').addEventListener('click', () => { S.running = !S.running; S.step = false; syncRun(); });
     $('#btnStep').addEventListener('click', () => { S.step = true; S.running = true; syncRun(); });
     $('#selSpeed').addEventListener('change', (e) => { S.speed = +e.target.value; });
@@ -3523,7 +3374,7 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
     requestAnimationFrame(frame);
   }
   bind();
-  newSim(1);
+  newSim();
   syncRun();
   requestAnimationFrame(frame);
   // hooks for the headless tests: run without drawing, read the trace and the counters

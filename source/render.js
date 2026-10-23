@@ -1,38 +1,21 @@
-// Generate every diagram as SVG + PNG (2x) using the installed Chrome.
+// Generate every figure of figures.js as SVG + PNG (2x) using the installed Chrome.
+//   node render.js [outDir] [filter]      (build_all.js copies them to ../diagrams/)
 const fs = require('fs');
 const path = require('path');
 const puppeteer = require('puppeteer-core');
-const D = require('./src/cell-diagrams.js');
+const { CHROME } = require('./chrome.js');
 
 const OUT = process.argv[2] || path.join(__dirname, 'out');
 const ONLY = process.argv[3] ? process.argv[3].split(',') : null;
-fs.mkdirSync(path.join(OUT, 'doc'), { recursive: true });
+fs.mkdirSync(OUT, { recursive: true });
 
-const BASE = [
-  ['fig01_layout_setup1', (o) => D.layoutSvg({ setup: 1, snapshot: true, ...o })],
-  ['fig02_control_architecture', (o) => D.archDiagram(o)],
-  ['fig05_flow_setup1', (o) => D.flowSetup1(o)],
-  ['fig03_crosscheck_flow', (o) => D.flowCrossCheck(o)],
-  ['fig04_supervisor_states', (o) => D.smSupervisor(o)],
-  ['fig06_states_robot1_setup1', (o) => D.smRobot1S1(o)],
-  ['fig07_states_conveyor', (o) => D.smConveyor(o)],
-  ['fig08_states_robot2_setup1', (o) => D.smRobot2S1(o)],
-  ['fig09_layout_setup2', (o) => D.layoutSvg({ setup: 2, snapshot: true, ...o })],
-  ['fig11_flow_setup2', (o) => D.flowSetup2(o)],
-  ['fig12_states_robot1_setup2', (o) => D.smRobot1S2(o)],
-  ['fig13_states_robot2_setup2', (o) => D.smRobot2S2(o)],
-  ['fig10_timing_setup1_vs_setup2', (o) => D.timingChart(o)],
-  ['fig14_dual_gripper_exchange', (o) => D.exchangeStrip(o)],
-];
-// full = with title and notes (stand-alone images); doc = caption comes from the report
-const FIGS = [];
-BASE.forEach(([n, f]) => { FIGS.push([n, () => f({})]); FIGS.push(['doc/' + n, () => f({ noTitle: true, noNote: true })]); });
+const FIGS = require('./figures.js');
 
 const FONTS = 'https://fonts.googleapis.com/css2?family=Barlow:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Barlow+Semi+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@400;500;600&display=block';
 
 (async () => {
   const browser = await puppeteer.launch({
-    executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe',
+    executablePath: CHROME,
     headless: 'new', args: ['--no-sandbox'],
   });
   const page = await browser.newPage();
