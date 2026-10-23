@@ -1,5 +1,5 @@
 # Full exhaustive verification with the NuSMV cross-check, started by hand (Actions tab, or
-# `gh workflow run full-verification`). It takes one to a few hours, so it is not part of `checks`.
+# `gh workflow run full-verification.yml`). It takes one to a few hours, so it is not part of `checks`.
 # The results are uploaded as an artifact and compared with the committed verification/results.json;
 # when the model changes on purpose, download the artifact and commit it to verification/.
 name: full verification

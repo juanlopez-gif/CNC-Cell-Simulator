@@ -635,7 +635,7 @@ check`, the Python tests, the nominal verification run, all browser tests and th
 every push and pull request. NuSMV and the two large verification runs are not in `checks` (about
 an hour or more). They run in the workflow **`full verification`**
 (`.github/workflows/full-verification.yml`), started by hand from the Actions tab or with
-`gh workflow run full-verification`: it downloads NuSMV 2.7.1 (checksum verified), runs `verify.js`
+`gh workflow run full-verification.yml`: it downloads NuSMV 2.7.1 (checksum verified), runs `verify.js`
 with NuSMV, uploads `out/verification/` as an artifact and compares it with the committed
 `verification/results.json` (`source/compare_verification.js`). When the model changes on purpose,
 download the artifact and commit it to `verification/`. No local computer is needed for it.
