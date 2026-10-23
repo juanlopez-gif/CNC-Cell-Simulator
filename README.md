@@ -58,6 +58,7 @@ regenerated after these changes.
 
 | Path | What it is |
 |---|---|
+| `PROJECT_STATUS.md` | Detailed technical reference: state of every part, how it works, checks, limitations and how to extend it |
 | `Week2_Assignment_Answer.docx` / `.pdf` | The short assignment answer (4 pages): how it works, sensor list with brand and price, Setup 2 figures |
 | `Sensors_Design_Report.docx` / `.pdf` | The full write-up (27 pages, 15 figures, 9 tables) |
 | `simulation/index.html` | Interactive simulation of all state machines. Double-click to open it in a browser |
