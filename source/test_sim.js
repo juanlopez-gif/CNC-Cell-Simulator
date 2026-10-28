@@ -107,6 +107,7 @@ function conformance(trace, setup) {
       // the Python engine (engine/) must give the same state changes at the same instants
       await page.click('#btnRun');
       for (const [setup, scenario] of [[2, 'nominal'], [2, 'cp2fault'], [2, 'camwrong']]) {
+        const errsBefore = errors.length;
         const js = await page.evaluate((setup, scenario) => {
           const C = window.CellSim;
           C.instantVerify = true;
@@ -141,6 +142,8 @@ function conformance(trace, setup) {
         console.log(`[engine] Setup ${setup} ${scenario}: browser ${tr.length} / Python ${py.trace.length} state changes → ${same ? 'identical' : 'DIFFERENT at ' + (first < 0 ? n : first)}` +
           (scenario === 'camwrong' ? ` · property violations: browser ${js.violations} / Python ${pyViol}` : ''));
         if (!same) failed = true;
+        // the violations of the camwrong scenario are expected and compared above, not console errors
+        if (scenario === 'camwrong') errors.splice(errsBefore, errors.length - errsBefore, ...errors.slice(errsBefore).filter((e) => !/PROPERTY P\d+ VIOLATED/.test(e)));
       }
     }
     if (mode === 'conform') {
