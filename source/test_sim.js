@@ -74,10 +74,17 @@ function conformance(trace, setup) {
     if (mode === 'fault') {
       await sleep(3000);
       await page.click('#cpTable tr[data-cp="CP-2"] button[data-inj="fault"]');
-      for (let i = 0; i < 16; i++) { await sleep(2500); const s = await state(page); console.log(s.clock, '|', s.status, '|', s.banner, '|', s.chips.join(' / ')); if (s.banner.startsWith('Line stopped')) break; }
+      // CP-2 rule "absent": PE-41 misses the part placed, Robot 1 goes to FAULT, the operator clears it;
+      // the third mismatch stops the line
+      for (let i = 0; i < 24; i++) {
+        await sleep(2500); const s = await state(page); console.log(s.clock, '|', s.status, '|', s.banner, '|', s.chips.join(' / '));
+        if (s.banner.startsWith('Line stopped')) break;
+        const clear = await page.$('#bnActions button[data-act="clear"]:not([disabled])'); if (clear) await clear.click();
+      }
       await page.select('#selSpeed', '10');
       await sleep(1500);
       await page.screenshot({ path: shot('shot_stop.png'), fullPage: true });
+      const clearStop = await page.$('#bnActions button[data-act="clear"]'); if (clearStop) { await clearStop.click(); await sleep(1500); }
       await page.click('#bnActions button[data-act="verify"]');
       for (let i = 0; i < 40; i++) { await sleep(500); if (await page.$('#bnActions button[data-act="resume"]:not([disabled])')) break; }
       await page.screenshot({ path: shot('shot_verify.png'), fullPage: false });

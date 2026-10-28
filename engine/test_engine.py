@@ -43,11 +43,17 @@ class EngineTest(unittest.TestCase):
         sim = CellSim(seed=1, instant_verify=True)
         sim.advance(300)
         sim.toggle_sensor_fault("CP-2")
+        # CP-2 rule "absent": PE-41 misses the part placed, so Robot 1 goes to FAULT (missing
+        # confirmation) and the operator clears it; the third mismatch stops the line
+        clears = 0
         while sim.state("SUP") != "X3" and sim.t < 3600:
             sim.advance(5)
-            if sim.state("SUP") == "X1":
-                self.assertEqual(sim.stats["mismatches"], 0)
+            if sim.faults.get("R1"):
+                sim.press("clear")
+                clears += 1
         self.assertEqual(sim.state("SUP"), "X3", "no line stop")
+        self.assertLessEqual(clears, 3)
+        self.assertEqual(sim.stats["violations"], 0)
         self.assertEqual(len(sim.events), 3)
         self.assertTrue(sim.ev("lineStop"))
         sim.advance(200)                                    # the CNC finishes, the robots park, the belt stops

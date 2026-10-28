@@ -906,13 +906,18 @@
     let key = '', title = '', text = '', cls = '', acts = [], list = [];
     if (ev('lineStop')) {
       const h = stateOf('SUP', MCH.SUP.state).hmi;
-      key = `stop:${MCH.SUP.state}:${S.verify ? S.verify.i + ':' + S.verify.done : ''}:${S.inputs.verify}:${ev('CELL.stopped')}`;
+      key = `stop:${MCH.SUP.state}:${S.verify ? S.verify.i + ':' + S.verify.done : ''}:${S.inputs.verify}:${ev('CELL.stopped')}:${fault || ''}`;
       title = h.title;
       text = `${S.stopReason}. Controlled stop: the CNC finishes the part in the machine, the robots park at home and the belt starts no new transport.`;
       cls = 'bad';
       if (h.act === 'verify') {
         if (S.inputs.verify && !ev('CELL.stopped')) text += ' The check starts as soon as both robots are parked and the belt is stopped.';
         acts = [[S.inputs.verify ? 'Waiting for the cell to stop…' : 'Start sensor verification', 'verify', 'bad', S.inputs.verify]];
+      }
+      // a machine in FAULT parks only after the fault is cleared: offer it here too, or the cell never stops
+      if (fault) {
+        text += ` ${M.SLOTS[fault].label} is in FAULT (${S.faults[fault]}): check the part and clear the fault so that it can park.`;
+        acts.unshift(['Part checked · clear fault', 'clear', 'bad']);
       }
       if (h.act === 'reset' && S.verify) {
         list = S.verify.steps.map((s, i) => [s, i < S.verify.i ? 'done' : i === S.verify.i && !S.verify.done ? 'run' : '']);
