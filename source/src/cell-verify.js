@@ -745,9 +745,12 @@
   }
 
   // The verification runs (verify.js, build_all.js, regress.js): name -> fault classes of build().
-  // camwrong = camera wrong with a valid image alone; sensor_camwrong = every sensor fault together,
-  // with the confirmation timeouts that recover them.
-  const RUNS = { none: false, sensor: 'sensor', process: 'process', camwrong: 'camwrong', sensor_camwrong: ['sensor', 'camwrong', 'timeout'] };
+  // Since step A2.1 a disagreement gives the safe value of the checkpoint, so a wrong reading can make
+  // a confirmation fail; the PLC recovers through the confirmation timeout (FAULT, operator clears,
+  // the state is repeated). Every run with sensor faults therefore includes the class `timeout`.
+  //   sensor = proximity wrong + invalid camera images; camwrong = camera wrong with a valid image;
+  //   sensor_camwrong = both together.
+  const RUNS = { none: false, sensor: ['sensor', 'timeout'], process: 'process', camwrong: ['camwrong', 'timeout'], sensor_camwrong: ['sensor', 'camwrong', 'timeout'] };
 
   const API = { build, check, expected, toSmv, RUNS };
   root.CellVerify = API;

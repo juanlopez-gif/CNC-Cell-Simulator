@@ -24,7 +24,7 @@ def scenario_trace(setup, seconds, scenario):
             {"camwrong": sim.inject_camera_wrong, "stale": sim.inject_stale_image, "glitch": sim.inject_glitch}[k](cp)
         sim.advance(10)
         t += 10
-        if scenario == "camwrong" and any(sim.faults.values()):
+        if scenario in ("cp2fault", "camwrong") and any(sim.faults.values()):
             sim.press("clear")
         if scenario in ("cp2fault", "camwrong"):
             if sim.state("SUP") == "X3" and not sim.inputs["verify"]:

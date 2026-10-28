@@ -1,10 +1,29 @@
 # Camera policy: evidence for the decision of step A2.1
 
-Prepared on 2026-10-28 for the author's decision (PROJECT_STATUS.md §15, A2.1). Nothing in the model
-has been changed yet: every checkpoint still uses the original rule **camera** ("the camera
-decides"), and the recovery changes of §3 are tested in memory only. This file presents, for each
-checkpoint CP-1 … CP-5, the alternatives, their consequences and the verification and simulation
-results; the author decides, and the decision goes into §17.
+Prepared on 2026-10-28 for the author's decision (PROJECT_STATUS.md §15, A2.1). Sections 1–6 are
+the evidence as presented before the decision; the decision and what followed are in §0.
+
+## 0. Decision (2026-10-28)
+
+The author chose: **CP-1 camera, CP-2 absent, CP-3 absent, CP-4 absent, CP-5 present.** The four
+recovery changes of §3 were applied with it, because CP-2 = absent is safe only with them (the
+author has not yet confirmed them explicitly). Both are in `source/src/cell-model.js` and logged in
+PROJECT_STATUS.md §17.
+
+Found after the decision, while re-running the tests:
+
+- With a **dead proximity sensor** (stuck, not a one-off error) at CP-2, CP-3 or CP-4, the safe value
+  makes the confirmation after each place / pick fail, so the robot goes to FAULT; the operator
+  clears it and the third mismatch stops the line. With `camera` the line kept running until the
+  third mismatch. Python engine, 1 h after the sensor dies: line stop after ~150 s instead of ~300 s,
+  3 FAULTs cleared instead of 0, 26–27 good parts either way, no violation. Over 10 random 8 h runs
+  with all fault types: 123.3 instead of 124.7 good parts, 12.4 instead of 4.0 FAULTs cleared.
+- **HMI defect** made reachable by this: during a line stop the banner offered only the sensor
+  verification, which waits until both robots are parked, and a robot in FAULT parks only after the
+  fault is cleared. The banner now also offers "clear fault" during a line stop.
+- With the safe values a wrong reading is recovered by the PLC confirmation timeout. Every
+  verification run with sensor faults now includes the class `timeout` (without it the search finds
+  robots waiting forever: 330 deadlock states in the `sensor` run).
 
 ## 1. What was tested
 

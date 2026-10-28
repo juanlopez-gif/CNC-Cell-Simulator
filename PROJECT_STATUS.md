@@ -39,8 +39,8 @@ reference behind it.
 | Work continues with Setup 2 only | Yes (2026-10-23) | Yes (step A1): the code, the figures, the tests and this file describe Setup 2 only |
 | Both setups frozen in `legacy-setup1-setup2` | Yes | Yes |
 | Claims limited to what the evidence shows (§1.1) | Yes | Yes (this revision) |
-| Cross-check rule tested against camera errors | Planned (A2.1) | **No.** The abstract model and the simulators assume the camera is always right; only the documentation was corrected |
-| Roadmap A1–A6, B, C (§15) | Yes | A0 and A1 done; next A2; progress table in §15 |
+| Cross-check rule tested against camera errors | Yes (A2.1, 2026-10-28): rule per checkpoint (CP-1 camera; CP-2, CP-3, CP-4 absent; CP-5 present) and four FAULT-recovery changes | **Yes, in branch `a2-design-gaps`** (not merged): camera false positive, false negative and stale image in the verifier and both simulators; evidence in `verification/camera_policy.md` |
+| Roadmap A1–A6, B, C (§15) | Yes | A0 and A1 done; A2 in progress (A2.1 done); progress table in §15 |
 
 ---
 
@@ -59,9 +59,10 @@ remains as the baseline of the comparison and in the branch `legacy-setup1-setup
   2 mm) goes to a locked NOK chute. CNC time is optimized with a dual gripper on Robot 1 and a gauge
   served by Robot 2 while the CNC machines.
 - **The author's design rule.** At each checkpoint a proximity/photoelectric sensor and a camera
-  must agree. On disagreement the camera value is used and a mismatch is logged. Three mismatches
-  within 10 minutes stop the line until a technician verifies the sensors. Safety is hardwired and
-  never overridden by the camera.
+  must agree. On disagreement a mismatch is logged and the rule of the checkpoint gives the value
+  used (originally "the camera decides" everywhere; since step A2.1 the safe value where a wrong
+  answer can cause damage, §5.3). Three mismatches within 10 minutes stop the line until a
+  technician verifies the sensors. Safety is hardwired and never overridden by the camera.
 
 The project grew from that assignment into a **model-driven** system: the four state machines of the
 cell are data in one file, and the diagrams, the browser simulator, the Python engine and the
@@ -78,7 +79,7 @@ formal verification are all generated from or interpret that file.
 | The search and the NuSMV export agree | Same verdicts and state counts in all 3 runs | Additional evidence of consistency. Both start from the same intermediate representation (`build()`), so an error made there would be shared |
 | CNC idle 36.5 s → 20.5 s; 23.0 → 25.6 parts/h | Setup 2: sum of nominal step times of the states in the idle band, reproduced by the simulators without faults. Setup 1: fixed baseline numbers (`M.BASELINE`) computed before A1 | Planning estimates, not measurements. Nominal exchange only: excludes material shortage, pallet changes, holds and repairs. Idle time falls 43.8 %, output rises 11.4 %. The 85.4 % is the share of the nominal cycle spent machining, not availability or OEE |
 | Removing Setup 1 (A1) did not change Setup 2 | `regression/`: identical KPIs, NuSMV models, browser and Python traces (deterministic and seeded random runs) | Covers the recorded scenarios and the three abstract models, not every possible run |
-| The cross-check rule ("the camera decides") is safe | — | **Not shown.** Camera errors with a valid image are not modelled (§9.1, §13) |
+| The cross-check rules of §5.3 keep the properties with one wrong source | Exhaustive search with proximity wrong, camera false positive / false negative / stale image at every checkpoint, PLC timeouts included (§9.3); timed study, `verification/camera_policy.md` | One source wrong at a time: both wrong the same way (common mode) is not modelled and no rule detects it. The original rule "the camera decides" was **not** safe: it failed P6 at CP-4, and FAULT recovery failed P5 and P11 (`camera_policy.md` §2–3) |
 | The design is validated for a real cell | — | **Not claimed.** No hardware, no measured times; sensors and prices come from catalogues |
 
 ---
@@ -243,13 +244,23 @@ stateTime, lint`.
 
 ### 5.3 Checkpoints `CHECKPOINTS`
 
-| Id | Where | Proximity | Camera / ROI | Fact |
-|---|---|---|---|---|
-| CP-1 | Input pallet | PX-11 | CAM-1 / ROI-A | Input pallet present and seated |
-| CP-2 | Conveyor entry | PE-41 | CAM-1 / ROI-B | Part at conveyor entry |
-| CP-3 | Conveyor exit | PE-42 | CAM-2 / ROI-C | Part at the end stop |
-| CP-4 | Output pallet | PX-52 | CAM-2 / ROI-D | Output pallet present |
-| CP-5 | Gauge nest | PX-64 | CAM-2 / ROI-E | Part in gauge nest |
+| Id | Where | Proximity | Camera / ROI | Fact | Rule on disagreement |
+|---|---|---|---|---|---|
+| CP-1 | Input pallet | PX-11 | CAM-1 / ROI-A | Input pallet present and seated | camera |
+| CP-2 | Conveyor entry | PE-41 | CAM-1 / ROI-B | Part at conveyor entry | absent |
+| CP-3 | Conveyor exit | PE-42 | CAM-2 / ROI-C | Part at the end stop | absent |
+| CP-4 | Output pallet | PX-52 | CAM-2 / ROI-D | Output pallet present | absent |
+| CP-5 | Gauge nest | PX-64 | CAM-2 / ROI-E | Part in gauge nest | present |
+
+`rule` (decided in A2.1, `verification/camera_policy.md`): the value used when the two sources
+disagree; the mismatch is counted in every case. `camera` / `prox` = that source's value;
+`present` / `absent` = that value (conservative fusion); `ask` = line stop, the operator looks, the
+check is repeated (supported, not used). CP-4 must be `absent` (a wrong "pallet present" drops a
+part, P6); CP-5 `present` (a wrong "nest empty" loads a part onto another, P11); at CP-1 to CP-3
+every rule keeps the properties and the cheapest was chosen. Cost: with a dead proximity sensor at
+CP-2, CP-3 or CP-4 the robot goes to FAULT on the failed confirmation, so the operator clears up to
+3 FAULTs before the third mismatch stops the line (the line stops sooner than with `camera`); over
+10 random 8 h runs, 12.4 instead of 4.0 FAULTs cleared per shift and 1.1 % fewer good parts.
 
 ### 5.4 Sensors `SENSORS`
 
@@ -271,7 +282,7 @@ Every name has a `kind`:
 | kind | Meaning | Examples |
 |---|---|---|
 | `sensor` | Device signal. Simulator reads its plant; verifier an abstract plant | `ZS-31`, `ENC-43`, `CNC.done`, `R1.clearCnc`, `GAUGE.ok`, `outCount` |
-| `check` | Fused result of the **last cross-check made by the machine that reads it** (camera decides). A machine never reads another machine's check | `CP-1`…`CP-5`, `CAM-1.part` |
+| `check` | Fused result of the **last cross-check made by the machine that reads it** (on disagreement, the rule of the checkpoint, §5.3). A machine never reads another machine's check | `CP-1`…`CP-5`, `CAM-1.part` |
 | `var` | PLC variable written by steps | `partPlaced`, `pickAllowed`, `partPicked`, `QH`, `consecNok`, `mismatches`, `CAM_FAULT` |
 | `input` | Operator / technician button | `HMI.clear`, `HMI.verify`, `HMI.reset`, `HMI.release`, `VERIFY.pass`, `VERIFY.fail` |
 | `derived` | Defined by `def` (expression) | `BELT.free`, `PALLET.full`, `PALLET.empty`, `lineStop`, `FAULT.any`, `CELL.stopped`, `HOLD.req` |
@@ -411,6 +422,7 @@ FAULT.any` · `LT-01.amber` = no red and (`mismatches>0 | QH | R1=W1`) · `LT-01
 | P8 | at start of `CNC.start` | `!QH` |
 | P9 | never | `mismatches>=limit & !lineStop` |
 | P10 | never | `CAM_FAULT & !lineStop` |
+| P11 | at start of `R2.loadGauge` | `!TRUE.nestPart` (added in A2.1: no part is loaded onto another) |
 | L1 | AG EF (goal stays reachable) | `R1.job=CNC.start` |
 | L2 | AG EF | `R2.job=R2.placePallet` |
 | L3 | AG EF | `SUP=X1` |
@@ -459,12 +471,13 @@ mentioned in a state's text is really used by a step or guard of that machine. `
 - **Robot jobs** (`JOB` table) animate motions that take exactly the model's step times; the dual
   gripper turns its wrist (`startTurn`, `turnWrist`).
 - **Cross-check** (`check()`): settle (unless quick), camera snapshot, compare with the proximity
-  value; on mismatch the camera value is used and an event goes into the 10-min window
+  value; on mismatch the rule of the checkpoint gives the value and an event goes into the 10-min window
   (`SUP.events`); an invalid frame triggers one re-trigger; a camera failure sets `CAM_FAULT`.
 - **Property monitors**: `monitorStart` at job starts, `monitorStable` after each scan; violations
   are logged and counted (the tests require zero).
-- **Fault injection (UI)**: per checkpoint *Glitch* (one-off) and *Fault* (stuck sensor); *Bad
-  frame*, *Camera failure*, *Grip miss*, *Next part undersized* (`#btnBadFrame`, `#btnCamFail`,
+- **Fault injection (UI)**: per checkpoint *Glitch* (one-off proximity error), *Fault* (stuck
+  proximity sensor), *Cam wrong* (next camera answer wrong with a valid image) and *Stale* (next
+  camera answer from the previous image); *Bad frame*, *Camera failure*, *Grip miss*, *Next part undersized* (`#btnBadFrame`, `#btnCamFail`,
   `#btnGripMiss`, `#btnUnder`). Operator: `#btnLoadIn`, `#btnSwapOut`; auto-operator option.
 - **HMI actions** (`data-act`): `verify`, `resume`, `clear`, `qh`, `swap`, `load`.
 - **UI**: cell mimic (layout SVG with moving parts and robots), live state diagrams with the active
@@ -537,13 +550,19 @@ the port reproduces the original in those scenarios; it cannot find an error tha
   it likes (part OK, or undersized if process faults are on); the belt moves the part in three
   steps; the operator swaps pallets whenever allowed; mismatches leave the window at any time.
   **Output pallet capacity is 2, not 12**, to keep the state space finite and small.
-- **Fault classes**: `none`; `sensor` = camera/proximity mismatches and camera faults; `process` =
-  missed picks, confirmation timeouts, transport timer faults, undersized parts.
-- **Camera assumption.** Every check result equals the physical truth (`TRUTH[cp]`). The
-  "mismatch" variant only increments `mismatches`; the camera is never wrong. Camera
-  misclassification (valid image, wrong answer) and stale images are not modelled, so the rule
-  "the camera decides" is not tested against camera errors. The simulators also inject faults only
-  into the proximity sensors (glitch, stuck) and into camera availability (bad frame, failure).
+- **Fault classes** (`build(setup, {faults})`, a group name, a class or a list): `mismatch`
+  (proximity wrong), `camera` (invalid images, camera fault), `camfp` / `camfn` (camera false
+  positive / negative with a valid image), `stale` (camera answers from its previous image; wrong
+  only if the fact changed), `grip`, `timeout` (confirmation timeouts and timer faults), `nok`.
+  Groups: `sensor` = mismatch + camera, `camwrong` = camfp + camfn + stale, `process` = grip +
+  timeout + nok. Options `rules: {CP-n: rule}` (override §5.3) and `cps: [...]` (wrong readings
+  only at these checkpoints) are used by `camera_study.js`. The runs of `verify.js` are listed once
+  in `RUNS` of `cell-verify.js` (§9.3).
+- **Checks.** At a check, both sources agree (result = truth), or one is wrong (proximity, or the
+  camera by a false positive, false negative or stale image) and the result is the value of the
+  rule of the checkpoint; every disagreement adds to `mismatches`. `ask` takes the camera-fault
+  path (hold, line stop, repeat the check). One source is wrong at a time; common-mode errors are
+  not modelled.
 - **No combined faults.** `faults: 'all'` exists in `build()` but was never run; sensor and
   process faults were verified separately.
 - **Pallet of 2.** Argument (not a proof) for why capacity 2 should represent 12: the machines
@@ -694,9 +713,11 @@ Gotchas met before:
 8. **Private claude.ai simulator page** may lag behind `simulation/index.html` if the simulator is
    rebuilt; the GitHub Pages one is the reference.
 9. Old private artifact `claude.ai/artifact/1BzXRhiHiZNo7q5AS3Rsb2` is the round-1 simulator (stale).
-10. **Camera policy not justified.** "The camera decides" is the author's original rule. Camera
-    false positives and false negatives with a valid image are not modelled anywhere, and three
-    mismatches stopping the line does not protect the first wrong decision. Step A2.1.
+10. **Camera policy** (resolved in A2.1, `verification/camera_policy.md`). Open: common-mode errors
+    (both sources wrong the same way) are not modelled and no rule detects them; the camera-only
+    measurements (pick pose, parts left, output slot) are not cross-checked; the error rate of the
+    timed study is chosen, not measured; with the safe values a dead proximity sensor costs up to 3
+    FAULTs before the line stop.
 11. **Gauge only partly defined.** Datums, conversion of distances to L, W, H, uncertainty of the
     whole station, chips and coolant, a guard band near 48.00 mm and calibration are not specified.
     The assignment gives only a lower limit. Step A2.2.
@@ -785,7 +806,7 @@ and ends with every check of §11 green. Effort figures are indicative only.
 |---|---|---|---|
 | A0 Claims and assumptions stated | Done | `main` | 2026-10-23 |
 | A1 Base: Setup 2 only, CI, one build | Done | `a1-base` → `main` | 2026-10-23 |
-| A2 Design gaps: camera policy, gauge, times, KPIs, faults | Next | | |
+| A2 Design gaps: camera policy, gauge, times, KPIs, faults | In progress: A2.1 done (2026-10-28) | `a2-design-gaps` | |
 | A3 PLC demonstration | Not started | | |
 | A4 Timed verification (UPPAAL) | Not started | | |
 | A5 Studies with the Python engine | Not started | | |
@@ -966,7 +987,7 @@ coordinator.
 | Term | Meaning here |
 |---|---|
 | Checkpoint (CP) | A place where a proximity sensor and a camera ROI confirm the same fact |
-| Mismatch | The two disagree; camera value used; counted in the 10-min window |
+| Mismatch | The two disagree; the rule of the checkpoint gives the value (§5.3); counted in the 10-min window |
 | Line stop | Supervisor X3: controlled stop, robots finish the step and park, belt starts nothing new |
 | H / F | Global HOLD (line stop) and FAULT states of a machine |
 | Band | Diagram/KPI grouping of a state: run, idle (CNC waiting), stop, move |
@@ -994,3 +1015,4 @@ Newest last. Every change to the plan or to a design rule is written here first 
 | 2026-10-23 | Third review triaged: it confirms starting A1 and proposes an order (reference first, then remove Setup 1, then build and CI, then documents). Accepted as the working order of A1. Its remark that a capacity-3 pallet run does not prove the case of 12 is added to A2.5 | No change to the plan was needed |
 | 2026-10-23 | **A1 closed.** Setup 2 identical to the recorded reference except the intended figure changes; one defect introduced and fixed (page stopped drawing); `regress.js` extended to fail on page errors. With Setup 1 gone, the two nominal conformance runs were identical, so one was replaced by a 2 h run with faults (20 h total: 2 h nominal, 18 h with faults). The build scripts of the round-1 documents and the `docx` dependency left `main` | Done-when of A1 met: regression documented, CI green from a clean install, documents describe Setup 2 |
 | 2026-10-23 | Add the workflow `full verification` (NuSMV in GitHub Actions, by hand) and try to continue the work in a cloud session | The author wants to work without the local computer running; Remote Control is blocked by the organization. Infrastructure only, no change to the steps of the plan |
+| 2026-10-28 | **A2.1 camera policy decided by the author** on the evidence of `verification/camera_policy.md`: CP-1 camera, CP-2 absent, CP-3 absent, CP-4 absent, CP-5 present (§5.3). Four FAULT-recovery changes applied with it (CP-2 absent is safe only with them; not yet confirmed explicitly by the author): B7 pre-check and place only `when: 'GR-21B'`, E2 pick only `when: '!GR-51'`, E3 gauge load only `when: 'GR-51'`, conveyor start-up checks repeated `until` clear. New property P11. Every verification run with sensor faults includes the PLC confirmation timeouts. The HMI offers "clear fault" during a line stop (a robot in FAULT parks only after it is cleared) | With camera errors modelled, "the camera decides" failed P6 at CP-4, and the repetition of a state after a FAULT repeated a place, pick or load already done (P5, P11, a livelock). With the decided rules and the changes every property holds with one wrong source at every checkpoint (§9.3). Cost, reported to the author after the decision: with a dead proximity sensor up to 3 FAULTs before the line stop; 12.4 instead of 4.0 FAULTs cleared and 1.1 % fewer good parts per 8 h in random runs |
