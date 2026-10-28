@@ -15,6 +15,7 @@ reference behind it.
 | Live simulator | https://juanlopez-gif.github.io/CNC-Cell-Simulator/ (GitHub Pages from `main`, root `index.html` redirects to `simulation/`) |
 | Scope | **Setup 2 only** (dual gripper on Robot 1, gauge and NOK sorting on Robot 2) since step A1 |
 | Branch `main` | Step A1 merged (Setup 2 only, CI, one build command, regression references) |
+| Branch `a2-design-gaps` | Step A2 in progress (A2.1 done). **Local only**: the cloud session has no GitHub access; copies of the branch are delivered as git bundles |
 | Branch `legacy-setup1-setup2` | Commit `1f4b8ad`: the last version with Setup 1 and Setup 2, frozen |
 | Branch `state-machines-as-data` | Commit `6204b09`; history only, no work on it |
 | Continuous integration | GitHub Actions `checks` on every push; `full verification` (NuSMV) by hand (§11) |
@@ -25,11 +26,12 @@ reference behind it.
 
 | Check | Command | Result |
 |---|---|---|
-| Lint and generated files | `npm run check` | lint `[]`; 15 generated files identical to what the sources give |
+| Lint and generated files | `npm run check` | lint `[]`; 17 generated files identical to what the sources give |
 | Python engine tests | `python -m unittest test_engine` | 5 tests OK |
-| Browser tests | `npm test` (basic, fault, quality hold, phone width, 20 h conformance, Python parity) | all pass, no page errors |
-| Regression | `npm run regress` | Setup 2 identical to `regression/setup2_reference.json`; against the pre-A1 baseline only the intended figure changes (`regression/README.md`) |
-| Exhaustive verification + NuSMV | `npm run verify` with `NUSMV` | 3 runs, 13 properties hold, no deadlock, NuSMV agrees on every verdict and state count; numbers identical to before A1 (§9.3) |
+| Browser tests | `npm test` (basic, fault, quality hold, phone width, 20 h conformance, Python parity in 3 scenarios) | all pass, no page errors, no property violation |
+| Regression | `npm run regress` | identical to `regression/setup2_reference.json` (recorded at the end of A2.1); differences to the A1 reference all intended (`regression/README.md`) |
+| Exhaustive verification | `npm run verify` | 5 runs, 14 properties hold, no deadlock (§9.3). **NuSMV not run** on these models (not downloadable in the cloud session): to be done with the workflow `full verification` or locally |
+| Environment of this check | — | cloud session: Node.js 22, Python 3.13, Chromium 1243 (Playwright build); PNGs of unchanged figures were not re-rendered there |
 | KPIs | `M.KPI` | idle 20.5 s, cycle 140.5 s, 85.4 % of the cycle machining, 25.6 parts/h; baseline `M.BASELINE` 36.5 s |
 
 ### Decided versus implemented
@@ -823,7 +825,7 @@ and ends with every check of §11 green. Effort figures are indicative only.
 |---|---|---|---|
 | A0 Claims and assumptions stated | Done | `main` | 2026-10-23 |
 | A1 Base: Setup 2 only, CI, one build | Done | `a1-base` → `main` | 2026-10-23 |
-| A2 Design gaps: camera policy, gauge, times, KPIs, faults | In progress: A2.1 done (2026-10-28) | `a2-design-gaps` | |
+| A2 Design gaps: camera policy, gauge, times, KPIs, faults | In progress: A2.1 done (2026-10-28); next A2.2 gauge | `a2-design-gaps` (local, not pushed) | |
 | A3 PLC demonstration | Not started | | |
 | A4 Timed verification (UPPAAL) | Not started | | |
 | A5 Studies with the Python engine | Not started | | |
