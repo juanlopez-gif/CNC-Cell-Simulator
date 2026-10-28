@@ -106,31 +106,40 @@ function conformance(trace, setup) {
     if (mode === 'engine') {
       // the Python engine (engine/) must give the same state changes at the same instants
       await page.click('#btnRun');
-      for (const [setup, scenario] of [[2, 'nominal'], [2, 'cp2fault']]) {
+      for (const [setup, scenario] of [[2, 'nominal'], [2, 'cp2fault'], [2, 'camwrong']]) {
         const js = await page.evaluate((setup, scenario) => {
           const C = window.CellSim;
           C.instantVerify = true;
           C.newSim(setup);
           C.S.running = false;
+          // camwrong: t (s) -> [injection, checkpoint]; the same table is in engine/trace.py
+          const CAMWRONG = { 300: ['camwrong', 'CP-4'], 600: ['stale', 'CP-2'], 900: ['camwrong', 'CP-3'], 1200: ['camwrong', 'CP-5'],
+            1500: ['camwrong', 'CP-1'], 1800: ['stale', 'CP-4'], 2100: ['camwrong', 'CP-2'], 2400: ['glitch', 'CP-3'] };
           for (let t = 0; t < 3600; t += 10) {
             if (scenario === 'cp2fault' && t === 300) document.querySelector('#cpTable tr[data-cp="CP-2"] button[data-inj="fault"]').click();
+            if (scenario === 'camwrong' && CAMWRONG[t]) document.querySelector(`#cpTable tr[data-cp="${CAMWRONG[t][1]}"] button[data-inj="${CAMWRONG[t][0]}"]`).click();
             C.advance(10);
-            if (scenario === 'cp2fault') {
+            if (scenario === 'camwrong' && Object.keys(C.S.faults).some((k) => C.S.faults[k])) C.press('clear');
+            if (scenario === 'cp2fault' || scenario === 'camwrong') {
               if (C.MCH.SUP.state === 'X3' && !C.S.inputs.verify) C.press('verify');
               if (C.MCH.SUP.state === 'X4' && C.S.verify && C.S.verify.done && !C.S.inputs.reset) C.press('resume');
             }
           }
-          return C.TRACE.map((e) => [e.t, e.slot, e.from, e.to]);
+          return { trace: C.TRACE.map((e) => [e.t, e.slot, e.from, e.to]), violations: C.W.stats.violations };
         }, setup, scenario);
         let py;
         try {
           py = JSON.parse(require('child_process').execFileSync(process.env.PYTHON || 'python', ['trace.py', String(setup), '3600', scenario], { cwd: path.join(__dirname, '..', 'engine'), encoding: 'utf8', maxBuffer: 1 << 26 }));
         } catch (e) { console.log(`[engine] Python not available or failed: ${e.message.split('\n')[0]}`); failed = true; break; }
-        const n = Math.min(js.length, py.trace.length);
+        const tr = js.trace, n = Math.min(tr.length, py.trace.length);
         let first = -1;
-        for (let i = 0; i < n && first < 0; i++) if (js[i][1] !== py.trace[i][1] || js[i][2] !== py.trace[i][2] || js[i][3] !== py.trace[i][3] || Math.abs(js[i][0] - py.trace[i][0]) > 1e-6) first = i;
-        const same = first < 0 && js.length === py.trace.length && !py.errors.length;
-        console.log(`[engine] Setup ${setup} ${scenario}: browser ${js.length} / Python ${py.trace.length} state changes → ${same ? 'identical' : 'DIFFERENT at ' + (first < 0 ? n : first)}`);
+        for (let i = 0; i < n && first < 0; i++) if (tr[i][1] !== py.trace[i][1] || tr[i][2] !== py.trace[i][2] || tr[i][3] !== py.trace[i][3] || Math.abs(tr[i][0] - py.trace[i][0]) > 1e-6) first = i;
+        // camwrong: the camera errors of the current rules may violate properties; both must see the same ones
+        const pyViol = py.errors.filter((e) => e.startsWith('property ')).length, other = py.errors.length - pyViol;
+        const okErr = scenario === 'camwrong' ? !other && pyViol === js.violations : !py.errors.length;
+        const same = first < 0 && tr.length === py.trace.length && okErr;
+        console.log(`[engine] Setup ${setup} ${scenario}: browser ${tr.length} / Python ${py.trace.length} state changes → ${same ? 'identical' : 'DIFFERENT at ' + (first < 0 ? n : first)}` +
+          (scenario === 'camwrong' ? ` · property violations: browser ${js.violations} / Python ${pyViol}` : ''));
         if (!same) failed = true;
       }
     }

@@ -28,6 +28,10 @@ EXIT_ZONE = 12 * _PX                    # part "at the end stop" while x > BELT_
 ENC_MIN_SPEED = 0.5 * _PX               # m/s, ENC-43 reports "moving" above this speed
 
 LATCH = {"HMI.verify": "verify", "HMI.reset": "reset", "HMI.release": "release"}
+# value used when proximity and camera disagree, by checkpoint rule (rule "ask" stops the line instead)
+FUSE = {"camera": lambda prox, cam: cam, "prox": lambda prox, cam: prox,
+        "present": lambda prox, cam: True, "absent": lambda prox, cam: False}
+RULE_WORD = {"camera": "camera value used", "prox": "proximity value used", "present": "treated as present", "absent": "treated as absent"}
 
 
 def ease(u):
@@ -73,13 +77,15 @@ class CellSim:
         sim.advance(3600)                 # one hour of simulated time
         print(sim.kpis())
 
-    Disturbances: inject_glitch(cp), toggle_sensor_fault(cp), inject_bad_frame(),
-    inject_camera_failure(), inject_grip_miss(), inject_undersized(). Operator and technician:
+    Disturbances: inject_glitch(cp), toggle_sensor_fault(cp), inject_camera_wrong(cp),
+    inject_stale_image(cp), inject_bad_frame(), inject_camera_failure(), inject_grip_miss(),
+    inject_undersized(). rules={"CP-n": rule} overrides the fusion rule of the model at a
+    checkpoint. Operator and technician:
     press("verify" | "resume" | "clear" | "qh" | "swap" | "load"), auto_operator.
     """
 
     def __init__(self, setup=2, seed=None, model=None, auto_operator=True, instant_verify=False,
-                 verify_step_time=0.65):
+                 verify_step_time=0.65, rules=None):
         if setup != 2:
             raise ValueError("only Setup 2 is simulated (Setup 1 is in the branch legacy-setup1-setup2)")
         self.M = model or load()
@@ -100,10 +106,16 @@ class CellSim:
         self.inject = {"under": 0, "grip_miss": False, "frames": {"CAM-1": 0, "CAM-2": 0}}
         self.faults = {}                     # slot -> fault message
         self.cam_fault = None
+        self.ask_at = None                   # checkpoint whose disagreement stopped the line (rule ask)
         self.verify = None                   # sensor verification in progress
         self.stop_reason = ""
         self.events = []                     # mismatches in the 10-minute window: {t, cp, tag}
-        self.cps = {c["id"]: dict(c, fault=False, glitch=False, last=None, count=0) for c in self.M.CHECKPOINTS}
+        self.cps = {c["id"]: dict(c, fault=False, glitch=False, cam_wrong=False, stale=False, last=None, count=0)
+                    for c in self.M.CHECKPOINTS}
+        for cid, rule in (rules or {}).items():
+            if rule not in ("camera", "prox", "present", "absent", "ask"):
+                raise ValueError(f"unknown rule {rule} at {cid}")
+            self.cps[cid]["rule"] = rule
         # plant
         self.parts, self._next_id = [], 1
         self.pallet_in = {"present": True, "busy": False}
@@ -189,6 +201,14 @@ class CellSim:
     def inject_glitch(self, cp):
         self.cps[cp]["glitch"] = True
         self.log("info", f"Test: next {cp} reading of {self.cps[cp]['prox']} will be wrong (single glitch)")
+
+    def inject_camera_wrong(self, cp):
+        self.cps[cp]["cam_wrong"] = True
+        self.log("info", f"Test: next {cp} answer of {self.cps[cp]['cam']} will be wrong with a valid image")
+
+    def inject_stale_image(self, cp):
+        self.cps[cp]["stale"] = True
+        self.log("info", f"Test: next {cp} answer of {self.cps[cp]['cam']} will come from the previous image")
 
     def toggle_sensor_fault(self, cp):
         c = self.cps[cp]
@@ -342,6 +362,8 @@ class CellSim:
             return self.pallet_out["present"]
         if name == "TRUE.r2Nok":
             return self._undersized(r2.hold["S"])
+        if name == "TRUE.nestPart":
+            return self._truth("CP-5")
         raise KeyError("no plant reader for signal " + name)
 
     def _input(self, name, slot):
@@ -445,7 +467,8 @@ class CellSim:
                 self.log({"op": "pallet", "stop": "stop"}.get(s.get("kind"), "info"), s["log"])
             if slot == "SUP" and s.get("kind") == "stop":
                 self.stats["stops"] += 1
-                self.stop_reason = (f"{self.cam_fault or 'a camera'} gave two invalid images (camera fault)" if self.vars["CAM_FAULT"]
+                self.stop_reason = ((f"{self.ask_at}: proximity and camera disagree, the operator checks" if self.ask_at
+                                     else f"{self.cam_fault or 'a camera'} gave two invalid images (camera fault)") if self.vars["CAM_FAULT"]
                                     else f"{len(self.events)} camera / proximity mismatches within 10 min ({self._window_summary()})")
             if (s.get("hmi") or {}).get("proc") == "verify":
                 self._start_verify()
@@ -496,7 +519,8 @@ class CellSim:
 
     def _hold_state(self, slot):
         m = self._machine(slot)
-        self._set_state(slot, "H", f"{self.cam_fault or 'camera'} fault: line stop" if self.vars["CAM_FAULT"] and not self.ev("lineStop")
+        self._set_state(slot, "H", (f"{self.ask_at} disagreement: line stop" if self.ask_at else f"{self.cam_fault or 'camera'} fault: line stop")
+                        if self.vars["CAM_FAULT"] and not self.ev("lineStop")
                         else "LINE STOP from the cross-check supervisor")
         yield from self._run_steps(slot, m["hold"].get("do", []), False, 0)
         yield from self._until(lambda: self.ev(m["hold"]["exit"], slot))
@@ -616,6 +640,7 @@ class CellSim:
             self.log("quality" if v == "QH" else "info", self.M.SIGNALS[v]["logOn"])
         if v == "CAM_FAULT" and not val:
             self.cam_fault = None
+            self.ask_at = None
 
     def _consume_inputs(self, src):
         for n in self.M.names(src, True):
@@ -695,8 +720,10 @@ class CellSim:
         return False if self.cps[cp]["fault"] else self._truth(cp)
 
     def _check(self, cid, quick, slot):
-        """Both sources must agree; if not, the camera value is used and the mismatch is counted. An
-        invalid image is re-triggered once; a second invalid image is a camera fault (line stop)."""
+        """Both sources must agree; if not, the mismatch is counted and the rule of the checkpoint gives
+        the value used (camera, prox, present, absent; ask = line stop until the operator has looked,
+        then the check is repeated). An invalid image is re-triggered once; a second one is a camera
+        fault (line stop)."""
         cp = self.cps[cid]
         if not quick:
             yield from self._wait(self.T["check"])
@@ -718,23 +745,42 @@ class CellSim:
             prox = not prox
             cp["glitch"] = False
         cam = t
+        if cp["cam_wrong"]:                       # valid image, wrong answer
+            cam = not t
+            cp["cam_wrong"] = False
+        elif cp["stale"]:                         # the previous image again
+            cam = cp["last"]["cam"] if cp["last"] else t
+            cp["stale"] = False
         cp["last"] = {"t": self.t, "prox": prox, "cam": cam, "agree": prox == cam}
+        if prox != cam and cp["rule"] == "ask":
+            cp["count"] += 1
+            self.stats["mismatches"] += 1
+            self.ask_at = cid
+            self._set_var("CAM_FAULT", True)
+            self.log("stop", f"{cid} {cp['where']}: {cp['prox']} = {'ON' if prox else 'OFF'} but {cp['cam']} sees "
+                     f"{self._cam_word(cid, cam)} → line stop, the operator checks {cp['where'].lower()}")
+            return "camfault"
+        used = cam if prox == cam else FUSE[cp["rule"]](prox, cam)
         if prox != cam:
-            self._mismatch(cp, prox, cam)
+            self._mismatch(cp, prox, cam, used)
         res = self.cp_result.setdefault(slot, {})
-        res[cid] = cam
+        res[cid] = used
         if cid == "CP-1":
-            res["CAM-1.part"] = cam and self._first_raw() >= 0
-        return cam
+            res["CAM-1.part"] = used and self._first_raw() >= 0
+        return used
 
-    def _mismatch(self, cp, prox, cam):
+    @staticmethod
+    def _cam_word(cid, v):
+        return ("a pallet" if v else "no pallet") if cid in ("CP-1", "CP-4") else ("a part" if v else "no part")
+
+    def _mismatch(self, cp, prox, cam, used):
         cp["count"] += 1
         self.stats["mismatches"] += 1
         self.events.append({"t": self.t, "cp": cp["id"], "tag": cp["prox"]})
         self._prune_window()
-        what = ("a pallet" if cam else "no pallet") if cp["id"] in ("CP-1", "CP-4") else ("a part" if cam else "no part")
-        self.log("mismatch", f"{cp['id']} {cp['where']}: {cp['prox']} = {'ON' if prox else 'OFF'} but {cp['cam']} sees {what} → "
-                 f"camera value used ({len(self.events)} of {self.RU['mismatchLimit']} in 10 min)")
+        how = RULE_WORD[cp["rule"]] if cp["rule"] in ("camera", "prox") else f"{RULE_WORD[cp['rule']]} ({self._cam_word(cp['id'], used)})"
+        self.log("mismatch", f"{cp['id']} {cp['where']}: {cp['prox']} = {'ON' if prox else 'OFF'} but {cp['cam']} sees "
+                 f"{self._cam_word(cp['id'], cam)} → {how} ({len(self.events)} of {self.RU['mismatchLimit']} in 10 min)")
 
     def _window_summary(self):
         c = {}
@@ -782,6 +828,8 @@ class CellSim:
         for c in self.cps.values():                     # the technician repaired the sensors
             c["fault"] = False
             c["glitch"] = False
+            c["cam_wrong"] = False
+            c["stale"] = False
         self.inject["frames"] = {"CAM-1": 0, "CAM-2": 0}
         self.log("stop", "All checkpoint tests passed")
 

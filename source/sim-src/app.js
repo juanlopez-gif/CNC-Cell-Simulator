@@ -41,7 +41,7 @@
     S = {
       t: 0, speed: +$('#selSpeed').value || 10, running: true, setup: 2, step: false,
       autoOp: $('#chkAuto').checked, logAll: $('#chkAll').checked,
-      inject: { under: 0, gripMiss: false, frames: { 'CAM-1': 0, 'CAM-2': 0 } }, faults: {}, camFault: null, verify: null,
+      inject: { under: 0, gripMiss: false, frames: { 'CAM-1': 0, 'CAM-2': 0 } }, faults: {}, camFault: null, askAt: null, verify: null,
       stopReason: '', vars: {}, cp: {}, inputs: { verify: false, reset: false, release: false, clearAt: -1 },
     };
     Object.keys(M.SIGNALS).forEach((k) => { const s = M.SIGNALS[k]; if (s.kind === 'var' && k !== 'mismatches') S.vars[k] = s.num ? 0 : false; });
@@ -54,7 +54,7 @@
       ok: 0, nok: 0, pe65: -9,
       stats: { runTime: 0, firstStart: null, lastIdle: null, idleSum: 0, idleN: 0, cycles: 0, mism: 0, stops: 0, jobs: 0, violations: 0 },
     };
-    CPS.forEach((c) => { c.fault = false; c.glitch = false; c.last = null; c.count = 0; });
+    CPS.forEach((c) => { c.fault = false; c.glitch = false; c.camWrong = false; c.stale = false; c.last = null; c.count = 0; });
     for (let i = 3; i < 12; i++) addPart('raw', { k: 'in', slot: i });
     for (let i = 0; i < 8; i++) addPart('fin', { k: 'out', slot: i });
     SUP = { events: [] };
@@ -133,7 +133,7 @@
     'GAUGE.zeroed': () => W.gauge.zeroed, 'GAUGE.valid': () => W.gauge.valid, 'GAUGE.ok': () => W.gauge.ok,
     'PE-65': () => S.t - W.pe65 < 0.8,
     'TRUE.entryPart': () => truth['CP-2'](), 'TRUE.outPallet': () => W.palletOut.present,
-    'TRUE.r2Nok': () => undersized(W.r2.hold.S),
+    'TRUE.r2Nok': () => undersized(W.r2.hold.S), 'TRUE.nestPart': () => truth['CP-5'](),
   };
   const INPUT = {
     'HMI.clear': (slot) => !!slot && S.inputs.clearAt >= MCH[slot].since,
@@ -186,7 +186,7 @@
       if (s.log) log({ op: 'pallet', stop: 'stop' }[s.kind] || 'info', s.log);
       if (slot === 'SUP' && s.kind === 'stop') {
         W.stats.stops++;
-        S.stopReason = S.vars.CAM_FAULT ? `${S.camFault || 'a camera'} gave two invalid images (camera fault)` : `${SUP.events.length} camera / proximity mismatches within 10 min (${windowSummary()})`;
+        S.stopReason = S.vars.CAM_FAULT ? (S.askAt ? `${S.askAt}: proximity and camera disagree, the operator checks` : `${S.camFault || 'a camera'} gave two invalid images (camera fault)`) : `${SUP.events.length} camera / proximity mismatches within 10 min (${windowSummary()})`;
       }
       if (s.hmi && s.hmi.proc === 'verify') startVerify();
       if (slot === 'SUP' && s.kind === 'ok' && stateOf(slot, x.prev) && stateOf(slot, x.prev).kind === 'check') {
@@ -229,7 +229,7 @@
   }
   function* holdState(slot) {
     const m = machineOf(slot);
-    setState(slot, 'H', S.vars.CAM_FAULT && !ev('lineStop') ? `${S.camFault || 'camera'} fault: line stop` : 'LINE STOP from the cross-check supervisor');
+    setState(slot, 'H', S.vars.CAM_FAULT && !ev('lineStop') ? (S.askAt ? `${S.askAt} disagreement: line stop` : `${S.camFault || 'camera'} fault: line stop`) : 'LINE STOP from the cross-check supervisor');
     yield* runSteps(slot, m.hold.do || [], false);
     yield* until(() => ev(m.hold.exit, slot));
   }
@@ -313,7 +313,7 @@
     const before = S.vars[v];
     S.vars[v] = val;
     if (val === true && before !== true && M.SIGNALS[v].logOn) log(v === 'QH' ? 'quality' : 'info', M.SIGNALS[v].logOn);
-    if (v === 'CAM_FAULT' && !val) S.camFault = null;
+    if (v === 'CAM_FAULT' && !val) { S.camFault = null; S.askAt = null; }
   }
   function consumeInputs(expr) { X.names(expr, true).forEach((n) => { if (LATCH[n]) S.inputs[LATCH[n]] = false; }); }
   function evalRungs() {
@@ -364,8 +364,9 @@
   };
   const proxLive = (id) => (CP[id].fault ? false : truth[id]());
   const camWord = (id, v) => ((id === 'CP-1' || id === 'CP-4') ? (v ? 'a pallet' : 'no pallet') : (v ? 'a part' : 'no part'));
-  // Both sources must agree; if not, the camera value is used and the mismatch is counted. An invalid
-  // image is re-triggered once; a second invalid image is a camera fault (line stop).
+  // Both sources must agree; if not, the mismatch is counted and the rule of the checkpoint gives the
+  // value used (camera, prox, present, absent; ask = line stop until the operator has looked, then the
+  // check is repeated). An invalid image is re-triggered once; a second one is a camera fault (line stop).
   function* check(id, quick, slot) {
     const cp = CP[id];
     if (!quick) yield* wait(T.check);
@@ -387,21 +388,35 @@
     const t = truth[id]();
     let prox = cp.fault ? false : t;
     if (cp.glitch) { prox = !prox; cp.glitch = false; }
-    const cam = t;
+    let cam = t;
+    if (cp.camWrong) { cam = !t; cp.camWrong = false; }                    // valid image, wrong answer
+    else if (cp.stale) { cam = cp.last ? cp.last.cam : t; cp.stale = false; }   // the previous image again
     cp.last = { t: S.t, prox, cam, agree: prox === cam };
     markRoi(cp.roi, prox === cam);
-    if (prox !== cam) mismatch(cp, prox, cam);
+    if (prox !== cam && cp.rule === 'ask') {
+      cp.count++; W.stats.mism++;
+      S.askAt = cp.id;
+      setVar('CAM_FAULT', true);
+      log('stop', `${cp.id} ${cp.where}: ${cp.prox} = ${prox ? 'ON' : 'OFF'} but ${cp.cam} sees ${camWord(cp.id, cam)} → line stop, the operator checks ${cp.where.toLowerCase()}`);
+      return 'camfault';
+    }
+    const used = prox === cam ? cam : FUSE[cp.rule](prox, cam);
+    if (prox !== cam) mismatch(cp, prox, cam, used);
     else if (S.logAll) log('check', `${id} agree: ${cp.prox} ${prox ? 'ON' : 'OFF'}, ${cp.cam} sees ${camWord(id, cam)}`);
     const res = S.cp[slot] = S.cp[slot] || {};
-    res[id] = cam;
-    if (id === 'CP-1') res['CAM-1.part'] = cam && firstRaw() >= 0;
-    return cam;
+    res[id] = used;
+    if (id === 'CP-1') res['CAM-1.part'] = used && firstRaw() >= 0;
+    return used;
   }
-  function mismatch(cp, prox, cam) {
+  // value used when the two sources disagree, by rule
+  const FUSE = { camera: (prox, cam) => cam, prox: (prox) => prox, present: () => true, absent: () => false };
+  const RULE_WORD = { camera: 'camera value used', prox: 'proximity value used', present: 'treated as present', absent: 'treated as absent' };
+  function mismatch(cp, prox, cam, used) {
     cp.count++; W.stats.mism++;
     SUP.events.push({ t: S.t, cp: cp.id, tag: cp.prox });
     pruneWindow();
-    log('mismatch', `${cp.id} ${cp.where}: ${cp.prox} = ${prox ? 'ON' : 'OFF'} but ${cp.cam} sees ${camWord(cp.id, cam)} → camera value used (${SUP.events.length} of ${RU.mismatchLimit} in 10 min)`);
+    const how = cp.rule === 'camera' || cp.rule === 'prox' ? RULE_WORD[cp.rule] : `${RULE_WORD[cp.rule]} (${camWord(cp.id, used)})`;
+    log('mismatch', `${cp.id} ${cp.where}: ${cp.prox} = ${prox ? 'ON' : 'OFF'} but ${cp.cam} sees ${camWord(cp.id, cam)} → ${how} (${SUP.events.length} of ${RU.mismatchLimit} in 10 min)`);
   }
   function windowSummary() {
     const c = {};
@@ -776,7 +791,7 @@
       <td><span class="led"></span><span class="tag">${c.prox}</span><span class="flt" hidden>FAULT</span></td>
       <td><span class="tag">${c.cam}</span> <span class="cr"></span></td>
       <td><span class="res"></span><span class="ago"></span></td>
-      <td><div class="inj"><button type="button" class="btn sm" data-inj="glitch">Glitch</button><button type="button" class="btn sm" data-inj="fault">Fault</button></div></td></tr>`).join('');
+      <td><div class="inj"><button type="button" class="btn sm" data-inj="glitch">Glitch</button><button type="button" class="btn sm" data-inj="fault">Fault</button><button type="button" class="btn sm" data-inj="camwrong" title="The next ${c.cam} answer at ${c.id} is wrong although the image is valid">Cam wrong</button><button type="button" class="btn sm" data-inj="stale" title="The next ${c.cam} answer at ${c.id} comes from the previous image">Stale</button></div></td></tr>`).join('');
     buildChips();
     showTab(tab);
     statesDirty = true; logDirty = true; bannerKey = '';
@@ -833,14 +848,14 @@
       $('.flt', tr).hidden = !c.fault;
       const res = $('.res', tr), ago = $('.ago', tr), cr = $('.cr', tr);
       if (c.last) {
-        res.textContent = c.last.agree ? 'AGREE' : 'MISMATCH → CAMERA';
+        res.textContent = c.last.agree ? 'AGREE' : 'MISMATCH → ' + { camera: 'CAMERA', prox: 'PROXIMITY', present: 'PRESENT', absent: 'ABSENT', ask: 'OPERATOR' }[c.rule];
         res.className = 'res ' + (c.last.agree ? 'ok' : 'bad');
         ago.textContent = `${Math.round(S.t - c.last.t)} s ago · ${c.count} mismatch${c.count === 1 ? '' : 'es'}`;
         cr.textContent = c.last.cam ? (c.id === 'CP-1' || c.id === 'CP-4' ? '✓ pallet' : '✓ part') : '– none';
       } else { res.textContent = 'waiting'; res.className = 'res'; ago.textContent = ''; cr.textContent = ''; }
       $$('[data-inj]', tr).forEach((b) => {
         if (b.dataset.inj === 'fault') { b.textContent = c.fault ? 'Faulty' : 'Fault'; b.classList.toggle('bad', c.fault); }
-        else b.classList.toggle('warn', c.glitch);
+        else b.classList.toggle('warn', !!c[{ glitch: 'glitch', camwrong: 'camWrong', stale: 'stale' }[b.dataset.inj]]);
       });
     });
     const n = SUP.events.length;
@@ -948,7 +963,7 @@
       S.verify.i++;
       if (S.verify.i >= S.verify.steps.length) {
         S.verify.done = true;
-        CPS.forEach((c) => { c.fault = false; c.glitch = false; });        // the technician repaired the sensors
+        CPS.forEach((c) => { c.fault = false; c.glitch = false; c.camWrong = false; c.stale = false; });   // the technician repaired the sensors
         S.inject.frames = { 'CAM-1': 0, 'CAM-2': 0 };
         log('stop', 'All checkpoint tests passed');
       } else setTimeout(tick, 650);
@@ -971,6 +986,8 @@
       const b = e.target.closest('button[data-inj]'); if (!b) return;
       const c = CP[b.closest('tr').dataset.cp];
       if (b.dataset.inj === 'glitch') { c.glitch = true; log('info', `Test: next ${c.id} reading of ${c.prox} will be wrong (single glitch)`); }
+      else if (b.dataset.inj === 'camwrong') { c.camWrong = true; log('info', `Test: next ${c.id} answer of ${c.cam} will be wrong with a valid image`); }
+      else if (b.dataset.inj === 'stale') { c.stale = true; log('info', `Test: next ${c.id} answer of ${c.cam} will come from the previous image`); }
       else { c.fault = !c.fault; log('info', c.fault ? `Test: ${c.prox} made faulty (dirty / misaligned: it misses the object)` : `Test: ${c.prox} fault removed`); }
     });
     $('#btnBadFrame').addEventListener('click', () => { S.inject.frames['CAM-1'] = 1; log('info', 'Test: the next CAM-1 image will be invalid once'); });

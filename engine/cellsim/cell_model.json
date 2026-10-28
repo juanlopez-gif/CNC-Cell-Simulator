@@ -60,7 +60,8 @@
    "prox": "PX-11",
    "cam": "CAM-1",
    "roi": "ROI-A",
-   "fact": "Input pallet present and seated"
+   "fact": "Input pallet present and seated",
+   "rule": "camera"
   },
   {
    "id": "CP-2",
@@ -68,7 +69,8 @@
    "prox": "PE-41",
    "cam": "CAM-1",
    "roi": "ROI-B",
-   "fact": "Part at conveyor entry"
+   "fact": "Part at conveyor entry",
+   "rule": "camera"
   },
   {
    "id": "CP-3",
@@ -76,7 +78,8 @@
    "prox": "PE-42",
    "cam": "CAM-2",
    "roi": "ROI-C",
-   "fact": "Part at the end stop"
+   "fact": "Part at the end stop",
+   "rule": "camera"
   },
   {
    "id": "CP-4",
@@ -84,7 +87,8 @@
    "prox": "PX-52",
    "cam": "CAM-2",
    "roi": "ROI-D",
-   "fact": "Output pallet present"
+   "fact": "Output pallet present",
+   "rule": "camera"
   },
   {
    "id": "CP-5",
@@ -92,7 +96,8 @@
    "prox": "PX-64",
    "cam": "CAM-2",
    "roi": "ROI-E",
-   "fact": "Part in gauge nest"
+   "fact": "Part in gauge nest",
+   "rule": "camera"
   }
  ],
  "SLOTS": {
@@ -449,6 +454,10 @@
   "TRUE.r2Nok": {
    "kind": "truth",
    "on": "Robot 2 holds an undersized part"
+  },
+  "TRUE.nestPart": {
+   "kind": "truth",
+   "on": "a part is in the gauge nest"
   }
  },
  "CONST": {
@@ -534,6 +543,14 @@
    "id": "P10",
    "text": "A camera fault always stops the line",
    "never": "CAM_FAULT & !lineStop"
+  },
+  {
+   "id": "P11",
+   "text": "Robot 2 loads the gauge only into an empty nest",
+   "start": [
+    "R2.loadGauge"
+   ],
+   "require": "!TRUE.nestPart"
   },
   {
    "id": "L1",

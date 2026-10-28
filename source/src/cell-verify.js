@@ -30,12 +30,18 @@
   // ------------------------------------------------------------------ build
   function build(setup, opts) {
     if (setup !== 2) throw new Error('only Setup 2 is modelled (Setup 1 is in the branch legacy-setup1-setup2)');
-    opts = Object.assign({ faults: 'all', slots: 2 }, opts || {});
+    opts = Object.assign({ faults: 'all', slots: 2, rules: {} }, opts || {});
     if (opts.faults === true) opts.faults = 'all';
-    // fault classes: sensor = camera / proximity mismatches and camera faults; process = missed picks,
-    // confirmation timeouts and timer faults, undersized parts (Setup 2)
-    const FL = { mismatch: ['sensor', 'all'], camera: ['sensor', 'all'], grip: ['process', 'all'], timeout: ['process', 'all'], nok: ['process', 'all'] };
-    const F = Object.fromEntries(Object.keys(FL).map((k) => [k, FL[k].includes(opts.faults)]));
+    // fault classes: sensor = proximity sensor wrong (mismatch) and camera faults (invalid images);
+    // process = missed picks, confirmation timeouts and timer faults, undersized parts (Setup 2);
+    // camwrong = camera wrong with a valid image: false positive, false negative, stale image.
+    // opts.faults is a group name, a class name or a list of them.
+    const FL = { mismatch: ['sensor', 'all'], camera: ['sensor', 'all'], grip: ['process', 'all'], timeout: ['process', 'all'], nok: ['process', 'all'],
+      camfp: ['camwrong'], camfn: ['camwrong'], stale: ['camwrong'] };
+    const want = [].concat(opts.faults || []);
+    const F = Object.fromEntries(Object.keys(FL).map((k) => [k, want.includes(k) || FL[k].some((g) => want.includes(g))]));
+    // the rule that fuses camera and proximity at each checkpoint (model value, opts.rules overrides)
+    const RULE = Object.fromEntries(M.CHECKPOINTS.map((c) => [c.id, opts.rules[c.id] || c.rule]));
     const N = opts.slots;
     const PART = ['none', 'raw', 'ok', 'nok'];
     const FIN = ['ok', 'nok'];
@@ -133,6 +139,7 @@
       'PX-52': () => bv('outPresent'), 'CAM-2.slot': () => TT,
       'GAUGE.zeroed': () => bv('zeroed'), 'GAUGE.valid': () => bv('measured'), 'GAUGE.ok': () => eq('nest', 'ok'), 'PE-65': () => bv('pe65'),
       'TRUE.entryPart': () => not(eq('beltEntry', 'none')), 'TRUE.outPallet': () => bv('outPresent'), 'TRUE.r2Nok': () => eq('r2S', 'nok'),
+      'TRUE.nestPart': () => not(eq('nest', 'none')),
     };
     const TRUTH = {
       'CP-1': bv('inPresent'), 'CP-2': not(eq('beltEntry', 'none')), 'CP-3': not(eq('beltExit', 'none')),
@@ -328,12 +335,33 @@
             const cpv = CPV(slot, st.check);
             const base = { [cpv]: BEXP(TRUTH[st.check]) };
             if (st.check === 'CP-1') base[CPV(slot, 'CAM-1.part')] = BEXP(and(bv('inPresent'), bv('inParts')));
-            const variants = [{ name: 'agree', upd: base }];
-            if (F.mismatch) variants.push({ name: 'mismatch', upd: Object.assign({}, base, { mismatches: ADD('mismatches', 1, 0, M.RULES.mismatchLimit) }) });
+            // A disagreement: one source is wrong. The value used follows the rule of the checkpoint:
+            // camera (camera value), prox (proximity value), present / absent (that value whenever the
+            // sources disagree), ask (line stop; the operator looks and the check is repeated).
+            const t = TRUTH[st.check], rule = RULE[st.check];
+            const used = (camRight) => (rule === 'camera' ? (camRight ? t : not(t)) : rule === 'prox' ? (camRight ? not(t) : t) : rule === 'present' ? TT : FF);
+            const variants = [{ name: 'agree', guard: TT, upd: base }];
+            const disagree = (name, guard, camRight) => {
+              if (rule === 'ask') { asks.push({ name, guard }); return; }
+              variants.push({ name, guard, upd: Object.assign({}, base, { [cpv]: BEXP(used(camRight)), mismatches: ADD('mismatches', 1, 0, M.RULES.mismatchLimit) }) });
+            };
+            if (!['camera', 'prox', 'present', 'absent', 'ask'].includes(rule)) throw new Error(`unknown rule ${rule} at ${st.check}`);
+            const asks = [];
+            const here = !opts.cps || opts.cps.includes(st.check);      // wrong readings only at these checkpoints
+            if (F.mismatch && here) disagree('mismatch', TT, true);
+            if (F.camfp && here) disagree('camera false positive', not(t), false);
+            if (F.camfn && here) disagree('camera false negative', t, false);
+            // the camera returns the image of the previous check: wrong only if the fact has changed
+            if (F.stale && here) disagree('stale image', or(and(bv(cpv), not(t)), and(not(bv(cpv)), t)), false);
+            if (asks.length && sid !== 'I' && mach[slot].m.hold) {
+              const leaves = advance(slot, 'H', 0, TT, {});
+              leaves.forEach((l) => { l.upd.CAM_FAULT = VAL(true); l.upd[slot + '_res'] = VAL(`${sid}@${i}`); });
+              emit(slot, at, or(asks.map((a) => a.guard)), leaves, `${sid}: ${st.check} disagreement, operator asked`, { _res: true });
+            }
             variants.forEach((v) => {
               const ok = st.until ? subst(SIG(st.until), v.upd) : TT;
               const conf = st.confirm ? subst(SIG(st.confirm), v.upd) : TT;
-              emit(slot, at, and(ok, conf), advance(slot, sid, i + 1, TT, v.upd), `${sid}: ${st.check} ${v.name}`);
+              emit(slot, at, and(v.guard, ok, conf), advance(slot, sid, i + 1, TT, v.upd), `${sid}: ${st.check} ${v.name}`);
               if (st.confirm) toFault(slot, at, and(ok, not(conf)), `${sid}@0`, `${sid}: ${st.check} ${v.name}, confirmation missing`);
               if (st.until) {
                 // not yet: check again later (or hold while waiting)

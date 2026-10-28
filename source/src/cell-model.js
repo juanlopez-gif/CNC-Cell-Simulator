@@ -51,12 +51,15 @@
   };
 
   // ---------------------------------------------------------------- checkpoints
+  // rule: the value used when the proximity sensor and the camera disagree (the mismatch is counted
+  // in every case): camera | prox | present | absent (that value) | ask (line stop, the operator
+  // looks and the check is repeated). Being decided in step A2.1 (PROJECT_STATUS.md §15).
   const CHECKPOINTS = [
-    { id: 'CP-1', where: 'Input pallet', prox: 'PX-11', cam: 'CAM-1', roi: 'ROI-A', fact: 'Input pallet present and seated' },
-    { id: 'CP-2', where: 'Conveyor entry', prox: 'PE-41', cam: 'CAM-1', roi: 'ROI-B', fact: 'Part at conveyor entry' },
-    { id: 'CP-3', where: 'Conveyor exit', prox: 'PE-42', cam: 'CAM-2', roi: 'ROI-C', fact: 'Part at the end stop' },
-    { id: 'CP-4', where: 'Output pallet', prox: 'PX-52', cam: 'CAM-2', roi: 'ROI-D', fact: 'Output pallet present' },
-    { id: 'CP-5', where: 'Gauge nest', prox: 'PX-64', cam: 'CAM-2', roi: 'ROI-E', fact: 'Part in gauge nest' },
+    { id: 'CP-1', where: 'Input pallet', prox: 'PX-11', cam: 'CAM-1', roi: 'ROI-A', fact: 'Input pallet present and seated', rule: 'camera' },
+    { id: 'CP-2', where: 'Conveyor entry', prox: 'PE-41', cam: 'CAM-1', roi: 'ROI-B', fact: 'Part at conveyor entry', rule: 'camera' },
+    { id: 'CP-3', where: 'Conveyor exit', prox: 'PE-42', cam: 'CAM-2', roi: 'ROI-C', fact: 'Part at the end stop', rule: 'camera' },
+    { id: 'CP-4', where: 'Output pallet', prox: 'PX-52', cam: 'CAM-2', roi: 'ROI-D', fact: 'Output pallet present', rule: 'camera' },
+    { id: 'CP-5', where: 'Gauge nest', prox: 'PX-64', cam: 'CAM-2', roi: 'ROI-E', fact: 'Part in gauge nest', rule: 'camera' },
   ];
 
   // ---------------------------------------------------------------- sensors / signals
@@ -281,6 +284,7 @@
     'TRUE.entryPart': { kind: 'truth', on: 'a part is at the conveyor entry' },
     'TRUE.outPallet': { kind: 'truth', on: 'the output pallet is in place' },
     'TRUE.r2Nok': { kind: 'truth', on: 'Robot 2 holds an undersized part' },
+    'TRUE.nestPart': { kind: 'truth', on: 'a part is in the gauge nest' },
   };
   const CONST = { limit: RULES.mismatchLimit, slots: RULES.palletSlots, nokHold: RULES.consecutiveNokHold };
 
@@ -305,6 +309,7 @@
     { id: 'P8', text: 'No CYCLE START during a quality hold', start: ['CNC.start'], require: '!QH' },
     { id: 'P9', text: 'Three mismatches in the window always stop the line', never: 'mismatches>=limit & !lineStop' },
     { id: 'P10', text: 'A camera fault always stops the line', never: 'CAM_FAULT & !lineStop' },
+    { id: 'P11', text: 'Robot 2 loads the gauge only into an empty nest', start: ['R2.loadGauge'], require: '!TRUE.nestPart' },
     { id: 'L1', text: 'A new CNC cycle can always be started again', eventually: 'R1.job=CNC.start' },
     { id: 'L2', text: 'Robot 2 can always deliver a part again', eventually: 'R2.job=R2.placePallet' },
     { id: 'L3', text: 'After any stop the supervisor can return to NORMAL', eventually: 'SUP=X1' },
