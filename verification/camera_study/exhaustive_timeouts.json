@@ -1,0 +1,1215 @@
+{
+ "date": "2026-10-28",
+ "runs": [
+  {
+   "cp": "CP-1",
+   "rule": "camera",
+   "faults": [
+    "mismatch",
+    "camwrong",
+    "timeout"
+   ],
+   "states": 5645275,
+   "seconds": 127.733,
+   "deadlocks": 0,
+   "deadlock": null,
+   "failed": []
+  },
+  {
+   "cp": "CP-1",
+   "rule": "prox",
+   "faults": [
+    "mismatch",
+    "camwrong",
+    "timeout"
+   ],
+   "states": 5645275,
+   "seconds": 134.696,
+   "deadlocks": 0,
+   "deadlock": null,
+   "failed": []
+  },
+  {
+   "cp": "CP-1",
+   "rule": "present",
+   "faults": [
+    "mismatch",
+    "camwrong",
+    "timeout"
+   ],
+   "states": 3819041,
+   "seconds": 83.708,
+   "deadlocks": 0,
+   "deadlock": null,
+   "failed": []
+  },
+  {
+   "cp": "CP-1",
+   "rule": "absent",
+   "faults": [
+    "mismatch",
+    "camwrong",
+    "timeout"
+   ],
+   "states": 4116856,
+   "seconds": 90.998,
+   "deadlocks": 0,
+   "deadlock": null,
+   "failed": []
+  },
+  {
+   "cp": "CP-1",
+   "rule": "ask",
+   "faults": [
+    "mismatch",
+    "camwrong",
+    "timeout"
+   ],
+   "states": 1118193,
+   "seconds": 23.567,
+   "deadlocks": 0,
+   "deadlock": null,
+   "failed": []
+  },
+  {
+   "cp": "CP-2",
+   "rule": "camera",
+   "faults": [
+    "mismatch",
+    "camwrong",
+    "timeout"
+   ],
+   "states": 3355547,
+   "seconds": 53.516,
+   "deadlocks": 2,
+   "deadlock": {
+    "at": "I: CP-2 camera false positive",
+    "trace": [
+     "B4 → B5",
+     "B5: R1.closeDoor done",
+     "B5: DOOR.lock done",
+     "B5 → B6",
+     "B6: await !QH",
+     "B6: CNC.start done",
+     "B6 → Q_B6",
+     "B7: R1.toConveyorB done",
+     "CNC: cycle complete (part OK or undersized)",
+     "CNC: guard lock released after the cycle",
+     "a mismatch leaves the 10-min window",
+     "X2 → X1"
+    ],
+    "state": {
+     "R1": "B7_1",
+     "R1_res": "none",
+     "CONV": "I_x",
+     "CONV_res": "none",
+     "R2": "E1_x",
+     "R2_res": "none",
+     "SUP": "X1_x",
+     "partPlaced": false,
+     "pickAllowed": false,
+     "partPicked": false,
+     "CAM_FAULT": false,
+     "QH": false,
+     "mismatches": 0,
+     "consecNok": 0,
+     "res_R1_CP_1": true,
+     "res_R1_CAM_1_part": true,
+     "res_R1_CP_2": false,
+     "res_CONV_CP_2": true,
+     "res_CONV_CP_3": false,
+     "res_R2_CP_4": true,
+     "res_R2_CP_5": false,
+     "res_R2_CP_3": false,
+     "door": "closed",
+     "lock": false,
+     "vise": "clamped",
+     "cnc": "ok",
+     "run": false,
+     "r1A": "none",
+     "r1B": "ok",
+     "r2S": "none",
+     "beltEntry": "none",
+     "beltMid": "none",
+     "beltExit": "none",
+     "moving": false,
+     "inPresent": true,
+     "inParts": true,
+     "outPresent": true,
+     "outCount": 0,
+     "r1Home": false,
+     "r2Home": true,
+     "nest": "none",
+     "measured": false,
+     "zeroed": true,
+     "pe65": false
+    }
+   },
+   "failed": [
+    {
+     "id": "P5",
+     "text": "A part is placed on the conveyor only at a free entry of a stopped belt",
+     "at": "B7: CP-2 camera false negative",
+     "trace": [
+      "B6 → Q_B6",
+      "B7: R1.toConveyorB done",
+      "B7: await BELT.free",
+      "B7: CP-2 agree",
+      "B7: R1.placeConvB done",
+      "B7: CP-2 camera false negative",
+      "X1 → X2",
+      "B7: confirmation timeout",
+      "F: cleared, repeat B7@0",
+      "B7: R1.toConveyorB done",
+      "B7: await BELT.free",
+      "B7: CP-2 camera false negative"
+     ]
+    },
+    {
+     "id": "L1",
+     "text": "A new CNC cycle can always be started again",
+     "at": "B7: CP-2 camera false positive",
+     "trace": [
+      "B7: R1.toConveyorB done",
+      "C1 → C2",
+      "C2: await R1.clearConv & R2.clearConv",
+      "C2: CP-3 agree",
+      "C2 → C3",
+      "CNC: cycle complete (part OK or undersized)",
+      "CNC: guard lock released after the cycle",
+      "belt starts",
+      "C3: timer fault (no PE-42 within 15 s)",
+      "a mismatch leaves the 10-min window",
+      "a mismatch leaves the 10-min window",
+      "X2 → X1"
+     ]
+    },
+    {
+     "id": "L2",
+     "text": "Robot 2 can always deliver a part again",
+     "at": "B7: CP-2 camera false positive",
+     "trace": [
+      "B7: R1.toConveyorB done",
+      "C1 → C2",
+      "C2: await R1.clearConv & R2.clearConv",
+      "C2: CP-3 agree",
+      "C2 → C3",
+      "CNC: cycle complete (part OK or undersized)",
+      "CNC: guard lock released after the cycle",
+      "belt starts",
+      "C3: timer fault (no PE-42 within 15 s)",
+      "a mismatch leaves the 10-min window",
+      "a mismatch leaves the 10-min window",
+      "X2 → X1"
+     ]
+    }
+   ]
+  },
+  {
+   "cp": "CP-2",
+   "rule": "prox",
+   "faults": [
+    "mismatch",
+    "camwrong",
+    "timeout"
+   ],
+   "states": 3355547,
+   "seconds": 50.87,
+   "deadlocks": 2,
+   "deadlock": {
+    "at": "I: CP-2 mismatch",
+    "trace": [
+     "B4 → B5",
+     "B5: R1.closeDoor done",
+     "B5: DOOR.lock done",
+     "B5 → B6",
+     "B6: await !QH",
+     "B6: CNC.start done",
+     "B6 → Q_B6",
+     "B7: R1.toConveyorB done",
+     "CNC: cycle complete (part OK or undersized)",
+     "CNC: guard lock released after the cycle",
+     "a mismatch leaves the 10-min window",
+     "X2 → X1"
+    ],
+    "state": {
+     "R1": "B7_1",
+     "R1_res": "none",
+     "CONV": "I_x",
+     "CONV_res": "none",
+     "R2": "E1_x",
+     "R2_res": "none",
+     "SUP": "X1_x",
+     "partPlaced": false,
+     "pickAllowed": false,
+     "partPicked": false,
+     "CAM_FAULT": false,
+     "QH": false,
+     "mismatches": 0,
+     "consecNok": 0,
+     "res_R1_CP_1": true,
+     "res_R1_CAM_1_part": true,
+     "res_R1_CP_2": false,
+     "res_CONV_CP_2": true,
+     "res_CONV_CP_3": false,
+     "res_R2_CP_4": true,
+     "res_R2_CP_5": false,
+     "res_R2_CP_3": false,
+     "door": "closed",
+     "lock": false,
+     "vise": "clamped",
+     "cnc": "ok",
+     "run": false,
+     "r1A": "none",
+     "r1B": "ok",
+     "r2S": "none",
+     "beltEntry": "none",
+     "beltMid": "none",
+     "beltExit": "none",
+     "moving": false,
+     "inPresent": true,
+     "inParts": true,
+     "outPresent": true,
+     "outCount": 0,
+     "r1Home": false,
+     "r2Home": true,
+     "nest": "none",
+     "measured": false,
+     "zeroed": true,
+     "pe65": false
+    }
+   },
+   "failed": [
+    {
+     "id": "P5",
+     "text": "A part is placed on the conveyor only at a free entry of a stopped belt",
+     "at": "B7: CP-2 mismatch",
+     "trace": [
+      "B6 → Q_B6",
+      "B7: R1.toConveyorB done",
+      "B7: await BELT.free",
+      "B7: CP-2 agree",
+      "B7: R1.placeConvB done",
+      "B7: CP-2 mismatch",
+      "X1 → X2",
+      "B7: confirmation timeout",
+      "F: cleared, repeat B7@0",
+      "B7: R1.toConveyorB done",
+      "B7: await BELT.free",
+      "B7: CP-2 mismatch"
+     ]
+    },
+    {
+     "id": "L1",
+     "text": "A new CNC cycle can always be started again",
+     "at": "B7: CP-2 mismatch",
+     "trace": [
+      "B6: CNC.start done",
+      "B6 → Q_B6",
+      "B7: R1.toConveyorB done",
+      "C1 → C2",
+      "C2: await R1.clearConv & R2.clearConv",
+      "C2: CP-3 agree",
+      "C2 → C3",
+      "CNC: cycle complete (part OK or undersized)",
+      "CNC: guard lock released after the cycle",
+      "a mismatch leaves the 10-min window",
+      "a mismatch leaves the 10-min window",
+      "X2 → X1"
+     ]
+    },
+    {
+     "id": "L2",
+     "text": "Robot 2 can always deliver a part again",
+     "at": "B7: CP-2 mismatch",
+     "trace": [
+      "B6: CNC.start done",
+      "B6 → Q_B6",
+      "B7: R1.toConveyorB done",
+      "C1 → C2",
+      "C2: await R1.clearConv & R2.clearConv",
+      "C2: CP-3 agree",
+      "C2 → C3",
+      "CNC: cycle complete (part OK or undersized)",
+      "CNC: guard lock released after the cycle",
+      "a mismatch leaves the 10-min window",
+      "a mismatch leaves the 10-min window",
+      "X2 → X1"
+     ]
+    }
+   ]
+  },
+  {
+   "cp": "CP-2",
+   "rule": "present",
+   "faults": [
+    "mismatch",
+    "camwrong",
+    "timeout"
+   ],
+   "states": 1597427,
+   "seconds": 27.706,
+   "deadlocks": 2,
+   "deadlock": {
+    "at": "I: CP-2 mismatch",
+    "trace": [
+     "B4 → B5",
+     "B5: R1.closeDoor done",
+     "B5: DOOR.lock done",
+     "B5 → B6",
+     "B6: await !QH",
+     "B6: CNC.start done",
+     "B6 → Q_B6",
+     "B7: R1.toConveyorB done",
+     "CNC: cycle complete (part OK or undersized)",
+     "CNC: guard lock released after the cycle",
+     "a mismatch leaves the 10-min window",
+     "X2 → X1"
+    ],
+    "state": {
+     "R1": "B7_1",
+     "R1_res": "none",
+     "CONV": "I_x",
+     "CONV_res": "none",
+     "R2": "E1_x",
+     "R2_res": "none",
+     "SUP": "X1_x",
+     "partPlaced": false,
+     "pickAllowed": false,
+     "partPicked": false,
+     "CAM_FAULT": false,
+     "QH": false,
+     "mismatches": 0,
+     "consecNok": 0,
+     "res_R1_CP_1": true,
+     "res_R1_CAM_1_part": true,
+     "res_R1_CP_2": false,
+     "res_CONV_CP_2": true,
+     "res_CONV_CP_3": false,
+     "res_R2_CP_4": true,
+     "res_R2_CP_5": false,
+     "res_R2_CP_3": false,
+     "door": "closed",
+     "lock": false,
+     "vise": "clamped",
+     "cnc": "ok",
+     "run": false,
+     "r1A": "none",
+     "r1B": "ok",
+     "r2S": "none",
+     "beltEntry": "none",
+     "beltMid": "none",
+     "beltExit": "none",
+     "moving": false,
+     "inPresent": true,
+     "inParts": true,
+     "outPresent": true,
+     "outCount": 0,
+     "r1Home": false,
+     "r2Home": true,
+     "nest": "none",
+     "measured": false,
+     "zeroed": true,
+     "pe65": false
+    }
+   },
+   "failed": [
+    {
+     "id": "L1",
+     "text": "A new CNC cycle can always be started again",
+     "at": "I: CP-2 mismatch",
+     "trace": [
+      "B4 → B5",
+      "B5: R1.closeDoor done",
+      "B5: DOOR.lock done",
+      "B5 → B6",
+      "B6: await !QH",
+      "B6: CNC.start done",
+      "B6 → Q_B6",
+      "B7: R1.toConveyorB done",
+      "CNC: cycle complete (part OK or undersized)",
+      "CNC: guard lock released after the cycle",
+      "a mismatch leaves the 10-min window",
+      "X2 → X1"
+     ]
+    },
+    {
+     "id": "L2",
+     "text": "Robot 2 can always deliver a part again",
+     "at": "I: CP-2 mismatch",
+     "trace": [
+      "B4 → B5",
+      "B5: R1.closeDoor done",
+      "B5: DOOR.lock done",
+      "B5 → B6",
+      "B6: await !QH",
+      "B6: CNC.start done",
+      "B6 → Q_B6",
+      "B7: R1.toConveyorB done",
+      "CNC: cycle complete (part OK or undersized)",
+      "CNC: guard lock released after the cycle",
+      "a mismatch leaves the 10-min window",
+      "X2 → X1"
+     ]
+    }
+   ]
+  },
+  {
+   "cp": "CP-2",
+   "rule": "absent",
+   "faults": [
+    "mismatch",
+    "camwrong",
+    "timeout"
+   ],
+   "states": 2240432,
+   "seconds": 32.912,
+   "deadlocks": 0,
+   "deadlock": null,
+   "failed": [
+    {
+     "id": "P5",
+     "text": "A part is placed on the conveyor only at a free entry of a stopped belt",
+     "at": "B7: CP-2 mismatch",
+     "trace": [
+      "B6 → Q_B6",
+      "B7: R1.toConveyorB done",
+      "B7: await BELT.free",
+      "B7: CP-2 agree",
+      "B7: R1.placeConvB done",
+      "B7: CP-2 mismatch",
+      "X1 → X2",
+      "B7: confirmation timeout",
+      "F: cleared, repeat B7@0",
+      "B7: R1.toConveyorB done",
+      "B7: await BELT.free",
+      "B7: CP-2 mismatch"
+     ]
+    },
+    {
+     "id": "L1",
+     "text": "A new CNC cycle can always be started again",
+     "at": "B7: CP-2 mismatch",
+     "trace": [
+      "E3 → E4",
+      "E4: GAUGE.measure done",
+      "E4 → Q_E4",
+      "E5: R2.repick done",
+      "E5: CP-4 agree",
+      "E5: R2.placePallet done",
+      "E5 → Q_E5",
+      "E1: R2.home done",
+      "a mismatch leaves the 10-min window",
+      "a mismatch leaves the 10-min window",
+      "X2 → X1",
+      "B7: CP-2 mismatch"
+     ]
+    },
+    {
+     "id": "L2",
+     "text": "Robot 2 can always deliver a part again",
+     "at": "B7: CP-2 mismatch",
+     "trace": [
+      "E3 → E4",
+      "E4: GAUGE.measure done",
+      "E4 → Q_E4",
+      "E5: R2.repick done",
+      "E5: CP-4 agree",
+      "E5: R2.placePallet done",
+      "E5 → Q_E5",
+      "E1: R2.home done",
+      "a mismatch leaves the 10-min window",
+      "a mismatch leaves the 10-min window",
+      "X2 → X1",
+      "B7: CP-2 mismatch"
+     ]
+    }
+   ]
+  },
+  {
+   "cp": "CP-2",
+   "rule": "ask",
+   "faults": [
+    "mismatch",
+    "camwrong",
+    "timeout"
+   ],
+   "states": 710612,
+   "seconds": 13.821,
+   "deadlocks": 0,
+   "deadlock": null,
+   "failed": []
+  },
+  {
+   "cp": "CP-3",
+   "rule": "camera",
+   "faults": [
+    "mismatch",
+    "camwrong",
+    "timeout"
+   ],
+   "states": 4033448,
+   "seconds": 64.325,
+   "deadlocks": 2,
+   "deadlock": {
+    "at": "I: CP-3 camera false positive",
+    "trace": [
+     "B4 → B5",
+     "B5: R1.closeDoor done",
+     "B5: DOOR.lock done",
+     "B5 → B6",
+     "B6: await !QH",
+     "B6: CNC.start done",
+     "B6 → Q_B6",
+     "B7: R1.toConveyorB done",
+     "CNC: cycle complete (part OK or undersized)",
+     "CNC: guard lock released after the cycle",
+     "a mismatch leaves the 10-min window",
+     "X2 → X1"
+    ],
+    "state": {
+     "R1": "B7_1",
+     "R1_res": "none",
+     "CONV": "I_x",
+     "CONV_res": "none",
+     "R2": "E1_x",
+     "R2_res": "none",
+     "SUP": "X1_x",
+     "partPlaced": false,
+     "pickAllowed": false,
+     "partPicked": false,
+     "CAM_FAULT": false,
+     "QH": false,
+     "mismatches": 0,
+     "consecNok": 0,
+     "res_R1_CP_1": true,
+     "res_R1_CAM_1_part": true,
+     "res_R1_CP_2": false,
+     "res_CONV_CP_2": false,
+     "res_CONV_CP_3": true,
+     "res_R2_CP_4": true,
+     "res_R2_CP_5": false,
+     "res_R2_CP_3": false,
+     "door": "closed",
+     "lock": false,
+     "vise": "clamped",
+     "cnc": "ok",
+     "run": false,
+     "r1A": "none",
+     "r1B": "ok",
+     "r2S": "none",
+     "beltEntry": "none",
+     "beltMid": "none",
+     "beltExit": "none",
+     "moving": false,
+     "inPresent": true,
+     "inParts": true,
+     "outPresent": true,
+     "outCount": 0,
+     "r1Home": false,
+     "r2Home": true,
+     "nest": "none",
+     "measured": false,
+     "zeroed": true,
+     "pe65": false
+    }
+   },
+   "failed": [
+    {
+     "id": "L1",
+     "text": "A new CNC cycle can always be started again",
+     "at": "E2: CP-3 agree",
+     "trace": [
+      "operator places an empty output pallet",
+      "E7: CP-4 agree",
+      "E7 → E1",
+      "E1 → E2",
+      "E2: R2.pickConv done",
+      "E2: CP-3 camera false positive",
+      "X1 → X2",
+      "E2: confirmation timeout",
+      "F: cleared, repeat E2@0",
+      "E2: R2.pickConv done",
+      "E2: CP-3 agree",
+      "a mismatch leaves the 10-min window"
+     ]
+    },
+    {
+     "id": "L2",
+     "text": "Robot 2 can always deliver a part again",
+     "at": "E2: CP-3 agree",
+     "trace": [
+      "operator places an empty output pallet",
+      "E7: CP-4 agree",
+      "E7 → E1",
+      "E1 → E2",
+      "E2: R2.pickConv done",
+      "E2: CP-3 camera false positive",
+      "X1 → X2",
+      "E2: confirmation timeout",
+      "F: cleared, repeat E2@0",
+      "E2: R2.pickConv done",
+      "E2: CP-3 agree",
+      "a mismatch leaves the 10-min window"
+     ]
+    }
+   ]
+  },
+  {
+   "cp": "CP-3",
+   "rule": "prox",
+   "faults": [
+    "mismatch",
+    "camwrong",
+    "timeout"
+   ],
+   "states": 4033448,
+   "seconds": 64.735,
+   "deadlocks": 2,
+   "deadlock": {
+    "at": "I: CP-3 mismatch",
+    "trace": [
+     "B4 → B5",
+     "B5: R1.closeDoor done",
+     "B5: DOOR.lock done",
+     "B5 → B6",
+     "B6: await !QH",
+     "B6: CNC.start done",
+     "B6 → Q_B6",
+     "B7: R1.toConveyorB done",
+     "CNC: cycle complete (part OK or undersized)",
+     "CNC: guard lock released after the cycle",
+     "a mismatch leaves the 10-min window",
+     "X2 → X1"
+    ],
+    "state": {
+     "R1": "B7_1",
+     "R1_res": "none",
+     "CONV": "I_x",
+     "CONV_res": "none",
+     "R2": "E1_x",
+     "R2_res": "none",
+     "SUP": "X1_x",
+     "partPlaced": false,
+     "pickAllowed": false,
+     "partPicked": false,
+     "CAM_FAULT": false,
+     "QH": false,
+     "mismatches": 0,
+     "consecNok": 0,
+     "res_R1_CP_1": true,
+     "res_R1_CAM_1_part": true,
+     "res_R1_CP_2": false,
+     "res_CONV_CP_2": false,
+     "res_CONV_CP_3": true,
+     "res_R2_CP_4": true,
+     "res_R2_CP_5": false,
+     "res_R2_CP_3": false,
+     "door": "closed",
+     "lock": false,
+     "vise": "clamped",
+     "cnc": "ok",
+     "run": false,
+     "r1A": "none",
+     "r1B": "ok",
+     "r2S": "none",
+     "beltEntry": "none",
+     "beltMid": "none",
+     "beltExit": "none",
+     "moving": false,
+     "inPresent": true,
+     "inParts": true,
+     "outPresent": true,
+     "outCount": 0,
+     "r1Home": false,
+     "r2Home": true,
+     "nest": "none",
+     "measured": false,
+     "zeroed": true,
+     "pe65": false
+    }
+   },
+   "failed": [
+    {
+     "id": "L1",
+     "text": "A new CNC cycle can always be started again",
+     "at": "E2: CP-3 mismatch",
+     "trace": [
+      "E7: CP-4 agree",
+      "E7 → E1",
+      "E1 → E2",
+      "E2: R2.pickConv done",
+      "E2: CP-3 mismatch",
+      "X1 → X2",
+      "E2: confirmation timeout",
+      "F: cleared, repeat E2@0",
+      "E2: R2.pickConv done",
+      "E2: CP-3 mismatch",
+      "a mismatch leaves the 10-min window",
+      "a mismatch leaves the 10-min window"
+     ]
+    },
+    {
+     "id": "L2",
+     "text": "Robot 2 can always deliver a part again",
+     "at": "E2: CP-3 mismatch",
+     "trace": [
+      "E7: CP-4 agree",
+      "E7 → E1",
+      "E1 → E2",
+      "E2: R2.pickConv done",
+      "E2: CP-3 mismatch",
+      "X1 → X2",
+      "E2: confirmation timeout",
+      "F: cleared, repeat E2@0",
+      "E2: R2.pickConv done",
+      "E2: CP-3 mismatch",
+      "a mismatch leaves the 10-min window",
+      "a mismatch leaves the 10-min window"
+     ]
+    }
+   ]
+  },
+  {
+   "cp": "CP-3",
+   "rule": "present",
+   "faults": [
+    "mismatch",
+    "camwrong",
+    "timeout"
+   ],
+   "states": 2046359,
+   "seconds": 28.167,
+   "deadlocks": 2,
+   "deadlock": {
+    "at": "I: CP-3 mismatch",
+    "trace": [
+     "B4 → B5",
+     "B5: R1.closeDoor done",
+     "B5: DOOR.lock done",
+     "B5 → B6",
+     "B6: await !QH",
+     "B6: CNC.start done",
+     "B6 → Q_B6",
+     "B7: R1.toConveyorB done",
+     "CNC: cycle complete (part OK or undersized)",
+     "CNC: guard lock released after the cycle",
+     "a mismatch leaves the 10-min window",
+     "X2 → X1"
+    ],
+    "state": {
+     "R1": "B7_1",
+     "R1_res": "none",
+     "CONV": "I_x",
+     "CONV_res": "none",
+     "R2": "E1_x",
+     "R2_res": "none",
+     "SUP": "X1_x",
+     "partPlaced": false,
+     "pickAllowed": false,
+     "partPicked": false,
+     "CAM_FAULT": false,
+     "QH": false,
+     "mismatches": 0,
+     "consecNok": 0,
+     "res_R1_CP_1": true,
+     "res_R1_CAM_1_part": true,
+     "res_R1_CP_2": false,
+     "res_CONV_CP_2": false,
+     "res_CONV_CP_3": true,
+     "res_R2_CP_4": true,
+     "res_R2_CP_5": false,
+     "res_R2_CP_3": false,
+     "door": "closed",
+     "lock": false,
+     "vise": "clamped",
+     "cnc": "ok",
+     "run": false,
+     "r1A": "none",
+     "r1B": "ok",
+     "r2S": "none",
+     "beltEntry": "none",
+     "beltMid": "none",
+     "beltExit": "none",
+     "moving": false,
+     "inPresent": true,
+     "inParts": true,
+     "outPresent": true,
+     "outCount": 0,
+     "r1Home": false,
+     "r2Home": true,
+     "nest": "none",
+     "measured": false,
+     "zeroed": true,
+     "pe65": false
+    }
+   },
+   "failed": [
+    {
+     "id": "L1",
+     "text": "A new CNC cycle can always be started again",
+     "at": "E2: CP-3 mismatch",
+     "trace": [
+      "E7: CP-4 agree",
+      "E7 → E1",
+      "E1 → E2",
+      "E2: R2.pickConv done",
+      "E2: CP-3 mismatch",
+      "X1 → X2",
+      "E2: confirmation timeout",
+      "F: cleared, repeat E2@0",
+      "E2: R2.pickConv done",
+      "E2: CP-3 mismatch",
+      "a mismatch leaves the 10-min window",
+      "a mismatch leaves the 10-min window"
+     ]
+    },
+    {
+     "id": "L2",
+     "text": "Robot 2 can always deliver a part again",
+     "at": "E2: CP-3 mismatch",
+     "trace": [
+      "E7: CP-4 agree",
+      "E7 → E1",
+      "E1 → E2",
+      "E2: R2.pickConv done",
+      "E2: CP-3 mismatch",
+      "X1 → X2",
+      "E2: confirmation timeout",
+      "F: cleared, repeat E2@0",
+      "E2: R2.pickConv done",
+      "E2: CP-3 mismatch",
+      "a mismatch leaves the 10-min window",
+      "a mismatch leaves the 10-min window"
+     ]
+    }
+   ]
+  },
+  {
+   "cp": "CP-3",
+   "rule": "absent",
+   "faults": [
+    "mismatch",
+    "camwrong",
+    "timeout"
+   ],
+   "states": 2739557,
+   "seconds": 54.721,
+   "deadlocks": 0,
+   "deadlock": null,
+   "failed": []
+  },
+  {
+   "cp": "CP-3",
+   "rule": "ask",
+   "faults": [
+    "mismatch",
+    "camwrong",
+    "timeout"
+   ],
+   "states": 1380662,
+   "seconds": 30.537,
+   "deadlocks": 0,
+   "deadlock": null,
+   "failed": []
+  },
+  {
+   "cp": "CP-4",
+   "rule": "camera",
+   "faults": [
+    "mismatch",
+    "camwrong",
+    "timeout"
+   ],
+   "states": 8148193,
+   "seconds": 176.43,
+   "deadlocks": 0,
+   "deadlock": null,
+   "failed": [
+    {
+     "id": "P6",
+     "text": "Robot 2 places a part only on an output pallet that is in place and not full",
+     "at": "E5: CP-4 camera false positive",
+     "trace": [
+      "E7 → E1",
+      "E1 → E2",
+      "E2: R2.pickConv done",
+      "E2: CP-3 agree",
+      "E2 → E3",
+      "E3: R2.loadGauge done",
+      "E3: CP-5 agree",
+      "E3 → E4",
+      "E4: GAUGE.measure done",
+      "E4 → Q_E4",
+      "E5: R2.repick done",
+      "E5: CP-4 camera false positive"
+     ]
+    }
+   ]
+  },
+  {
+   "cp": "CP-4",
+   "rule": "prox",
+   "faults": [
+    "mismatch",
+    "camwrong",
+    "timeout"
+   ],
+   "states": 8148193,
+   "seconds": 169.87,
+   "deadlocks": 0,
+   "deadlock": null,
+   "failed": [
+    {
+     "id": "P6",
+     "text": "Robot 2 places a part only on an output pallet that is in place and not full",
+     "at": "E5: CP-4 mismatch",
+     "trace": [
+      "E7 → E1",
+      "E1 → E2",
+      "E2: R2.pickConv done",
+      "E2: CP-3 agree",
+      "E2 → E3",
+      "E3: R2.loadGauge done",
+      "E3: CP-5 agree",
+      "E3 → E4",
+      "E4: GAUGE.measure done",
+      "E4 → Q_E4",
+      "E5: R2.repick done",
+      "E5: CP-4 mismatch"
+     ]
+    }
+   ]
+  },
+  {
+   "cp": "CP-4",
+   "rule": "present",
+   "faults": [
+    "mismatch",
+    "camwrong",
+    "timeout"
+   ],
+   "states": 4182026,
+   "seconds": 87.883,
+   "deadlocks": 0,
+   "deadlock": null,
+   "failed": [
+    {
+     "id": "P6",
+     "text": "Robot 2 places a part only on an output pallet that is in place and not full",
+     "at": "E5: CP-4 mismatch",
+     "trace": [
+      "E7 → E1",
+      "E1 → E2",
+      "E2: R2.pickConv done",
+      "E2: CP-3 agree",
+      "E2 → E3",
+      "E3: R2.loadGauge done",
+      "E3: CP-5 agree",
+      "E3 → E4",
+      "E4: GAUGE.measure done",
+      "E4 → Q_E4",
+      "E5: R2.repick done",
+      "E5: CP-4 mismatch"
+     ]
+    }
+   ]
+  },
+  {
+   "cp": "CP-4",
+   "rule": "absent",
+   "faults": [
+    "mismatch",
+    "camwrong",
+    "timeout"
+   ],
+   "states": 5282508,
+   "seconds": 106.264,
+   "deadlocks": 0,
+   "deadlock": null,
+   "failed": []
+  },
+  {
+   "cp": "CP-4",
+   "rule": "ask",
+   "faults": [
+    "mismatch",
+    "camwrong",
+    "timeout"
+   ],
+   "states": 1417330,
+   "seconds": 30.609,
+   "deadlocks": 0,
+   "deadlock": null,
+   "failed": []
+  },
+  {
+   "cp": "CP-5",
+   "rule": "camera",
+   "faults": [
+    "mismatch",
+    "camwrong",
+    "timeout"
+   ],
+   "states": 25689534,
+   "seconds": 603.038,
+   "deadlocks": 0,
+   "deadlock": null,
+   "failed": [
+    {
+     "id": "P11",
+     "text": "Robot 2 loads the gauge only into an empty nest",
+     "at": "E3: CP-5 camera false negative",
+     "trace": [
+      "belt stops",
+      "C4 → C5",
+      "C5: CP-3 agree",
+      "E1 → E2",
+      "E2: R2.pickConv done",
+      "E2: CP-3 agree",
+      "E2 → E3",
+      "E3: R2.loadGauge done",
+      "E3: CP-5 camera false negative",
+      "X1 → X2",
+      "E3: confirmation timeout",
+      "F: cleared, repeat E3@0"
+     ]
+    }
+   ]
+  },
+  {
+   "cp": "CP-5",
+   "rule": "prox",
+   "faults": [
+    "mismatch",
+    "camwrong",
+    "timeout"
+   ],
+   "states": 25689534,
+   "seconds": 602.347,
+   "deadlocks": 0,
+   "deadlock": null,
+   "failed": [
+    {
+     "id": "P11",
+     "text": "Robot 2 loads the gauge only into an empty nest",
+     "at": "E3: CP-5 mismatch",
+     "trace": [
+      "belt stops",
+      "C4 → C5",
+      "C5: CP-3 agree",
+      "E1 → E2",
+      "E2: R2.pickConv done",
+      "E2: CP-3 agree",
+      "E2 → E3",
+      "E3: R2.loadGauge done",
+      "E3: CP-5 mismatch",
+      "X1 → X2",
+      "E3: confirmation timeout",
+      "F: cleared, repeat E3@0"
+     ]
+    }
+   ]
+  },
+  {
+   "cp": "CP-5",
+   "rule": "present",
+   "faults": [
+    "mismatch",
+    "camwrong",
+    "timeout"
+   ],
+   "states": 4239111,
+   "seconds": 77.577,
+   "deadlocks": 0,
+   "deadlock": null,
+   "failed": []
+  },
+  {
+   "cp": "CP-5",
+   "rule": "absent",
+   "faults": [
+    "mismatch",
+    "camwrong",
+    "timeout"
+   ],
+   "states": 2447779,
+   "seconds": 34.683,
+   "deadlocks": 0,
+   "deadlock": null,
+   "failed": [
+    {
+     "id": "P11",
+     "text": "Robot 2 loads the gauge only into an empty nest",
+     "at": "E3: CP-5 mismatch",
+     "trace": [
+      "belt stops",
+      "C4 → C5",
+      "C5: CP-3 agree",
+      "E1 → E2",
+      "E2: R2.pickConv done",
+      "E2: CP-3 agree",
+      "E2 → E3",
+      "E3: R2.loadGauge done",
+      "E3: CP-5 mismatch",
+      "X1 → X2",
+      "E3: confirmation timeout",
+      "F: cleared, repeat E3@0"
+     ]
+    },
+    {
+     "id": "L1",
+     "text": "A new CNC cycle can always be started again",
+     "at": "E3: CP-5 agree",
+     "trace": [
+      "B4 → B5",
+      "B5: R1.closeDoor done",
+      "B5: DOOR.lock done",
+      "B5 → B6",
+      "B6: await !QH",
+      "B6: CNC.start done",
+      "B6 → Q_B6",
+      "B7: R1.toConveyorB done",
+      "C5: CP-3 agree",
+      "CNC: cycle complete (part OK or undersized)",
+      "CNC: guard lock released after the cycle",
+      "a mismatch leaves the 10-min window"
+     ]
+    },
+    {
+     "id": "L2",
+     "text": "Robot 2 can always deliver a part again",
+     "at": "E3: CP-5 agree",
+     "trace": [
+      "B4 → B5",
+      "B5: R1.closeDoor done",
+      "B5: DOOR.lock done",
+      "B5 → B6",
+      "B6: await !QH",
+      "B6: CNC.start done",
+      "B6 → Q_B6",
+      "B7: R1.toConveyorB done",
+      "C5: CP-3 agree",
+      "CNC: cycle complete (part OK or undersized)",
+      "CNC: guard lock released after the cycle",
+      "a mismatch leaves the 10-min window"
+     ]
+    }
+   ]
+  },
+  {
+   "cp": "CP-5",
+   "rule": "ask",
+   "faults": [
+    "mismatch",
+    "camwrong",
+    "timeout"
+   ],
+   "states": 1264998,
+   "seconds": 27.018,
+   "deadlocks": 0,
+   "deadlock": null,
+   "failed": []
+  }
+ ]
+}
