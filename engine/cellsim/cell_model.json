@@ -70,7 +70,7 @@
    "cam": "CAM-1",
    "roi": "ROI-B",
    "fact": "Part at conveyor entry",
-   "rule": "camera"
+   "rule": "absent"
   },
   {
    "id": "CP-3",
@@ -79,7 +79,7 @@
    "cam": "CAM-2",
    "roi": "ROI-C",
    "fact": "Part at the end stop",
-   "rule": "camera"
+   "rule": "absent"
   },
   {
    "id": "CP-4",
@@ -88,7 +88,7 @@
    "cam": "CAM-2",
    "roi": "ROI-D",
    "fact": "Output pallet present",
-   "rule": "camera"
+   "rule": "absent"
   },
   {
    "id": "CP-5",
@@ -97,7 +97,7 @@
    "cam": "CAM-2",
    "roi": "ROI-E",
    "fact": "Part in gauge nest",
-   "rule": "camera"
+   "rule": "present"
   }
  ],
  "SLOTS": {
@@ -1097,10 +1097,12 @@
       {
        "check": "CP-2",
        "quick": true,
-       "confirm": "!CP-2"
+       "confirm": "!CP-2",
+       "when": "GR-21B"
       },
       {
-       "job": "R1.placeConvB"
+       "job": "R1.placeConvB",
+       "when": "GR-21B"
       },
       {
        "check": "CP-2"
@@ -1159,11 +1161,13 @@
     "do": [
      {
       "check": "CP-2",
-      "quick": true
+      "quick": true,
+      "until": "!CP-2"
      },
      {
       "check": "CP-3",
-      "quick": true
+      "quick": true,
+      "until": "!CP-3"
      }
     ],
     "when": "!CP-2 & !CP-3",
@@ -1186,7 +1190,7 @@
    },
    "note": [
     "*Stop logic:* stopping uses *OR* ({PE-42} or {CAM-2}) because stopping is the safe direction;",
-    "confirming the part for the pick uses the cross-check [CP-3] (both must agree, otherwise the camera decides)."
+    "confirming the part for the pick uses the cross-check [CP-3] (if they disagree: no part, the pick waits)."
    ],
    "view": {
     "main": [
@@ -1444,7 +1448,8 @@
      ],
      "do": [
       {
-       "job": "R2.pickConv"
+       "job": "R2.pickConv",
+       "when": "!GR-51"
       },
       {
        "check": "CP-3",
@@ -1474,7 +1479,8 @@
      ],
      "do": [
       {
-       "job": "R2.loadGauge"
+       "job": "R2.loadGauge",
+       "when": "GR-51"
       },
       {
        "check": "CP-5"
@@ -1679,7 +1685,7 @@
      "wait": true,
      "desc": [
       "1–2 mismatches in the last 10 min",
-      "camera value used · amber flashing"
+      "rule of the CP used · amber flashing"
      ],
      "next": [
       {

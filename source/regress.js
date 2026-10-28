@@ -28,8 +28,8 @@ async function collect() {
   }));
   // verification models
   out.smv = {};
-  ['none', 'sensor', 'process'].forEach((f) => {
-    const ir = V.build(2, { faults: f === 'none' ? false : f });
+  Object.keys(V.RUNS).forEach((f) => {
+    const ir = V.build(2, { faults: V.RUNS[f] });
     out.smv[f] = { vars: ir.vars.length, commands: ir.cmds.length, sha256: sha(V.toSmv(ir)) };
   });
   // figures

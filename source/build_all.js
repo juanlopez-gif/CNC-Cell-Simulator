@@ -29,8 +29,8 @@ const expected = [];
 FIGS.forEach(([name, fn]) => expected.push([path.join(DIAG, name + '.svg'), fn()]));
 expected.push([SIM, buildSim().index]);
 expected.push([JSON_OUT, modelJson()]);
-['none', 'sensor', 'process'].forEach((f) => {
-  const ir = V.build(2, { faults: f === 'none' ? false : f });
+Object.keys(V.RUNS).forEach((f) => {
+  const ir = V.build(2, { faults: V.RUNS[f] });
   expected.push([path.join(ROOT, 'verification', `cell_setup2_${f}.smv`), V.toSmv(ir)]);
 });
 const known = new Set(FIGS.map(([n]) => n));

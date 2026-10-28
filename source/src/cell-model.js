@@ -53,13 +53,15 @@
   // ---------------------------------------------------------------- checkpoints
   // rule: the value used when the proximity sensor and the camera disagree (the mismatch is counted
   // in every case): camera | prox | present | absent (that value) | ask (line stop, the operator
-  // looks and the check is repeated). Being decided in step A2.1 (PROJECT_STATUS.md §15).
+  // looks and the check is repeated). Decided in step A2.1 (2026-10-28, verification/camera_policy.md):
+  // where a wrong answer can cause damage the safe value is used (CP-4 pallet absent, CP-5 nest
+  // occupied); elsewhere the cheapest safe rule.
   const CHECKPOINTS = [
     { id: 'CP-1', where: 'Input pallet', prox: 'PX-11', cam: 'CAM-1', roi: 'ROI-A', fact: 'Input pallet present and seated', rule: 'camera' },
-    { id: 'CP-2', where: 'Conveyor entry', prox: 'PE-41', cam: 'CAM-1', roi: 'ROI-B', fact: 'Part at conveyor entry', rule: 'camera' },
-    { id: 'CP-3', where: 'Conveyor exit', prox: 'PE-42', cam: 'CAM-2', roi: 'ROI-C', fact: 'Part at the end stop', rule: 'camera' },
-    { id: 'CP-4', where: 'Output pallet', prox: 'PX-52', cam: 'CAM-2', roi: 'ROI-D', fact: 'Output pallet present', rule: 'camera' },
-    { id: 'CP-5', where: 'Gauge nest', prox: 'PX-64', cam: 'CAM-2', roi: 'ROI-E', fact: 'Part in gauge nest', rule: 'camera' },
+    { id: 'CP-2', where: 'Conveyor entry', prox: 'PE-41', cam: 'CAM-1', roi: 'ROI-B', fact: 'Part at conveyor entry', rule: 'absent' },
+    { id: 'CP-3', where: 'Conveyor exit', prox: 'PE-42', cam: 'CAM-2', roi: 'ROI-C', fact: 'Part at the end stop', rule: 'absent' },
+    { id: 'CP-4', where: 'Output pallet', prox: 'PX-52', cam: 'CAM-2', roi: 'ROI-D', fact: 'Output pallet present', rule: 'absent' },
+    { id: 'CP-5', where: 'Gauge nest', prox: 'PX-64', cam: 'CAM-2', roi: 'ROI-E', fact: 'Part in gauge nest', rule: 'present' },
   ];
 
   // ---------------------------------------------------------------- sensors / signals
@@ -201,7 +203,8 @@
   // value ({TAG} sensor, [CP-n] checkpoint, *bold*). kind tells where the value comes from:
   //   sensor   a device signal; the simulation reads its plant, the verifier an abstract plant
   //   check    fused result of the last camera + proximity check made by the machine that reads it
-  //            (the camera decides; one machine never reads another machine's check)
+  //            (the rule of the checkpoint decides when they disagree; one machine never reads
+  //            another machine's check)
   //   var      PLC variable written by the steps of the machines
   //   input    operator or technician input (HMI button)
   //   derived  defined by an expression over other names (def)
@@ -375,7 +378,8 @@
   //   at a transition (then the pending state follows), while waiting (then the state is entered
   //   again), or at once after a camera fault (then the same check is repeated). F is entered when a
   //   confirmation is missing or a timer expires; after `exit` (the operator clears it) the state
-  //   is repeated.
+  //   is repeated. Therefore a step that moves a part carries a `when` on the gripper (GR-21B, GR-51)
+  //   so that repeating the state never repeats a place, pick or load that was already done (A2.1).
   //   view: diagram layout only (main column order, side states next to an anchor, or a grid).
   const HOLD_NOTE = [
     '*F FAULT* and *H HOLD* can be entered from any state. FAULT = a confirmation is missing or a timeout',
@@ -405,7 +409,7 @@
   const PICK_CONV = {
     name: 'PICK FROM CONVEYOR', short: 'pick',
     desc: ['Move to the {CAM-2} pick pose · grip ·', 'lift · retract · [CP-3] exit clear'],
-    do: [{ job: 'R2.pickConv' }, { check: 'CP-3', quick: true }, { set: { partPicked: true, pickAllowed: false }, when: 'GR-51 & !CP-3' }],
+    do: [{ job: 'R2.pickConv', when: '!GR-51' }, { check: 'CP-3', quick: true }, { set: { partPicked: true, pickAllowed: false }, when: 'GR-51 & !CP-3' }],
   };
 
   const MACHINES = {
@@ -447,8 +451,8 @@
         Q_B6: { choice: 'GR-21B', yes: 'B7', no: 'B1', yesText: 'finished part in B', noText: 'first cycle, B is empty' },
         B7: { name: 'PLACE ON CONVEYOR (B)', band: 'run', short: 'to belt',
           desc: ['Wait for {ENC-43} = 0 and [CP-2] entry clear', '· place the finished part · release'],
-          do: [{ job: 'R1.toConveyorB' }, { await: 'BELT.free' }, { check: 'CP-2', quick: true, confirm: '!CP-2' },
-            { job: 'R1.placeConvB' }, { check: 'CP-2' }, { set: { partPlaced: true }, when: 'CP-2' }],
+          do: [{ job: 'R1.toConveyorB' }, { await: 'BELT.free' }, { check: 'CP-2', quick: true, confirm: '!CP-2', when: 'GR-21B' },
+            { job: 'R1.placeConvB', when: 'GR-21B' }, { check: 'CP-2' }, { set: { partPlaced: true }, when: 'CP-2' }],
           next: [{ to: 'B1', when: 'CP-2 & R1.clearConv' }] },
         W1: W1('B1'),
       },
@@ -458,12 +462,12 @@
       slot: 'CONV', setup: 0,
       title: 'State diagram: Conveyor',
       sub: 'Robots pick or place at the belt only when it is stopped ({ENC-43} = 0); the belt starts only when both robots are clear.',
-      initial: { to: 'C1', do: [{ check: 'CP-2', quick: true }, { check: 'CP-3', quick: true }], when: '!CP-2 & !CP-3', text: 'Start-up:' },
+      initial: { to: 'C1', do: [{ check: 'CP-2', quick: true, until: '!CP-2' }, { check: 'CP-3', quick: true, until: '!CP-3' }], when: '!CP-2 & !CP-3', text: 'Start-up:' },
       hold: { desc: ['A running transport finishes at', 'the stop; no new transport starts'], exit: '!HOLD.req' },
       fault: { desc: ['Missing confirmation or a', 'transport timer expired (belt /', 'drive fault, jam, lost part)'], exit: 'HMI.clear' },
       note: [
         '*Stop logic:* stopping uses *OR* ({PE-42} or {CAM-2}) because stopping is the safe direction;',
-        'confirming the part for the pick uses the cross-check [CP-3] (both must agree, otherwise the camera decides).',
+        'confirming the part for the pick uses the cross-check [CP-3] (if they disagree: no part, the pick waits).',
       ],
       view: { main: ['C1', 'C2', 'C3', 'C4', 'C5'] },
       states: {
@@ -511,7 +515,7 @@
         E2: Object.assign({}, PICK_CONV, { next: [{ to: 'E3', when: 'GR-51 & !CP-3 & R2.clearConv' }] }),
         E3: { name: 'LOAD GAUGE', short: 'gauge',
           desc: ['Place in the corner nest · push against the', '3 datums (force control) · release · retract'],
-          do: [{ job: 'R2.loadGauge' }, { check: 'CP-5' }],
+          do: [{ job: 'R2.loadGauge', when: 'GR-51' }, { check: 'CP-5' }],
           next: [{ to: 'E4', when: 'CP-5 & R2.clearGauge' }] },
         E4: { name: 'MEASURE L, W, H', short: 'measure',
           desc: ['{LS-61}/{LS-62}/{LS-63}: average of 10 samples', 'size = 50.000 + (d master − d part)'],
@@ -541,7 +545,7 @@
       states: {
         X1: { name: 'NORMAL', kind: 'ok', wait: true, desc: ['All checkpoints agree', 'stack light {LT-01} green'],
           next: [{ to: 'X3', when: 'CAM_FAULT' }, { to: 'X2', when: 'mismatches>0' }] },
-        X2: { name: 'MISMATCH WARNING', kind: 'warn', wait: true, desc: ['1–2 mismatches in the last 10 min', 'camera value used · amber flashing'],
+        X2: { name: 'MISMATCH WARNING', kind: 'warn', wait: true, desc: ['1–2 mismatches in the last 10 min', 'rule of the CP used · amber flashing'],
           next: [{ to: 'X3', when: 'mismatches>=limit | CAM_FAULT' }, { to: 'X1', when: 'mismatches=0' }] },
         X3: { name: 'LINE STOP', kind: 'stop', wait: true, desc: ['Controlled stop: robots finish the step', 'and park, belt stops · red light'],
           log: 'LINE STOP: controlled stop · the CNC finishes its part, the robots finish the step and park, no new transport',

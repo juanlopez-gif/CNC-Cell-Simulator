@@ -405,7 +405,7 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
           <div class="wl"><span>Mismatches in the last 10 min: <b id="winCount">0 / 3</b></span><span>3 within 10 min → line stop</span></div>
           <div class="wbar" id="wbar"></div>
         </div>
-        <p class="rule">The camera and the proximity sensor must agree. If they disagree the camera value is used and the mismatch is logged. <em>Glitch</em> = one false reading. <em>Fault</em> = dirty or misaligned sensor that keeps missing the part.</p>
+        <p class="rule">The camera and the proximity sensor must agree. If they disagree the rule of the checkpoint gives the value (CP-1: camera; CP-2, CP-3, CP-4: absent; CP-5: present) and the mismatch is logged. <em>Glitch</em> = one false reading. <em>Fault</em> = dirty or misaligned sensor that keeps missing the part.</p>
       </div>
     </div>
   </section>
@@ -517,13 +517,15 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
   // ---------------------------------------------------------------- checkpoints
   // rule: the value used when the proximity sensor and the camera disagree (the mismatch is counted
   // in every case): camera | prox | present | absent (that value) | ask (line stop, the operator
-  // looks and the check is repeated). Being decided in step A2.1 (PROJECT_STATUS.md §15).
+  // looks and the check is repeated). Decided in step A2.1 (2026-10-28, verification/camera_policy.md):
+  // where a wrong answer can cause damage the safe value is used (CP-4 pallet absent, CP-5 nest
+  // occupied); elsewhere the cheapest safe rule.
   const CHECKPOINTS = [
     { id: 'CP-1', where: 'Input pallet', prox: 'PX-11', cam: 'CAM-1', roi: 'ROI-A', fact: 'Input pallet present and seated', rule: 'camera' },
-    { id: 'CP-2', where: 'Conveyor entry', prox: 'PE-41', cam: 'CAM-1', roi: 'ROI-B', fact: 'Part at conveyor entry', rule: 'camera' },
-    { id: 'CP-3', where: 'Conveyor exit', prox: 'PE-42', cam: 'CAM-2', roi: 'ROI-C', fact: 'Part at the end stop', rule: 'camera' },
-    { id: 'CP-4', where: 'Output pallet', prox: 'PX-52', cam: 'CAM-2', roi: 'ROI-D', fact: 'Output pallet present', rule: 'camera' },
-    { id: 'CP-5', where: 'Gauge nest', prox: 'PX-64', cam: 'CAM-2', roi: 'ROI-E', fact: 'Part in gauge nest', rule: 'camera' },
+    { id: 'CP-2', where: 'Conveyor entry', prox: 'PE-41', cam: 'CAM-1', roi: 'ROI-B', fact: 'Part at conveyor entry', rule: 'absent' },
+    { id: 'CP-3', where: 'Conveyor exit', prox: 'PE-42', cam: 'CAM-2', roi: 'ROI-C', fact: 'Part at the end stop', rule: 'absent' },
+    { id: 'CP-4', where: 'Output pallet', prox: 'PX-52', cam: 'CAM-2', roi: 'ROI-D', fact: 'Output pallet present', rule: 'absent' },
+    { id: 'CP-5', where: 'Gauge nest', prox: 'PX-64', cam: 'CAM-2', roi: 'ROI-E', fact: 'Part in gauge nest', rule: 'present' },
   ];
 
   // ---------------------------------------------------------------- sensors / signals
@@ -665,7 +667,8 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
   // value ({TAG} sensor, [CP-n] checkpoint, *bold*). kind tells where the value comes from:
   //   sensor   a device signal; the simulation reads its plant, the verifier an abstract plant
   //   check    fused result of the last camera + proximity check made by the machine that reads it
-  //            (the camera decides; one machine never reads another machine's check)
+  //            (the rule of the checkpoint decides when they disagree; one machine never reads
+  //            another machine's check)
   //   var      PLC variable written by the steps of the machines
   //   input    operator or technician input (HMI button)
   //   derived  defined by an expression over other names (def)
@@ -839,7 +842,8 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
   //   at a transition (then the pending state follows), while waiting (then the state is entered
   //   again), or at once after a camera fault (then the same check is repeated). F is entered when a
   //   confirmation is missing or a timer expires; after `exit` (the operator clears it) the state
-  //   is repeated.
+  //   is repeated. Therefore a step that moves a part carries a `when` on the gripper (GR-21B, GR-51)
+  //   so that repeating the state never repeats a place, pick or load that was already done (A2.1).
   //   view: diagram layout only (main column order, side states next to an anchor, or a grid).
   const HOLD_NOTE = [
     '*F FAULT* and *H HOLD* can be entered from any state. FAULT = a confirmation is missing or a timeout',
@@ -869,7 +873,7 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
   const PICK_CONV = {
     name: 'PICK FROM CONVEYOR', short: 'pick',
     desc: ['Move to the {CAM-2} pick pose · grip ·', 'lift · retract · [CP-3] exit clear'],
-    do: [{ job: 'R2.pickConv' }, { check: 'CP-3', quick: true }, { set: { partPicked: true, pickAllowed: false }, when: 'GR-51 & !CP-3' }],
+    do: [{ job: 'R2.pickConv', when: '!GR-51' }, { check: 'CP-3', quick: true }, { set: { partPicked: true, pickAllowed: false }, when: 'GR-51 & !CP-3' }],
   };
 
   const MACHINES = {
@@ -911,8 +915,8 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
         Q_B6: { choice: 'GR-21B', yes: 'B7', no: 'B1', yesText: 'finished part in B', noText: 'first cycle, B is empty' },
         B7: { name: 'PLACE ON CONVEYOR (B)', band: 'run', short: 'to belt',
           desc: ['Wait for {ENC-43} = 0 and [CP-2] entry clear', '· place the finished part · release'],
-          do: [{ job: 'R1.toConveyorB' }, { await: 'BELT.free' }, { check: 'CP-2', quick: true, confirm: '!CP-2' },
-            { job: 'R1.placeConvB' }, { check: 'CP-2' }, { set: { partPlaced: true }, when: 'CP-2' }],
+          do: [{ job: 'R1.toConveyorB' }, { await: 'BELT.free' }, { check: 'CP-2', quick: true, confirm: '!CP-2', when: 'GR-21B' },
+            { job: 'R1.placeConvB', when: 'GR-21B' }, { check: 'CP-2' }, { set: { partPlaced: true }, when: 'CP-2' }],
           next: [{ to: 'B1', when: 'CP-2 & R1.clearConv' }] },
         W1: W1('B1'),
       },
@@ -922,12 +926,12 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
       slot: 'CONV', setup: 0,
       title: 'State diagram: Conveyor',
       sub: 'Robots pick or place at the belt only when it is stopped ({ENC-43} = 0); the belt starts only when both robots are clear.',
-      initial: { to: 'C1', do: [{ check: 'CP-2', quick: true }, { check: 'CP-3', quick: true }], when: '!CP-2 & !CP-3', text: 'Start-up:' },
+      initial: { to: 'C1', do: [{ check: 'CP-2', quick: true, until: '!CP-2' }, { check: 'CP-3', quick: true, until: '!CP-3' }], when: '!CP-2 & !CP-3', text: 'Start-up:' },
       hold: { desc: ['A running transport finishes at', 'the stop; no new transport starts'], exit: '!HOLD.req' },
       fault: { desc: ['Missing confirmation or a', 'transport timer expired (belt /', 'drive fault, jam, lost part)'], exit: 'HMI.clear' },
       note: [
         '*Stop logic:* stopping uses *OR* ({PE-42} or {CAM-2}) because stopping is the safe direction;',
-        'confirming the part for the pick uses the cross-check [CP-3] (both must agree, otherwise the camera decides).',
+        'confirming the part for the pick uses the cross-check [CP-3] (if they disagree: no part, the pick waits).',
       ],
       view: { main: ['C1', 'C2', 'C3', 'C4', 'C5'] },
       states: {
@@ -975,7 +979,7 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
         E2: Object.assign({}, PICK_CONV, { next: [{ to: 'E3', when: 'GR-51 & !CP-3 & R2.clearConv' }] }),
         E3: { name: 'LOAD GAUGE', short: 'gauge',
           desc: ['Place in the corner nest · push against the', '3 datums (force control) · release · retract'],
-          do: [{ job: 'R2.loadGauge' }, { check: 'CP-5' }],
+          do: [{ job: 'R2.loadGauge', when: 'GR-51' }, { check: 'CP-5' }],
           next: [{ to: 'E4', when: 'CP-5 & R2.clearGauge' }] },
         E4: { name: 'MEASURE L, W, H', short: 'measure',
           desc: ['{LS-61}/{LS-62}/{LS-63}: average of 10 samples', 'size = 50.000 + (d master − d part)'],
@@ -1005,7 +1009,7 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
       states: {
         X1: { name: 'NORMAL', kind: 'ok', wait: true, desc: ['All checkpoints agree', 'stack light {LT-01} green'],
           next: [{ to: 'X3', when: 'CAM_FAULT' }, { to: 'X2', when: 'mismatches>0' }] },
-        X2: { name: 'MISMATCH WARNING', kind: 'warn', wait: true, desc: ['1–2 mismatches in the last 10 min', 'camera value used · amber flashing'],
+        X2: { name: 'MISMATCH WARNING', kind: 'warn', wait: true, desc: ['1–2 mismatches in the last 10 min', 'rule of the CP used · amber flashing'],
           next: [{ to: 'X3', when: 'mismatches>=limit | CAM_FAULT' }, { to: 'X1', when: 'mismatches=0' }] },
         X3: { name: 'LINE STOP', kind: 'stop', wait: true, desc: ['Controlled stop: robots finish the step', 'and park, belt stops · red light'],
           log: 'LINE STOP: controlled stop · the CNC finishes its part, the robots finish the step and park, no new transport',
@@ -1870,7 +1874,7 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
   // ------------------------------------------------------------------ Cross-check flowchart
   function flowCrossCheck(o) {
     const d = new Diagram(860, 0, 'Camera + proximity cross-check (runs at every checkpoint CP-1 … CP-5)',
-      'Both sources must agree. If they disagree the camera decides; 3 disagreements within 10 minutes stop the line.', o);
+      'Both sources must agree. If they disagree the rule of the checkpoint decides; 3 disagreements within 10 minutes stop the line.', o);
     const t = d.top;
     const LX = 18, LW = 222, LC = LX + LW / 2;
     const MX = 280, MW = 320, MC = MX + MW / 2;
@@ -1885,20 +1889,20 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
     d.arrow([[q1.left, q1.cy], [r1.right, q1.cy]], ['No'], { at: [(q1.left + r1.right) / 2, q1.cy - 13], kind: 'fault' });
     const q1b = d.choice('Q1B', LC, r1.bottom + 30 + 33, 170, 66, ['Valid now?']);
     d.arrow([[LC, r1.bottom], [LC, q1b.top]]);
-    const cf = d.node('CF', LX, q1b.bottom + 36, LW, 86, ['CAMERA FAULT', '→ LINE STOP', 'the camera is the reference,', 'so the line never runs blind'], { shape: 'term', kind: 'stop', titleLines: 2 });
+    const cf = d.node('CF', LX, q1b.bottom + 36, LW, 86, ['CAMERA FAULT', '→ LINE STOP', 'no cross-check possible,', 'the line never runs on one source'], { shape: 'term', kind: 'stop', titleLines: 2 });
     d.arrow([[LC, q1b.bottom], [LC, cf.top]], ['No'], { at: [LC + 14, (q1b.bottom + cf.top) / 2], anchor: 'start', kind: 'fault' });
     const q2 = d.choice('Q2', MC, q1b.cy + 30 + 44, 262, 88, ['Proximity', '= Camera?']);
     d.arrow([[MC, q1.bottom], [MC, q2.top]], ['Yes'], { at: [MC + 14, q1.bottom + 16], anchor: 'start' });
     d.arrow([[q1b.right, q1b.cy], [MC - 3, q1b.cy]], ['Yes'], { at: [(q1b.right + MC) / 2 - 10, q1b.cy - 13] });
     const ag = d.node('AG', RX, q2.cy - 36, RW, 72, ['AGREE', 'use the value, the', 'sequence continues'], { shape: 'term', kind: 'ok' });
     d.arrow([[q2.right, q2.cy], [ag.left, q2.cy]], ['Yes'], { at: [(q2.right + ag.left) / 2, q2.cy - 13], kind: 'ok' });
-    const mm = d.node('MM', MX, q2.bottom + 40, MW, 90, ['MISMATCH', 'USE THE CAMERA VALUE', 'log time, CP and both readings', 'amber light · HMI names the sensor'], { kind: 'warn', titleLines: 2 });
+    const mm = d.node('MM', MX, q2.bottom + 40, MW, 90, ['MISMATCH', 'USE THE SAFE VALUE OF THE CP', 'log time, CP and both readings', 'amber light · HMI names the sensor'], { kind: 'warn', titleLines: 2 });
     d.arrow([[MC, q2.bottom], [MC, mm.top]], ['No'], { at: [MC + 14, (q2.bottom + mm.top) / 2], anchor: 'start', kind: 'fault' });
     const wn = d.node('WN', MX, mm.bottom + 30, MW, 58, ['ADD TO THE 10-MIN WINDOW', 'events older than 10 min drop out']);
     d.arrow([[MC, mm.bottom], [MC, wn.top]]);
     const q3 = d.choice('Q3', MC, wn.bottom + 30 + 46, 276, 92, ['≥ 3 mismatches', 'in the last 10 min?']);
     d.arrow([[MC, wn.bottom], [MC, q3.top]]);
-    const cn = d.node('CN', RX, q3.cy - 36, RW, 72, ['CONTINUE', 'with the camera value,', 'warning stays active'], { shape: 'term', kind: 'warn' });
+    const cn = d.node('CN', RX, q3.cy - 36, RW, 72, ['CONTINUE', 'with the value of the rule,', 'warning stays active'], { shape: 'term', kind: 'warn' });
     d.arrow([[q3.right, q3.cy], [cn.left, q3.cy]], ['No'], { at: [(q3.right + cn.left) / 2, q3.cy - 13] });
     const ls = d.node('LS', MX, q3.bottom + 40, MW, 88, ['LINE STOP', 'SENSOR VERIFICATION', 'controlled stop · red light', '(see the supervisor states)'], { shape: 'term', kind: 'stop', titleLines: 2 });
     d.arrow([[MC, q3.bottom], [MC, ls.top]], ['Yes'], { at: [MC + 14, (q3.bottom + ls.top) / 2], anchor: 'start', kind: 'fault' });
@@ -3293,7 +3297,7 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
       key = 'qh'; title = 'Quality hold · 2 NOK parts in a row'; text = 'The CNC finished its part and will not start a new cycle. Check tool wear and work offsets, then release the hold.'; cls = 'warn';
       acts = [['Tool and offsets checked · release', 'qh', 'warn']];
     } else if (SUP.events.length) {
-      key = 'mm:' + SUP.events.length; title = `Sensor mismatch warning · ${SUP.events.length} of ${RU.mismatchLimit} in 10 min`; text = `Disagreements: ${windowSummary()}. The camera value is used and the line keeps running. A ${RU.mismatchLimit}rd mismatch within 10 minutes stops the line.`; cls = 'warn';
+      key = 'mm:' + SUP.events.length; title = `Sensor mismatch warning · ${SUP.events.length} of ${RU.mismatchLimit} in 10 min`; text = `Disagreements: ${windowSummary()}. The rule of each checkpoint gives the value used and the line keeps running. A ${RU.mismatchLimit}rd mismatch within 10 minutes stops the line.`; cls = 'warn';
     } else {
       const s = activeHmi('swap') || activeHmi('load');
       if (s) {

@@ -925,7 +925,7 @@
       key = 'qh'; title = 'Quality hold · 2 NOK parts in a row'; text = 'The CNC finished its part and will not start a new cycle. Check tool wear and work offsets, then release the hold.'; cls = 'warn';
       acts = [['Tool and offsets checked · release', 'qh', 'warn']];
     } else if (SUP.events.length) {
-      key = 'mm:' + SUP.events.length; title = `Sensor mismatch warning · ${SUP.events.length} of ${RU.mismatchLimit} in 10 min`; text = `Disagreements: ${windowSummary()}. The camera value is used and the line keeps running. A ${RU.mismatchLimit}rd mismatch within 10 minutes stops the line.`; cls = 'warn';
+      key = 'mm:' + SUP.events.length; title = `Sensor mismatch warning · ${SUP.events.length} of ${RU.mismatchLimit} in 10 min`; text = `Disagreements: ${windowSummary()}. The rule of each checkpoint gives the value used and the line keeps running. A ${RU.mismatchLimit}rd mismatch within 10 minutes stops the line.`; cls = 'warn';
     } else {
       const s = activeHmi('swap') || activeHmi('load');
       if (s) {

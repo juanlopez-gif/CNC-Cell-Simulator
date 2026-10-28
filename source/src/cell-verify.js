@@ -744,7 +744,12 @@
     return L.join('\n') + '\n';
   }
 
-  const API = { build, check, expected, toSmv };
+  // The verification runs (verify.js, build_all.js, regress.js): name -> fault classes of build().
+  // camwrong = camera wrong with a valid image alone; sensor_camwrong = every sensor fault together,
+  // with the confirmation timeouts that recover them.
+  const RUNS = { none: false, sensor: 'sensor', process: 'process', camwrong: 'camwrong', sensor_camwrong: ['sensor', 'camwrong', 'timeout'] };
+
+  const API = { build, check, expected, toSmv, RUNS };
   root.CellVerify = API;
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
 })(typeof window !== 'undefined' ? window : globalThis);
