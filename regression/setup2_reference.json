@@ -1,7 +1,7 @@
 {
- "note": "Reference of Setup 2 after step A1 (Setup 1 removed from the code). Produced by source/regress.js; npm run regress compares with it.",
- "recorded": "2026-10-23",
- "commit": "end of step A1 (branch a1-base)",
+ "note": "Setup 2 at the end of step A2.1 (camera policy): rules per checkpoint, FAULT-recovery changes, P11, runs camwrong and sensor_camwrong. Differences to setup2_a1.json are explained in regression/README.md.",
+ "recorded": "2026-10-28",
+ "commit": "a2-design-gaps, A2.1 closing commit",
  "fingerprint": {
   "kpi": {
    "idle": 20.5,
@@ -40,25 +40,35 @@
   "smv": {
    "none": {
     "vars": 44,
-    "commands": 266,
-    "sha256": "3cc43a76dcbd33386f3d54aecc9667672ee2ebaf824d6b9e6b2d5a683fc07abd"
+    "commands": 281,
+    "sha256": "d351191fa3ca830aefa890524353cead9a723c8be96f1304f4dcf02658f64b0b"
    },
    "sensor": {
     "vars": 44,
-    "commands": 295,
-    "sha256": "2cea5b7c089f8bcb2aad582334f814716f9a32628f8028c1da041f73e48d65bd"
+    "commands": 327,
+    "sha256": "c85ce9a094799f978e967c021a0678728d55a08069a734a7d093604ea94577b6"
    },
    "process": {
     "vars": 44,
-    "commands": 284,
-    "sha256": "f6c09559c7d2a94adf76a0eb0f61a00f56f145558ab495f9c8827edfdbe8fe1b"
+    "commands": 299,
+    "sha256": "ad6bbd65907bca872e436f2f47477b592769811fb7512428640099cc0b25fe3f"
+   },
+   "camwrong": {
+    "vars": 44,
+    "commands": 341,
+    "sha256": "95b66c89372c69708baddcfe51afa297521c63d0ac04472ca998110a36f65f43"
+   },
+   "sensor_camwrong": {
+    "vars": 44,
+    "commands": 366,
+    "sha256": "75bdb0b04d3262e5b5f585ccf25187b246688ab8c1870cd812ec55aa5bbbc791"
    }
   },
   "figures": {
    "fig02_control_architecture": "48abd3b93114089f3acf6f199302e2aa87f2dc174a301412174ba5ae72fcba1e",
-   "fig03_crosscheck_flow": "cc6a903b466f2c14e1902f072f7965af2c7b10c45efda6b4d6c0762a397b23b7",
-   "fig04_supervisor_states": "50e4599e89566f53c46a4374e75a53f67011529556221e649994206a5f0d07d7",
-   "fig07_states_conveyor": "aa5513c8d2b39eac5ab01d9b32879e81cf8e19ee6e168212b9589c7bfccd8a25",
+   "fig03_crosscheck_flow": "b7ade2f2c9ec9ea37d341895d9077fea88cd4bc8b6584db4cbd516dacebfa6bb",
+   "fig04_supervisor_states": "5f10ecac0dd5420586b513691bb9ee24b8793b893e40b6edfa66fb2793a93b01",
+   "fig07_states_conveyor": "735557afbe18cc76abc309d1e33ea401eae51790efc0e9ea054e13ba5fa926df",
    "fig09_layout_setup2": "645dab2066c935213f672bb950488f7d943f1fa8257db427e9229f8729d4c7f9",
    "fig10_timing_setup1_vs_setup2": "61370473367958e750b4edacbf77d406a496f31971a27e8f485fced79497d071",
    "fig11_flow_setup2": "7ee1a46b9af8cdd21ea200cdc459e4a6b5b2891a86b35bc62ee638c0b505475e",
@@ -72,15 +82,15 @@
     "sha256": "f6363076a45b04fa3c39a9f063d8164c75b6cc67f48810df4f0f4d35b458809f"
    },
    "det_cp2fault": {
-    "changes": 447,
-    "sha256": "1cc5d4e07889ba5a8d8fae64ce40a4219772b8aeadd180b9fcb700bf6600bdaf"
+    "changes": 453,
+    "sha256": "8a9c164bff82e8aaeffc25abe04d5b4a48444f2990f69bcaf5f2d08303d954ef"
    },
    "pageErrors": []
   },
   "python": {
    "det_nominal": {
     "changes": 440,
-    "sha256": "02ed8d5b1d34d889a8659cacd894392f56621169dbb32de98e367f1a68839634",
+    "sha256": "f6363076a45b04fa3c39a9f063d8164c75b6cc67f48810df4f0f4d35b458809f",
     "cycles": 25,
     "mismatches": 0,
     "stops": 0,
@@ -88,8 +98,8 @@
     "errors": 0
    },
    "det_cp2fault": {
-    "changes": 447,
-    "sha256": "1cc5d4e07889ba5a8d8fae64ce40a4219772b8aeadd180b9fcb700bf6600bdaf",
+    "changes": 453,
+    "sha256": "8a9c164bff82e8aaeffc25abe04d5b4a48444f2990f69bcaf5f2d08303d954ef",
     "cycles": 25,
     "mismatches": 3,
     "stops": 1,
@@ -98,7 +108,7 @@
    },
    "random_nominal_2h": {
     "changes": 876,
-    "sha256": "8a0a40cfb6812441ecc384685e478e9da24d72dc664173f613e8cc22a02e796a",
+    "sha256": "9d319d10f2213266bc8fea1c365e9e6921cf5b03d22806f2fcbd1d2335bd6a3b",
     "cycles": 51,
     "errors": 0,
     "injected": {},
@@ -124,8 +134,8 @@
     }
    },
    "random_faults_8h": {
-    "changes": 1587,
-    "sha256": "07b8d38589158a6094cb6ecfff766b562fcd000ea4ecdb22aa68084b54d6d925",
+    "changes": 1599,
+    "sha256": "2d0f351e5cf1dfdb00ee22181e05d5d3b9379c4768b0fc5e5443b711b2028d72",
     "cycles": 89,
     "errors": 0,
     "injected": {
@@ -139,7 +149,7 @@
      "operator back": 4
     },
     "actions": {
-     "clear": 3,
+     "clear": 9,
      "verify": 5,
      "reset": 5,
      "release": 1
@@ -155,7 +165,7 @@
      "parts_per_hour": 11.149001,
      "mismatches": 11,
      "line_stops": 5,
-     "jobs": 1542,
+     "jobs": 1549,
      "property_violations": 0
     }
    }

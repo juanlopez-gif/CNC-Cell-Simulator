@@ -11,7 +11,9 @@ from trace import scenario_trace
 
 
 def digest(trace):
-    rows = [[round(e[0], 6), e[1], e[2], e[3]] for e in trace]
+    # times rounded to 1 µs and written as JavaScript does (300, not 300.0), so that the browser and
+    # Python fingerprints of the same trace are equal
+    rows = [[(lambda t: int(t) if t == int(t) else t)(round(e[0], 6)), e[1], e[2], e[3]] for e in trace]
     return hashlib.sha256(json.dumps(rows, separators=(",", ":")).encode()).hexdigest()
 
 

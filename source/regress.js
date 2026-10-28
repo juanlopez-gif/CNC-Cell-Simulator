@@ -53,6 +53,7 @@ async function collect() {
         if (scenario === 'cp2fault' && t === 300) document.querySelector('#cpTable tr[data-cp="CP-2"] button[data-inj="fault"]').click();
         C.advance(10);
         if (scenario === 'cp2fault') {
+          if (Object.keys(C.S.faults).some((k) => C.S.faults[k])) C.press('clear');    // as engine/trace.py
           if (C.MCH.SUP.state === 'X3' && !C.S.inputs.verify) C.press('verify');
           if (C.MCH.SUP.state === 'X4' && C.S.verify && C.S.verify.done && !C.S.inputs.reset) C.press('resume');
         }

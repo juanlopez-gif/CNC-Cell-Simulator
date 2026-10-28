@@ -21,7 +21,7 @@ reference behind it.
 | Toolchain used | Node.js 24, Python 3.11, Google Chrome (headless via puppeteer-core), NuSMV 2.7.1; Windows 11 locally, Ubuntu in CI |
 | Built by | Claude Code (one agent, model Claude Opus 5.5) directed by the author |
 
-### Health check at the end of step A1 (2026-10-23)
+### Health check at the end of step A2.1 (2026-10-28, branch `a2-design-gaps`, cloud session)
 
 | Check | Command | Result |
 |---|---|---|
@@ -73,7 +73,7 @@ formal verification are all generated from or interpret that file.
 | Claim | Evidence | Assumptions and limits |
 |---|---|---|
 | The model is internally consistent | `lint()` | Structural only: names exist, states reachable, texts match the logic. Says nothing about whether the logic is right |
-| The browser and Python simulators run the same controller logic | Export check; identical traces in 2 deterministic scenarios (1 h each) | Shows that the Python port reproduces the browser in those scenarios. Python is a line-by-line port, so an error in the original would be reproduced, not detected |
+| The browser and Python simulators run the same controller logic | Export check; identical traces in 3 deterministic scenarios (1 h each, one with camera errors) | Shows that the Python port reproduces the browser in those scenarios. Python is a line-by-line port, so an error in the original would be reproduced, not detected |
 | Both simulators follow the model | Conformance runs, 20 h with random faults | Only with the simulated plant and the faults it can inject |
 | 13 properties hold and there is no deadlock | Exhaustive search of the abstract model, 3 runs (nominal, sensor faults, process faults) | Untimed plant; **the fused check result always equals the physical truth** (a mismatch only adds to the counter, the camera is never wrong); output pallet of 2 slots; sensor and process faults never combined in one run; L1–L3 are AG EF: the goal can always still be reached, not that it will be reached |
 | The search and the NuSMV export agree | Same verdicts and state counts in all 3 runs | Additional evidence of consistency. Both start from the same intermediate representation (`build()`), so an error made there would be shared |
@@ -123,14 +123,17 @@ Week2_Sensors_Design/
 │   ├── index.html                   the simulator, one self-contained file (≈ 225 kB), generated
 │   └── sim_*.png                    screenshots used in the README
 ├── verification/
-│   ├── cell_setup2_{none,sensor,process}.smv        NuSMV models, generated
-│   ├── cell_setup2_{none,sensor,process}.nusmv.txt  NuSMV outputs
+│   ├── cell_setup2_<run>.smv        NuSMV models of the 5 runs (none, sensor, process, camwrong,
+│   │                                sensor_camwrong), generated
 │   ├── results.json                 every number of the last verification run
-│   └── results.md                   human-readable results (tables of runs and properties)
+│   ├── results.md                   human-readable results (tables of runs and properties)
+│   ├── camera_policy.md             step A2.1: evidence for the camera rule and the decision
+│   └── camera_study/                outputs and scripts of the A2.1 studies
 ├── regression/
-│   ├── README.md                    what is compared, and the result of step A1
+│   ├── README.md                    what is compared, and the results of steps A1 and A2.1
 │   ├── setup2_baseline.json         fingerprint of Setup 2 before A1
-│   └── setup2_reference.json        current reference (npm run regress, CI)
+│   ├── setup2_a1.json               fingerprint at the end of A1
+│   └── setup2_reference.json        current reference, end of A2.1 (npm run regress, CI)
 ├── engine/                          Python engine, no graphics (see §7)
 │   ├── README.md
 │   ├── cellsim/__init__.py          exports CellSim, Model, load, conformance, run_random
@@ -141,7 +144,8 @@ Week2_Sensors_Design/
 │   ├── run.py                       command line
 │   ├── test_engine.py               5 unit tests
 │   ├── trace.py                     prints a scenario trace as JSON (used by test_sim.js engine)
-│   └── regress.py                   fingerprints of fixed scenarios (used by regress.js)
+│   ├── regress.py                   fingerprints of fixed scenarios (used by regress.js)
+│   └── camera_sim.py                step A2.1: timed cost of each camera rule per checkpoint
 └── source/                          everything that generates the outputs
     ├── package.json                 dep: puppeteer-core; scripts build, check, test, regress, verify
     ├── src/cell-model.js            ★ THE MODEL (single source of truth)
@@ -155,7 +159,8 @@ Week2_Sensors_Design/
     ├── build_sim.js                 bundles model + diagrams + app into one HTML file
     ├── render.js                    writes every figure as SVG and PNG (Chrome)
     ├── export_model.js              writes engine/cellsim/cell_model.json (--check mode)
-    ├── verify.js                    runs the 3 verification runs (+ NuSMV), writes results
+    ├── verify.js                    runs the 5 verification runs (+ NuSMV), writes results
+    ├── camera_study.js              step A2.1: exhaustive run per checkpoint and camera rule
     ├── regress.js                   regression fingerprint and comparison
     ├── compare_verification.js      compares two verification results.json
     ├── test_sim.js                  headless tests: basic | fault | s2 | mobile | conform | engine | all
@@ -506,12 +511,14 @@ sim.state("R2"); sim.kpis(); sim.trace; sim.logs; sim.stats; sim.errors  # error
 - `run.py --hours H --faults --seed N --log N`.
 - `scenarios.run_random(setup, hours, faults, seed)` (about one disturbance every 14 min) and
   `scenarios.conformance(sim)` (every state change must be a model transition).
-- Tests (`test_engine.py`): export current; nominal idle = KPI every cycle; faulty CP-2 stops the
-  line at the 3rd mismatch and verification + reset recover; two undersized parts → quality hold,
+- Tests (`test_engine.py`): export current; nominal idle = KPI every cycle; faulty CP-2 (dead
+  PE-41) stops the line at the 3rd mismatch, after at most 3 FAULTs cleared by the operator, and
+  verification + reset recover; two undersized parts → quality hold,
   no cycle start; 4 h random runs conform with no property violation.
-- Parity: `node source/test_sim.js engine` runs 1 h nominal and 1 h with a faulty CP-2 in the
-  browser and in Python (`trace.py`) and requires identical traces (same changes, same instants
-  within 1e-6 s). Last result: identical in both.
+- Parity: `node source/test_sim.js engine` runs three 1 h scenarios in the browser and in Python
+  (`trace.py`): nominal, a dead PE-41 (CP-2) from t = 300 s, and `camwrong` (camera wrong, stale image
+  and a proximity glitch at the five checkpoints). It requires identical traces (same changes, same
+  instants within 1e-6 s) and the same property violations. Last result: identical in all three.
 - `regress.py`: fingerprints of the deterministic runs and of seeded random runs (2 h nominal, 8 h
   with faults) for `source/regress.js`.
 
@@ -580,18 +587,27 @@ search, with counterexample traces. "Eventually" (AG EF) checked afterwards: ite
 implicit graph finds the bottom SCCs; the property holds if every bottom SCC contains a goal state.
 Also records deadlocks and which machine states are never reached.
 
-### 9.3 Results (`verification/results.md`, re-run at the end of A1)
+### 9.3 Results (`verification/results.md`, re-run at the end of A2.1, 2026-10-28)
 
-| Run | States | Transitions | Failed |
-|---|---:|---:|---|
-| none | 212,303 | 870,229 | none |
-| sensor | 14,685,160 | 66,124,127 | none |
-| process | 5,327,386 | 27,709,028 | none |
+| Run | Fault classes | States | Transitions | Failed |
+|---|---|---:|---:|---|
+| none | — | 212,303 | 870,229 | none |
+| sensor | proximity wrong, invalid images, timeouts | 39,412,569 | 188,853,615 | none |
+| process | missed picks, timeouts and timers, undersized parts | 5,327,386 | 27,709,028 | none |
+| camwrong | camera false positive / negative / stale image, timeouts | 9,672,947 | 45,854,410 | none |
+| sensor_camwrong | all sensor faults together, timeouts | 45,750,459 | 229,497,426 | none |
 
-0 deadlocks; all 13 properties hold. The numbers are identical to the run of 2026-10-02, as expected
-from identical `.smv` files. The Setup 1 runs (55,600 / 3,359,887 / 88,132 states) are in the legacy
-branch. Never-reached states are listed per run
-(e.g. `R2: E6` without process faults, which is expected: no undersized parts).
+0 deadlocks; all 14 properties (P1–P11, L1–L3) hold in every run. `none` and `process` have the same
+state counts as at the end of A1 (the recovery guards do not change what is reachable there). The
+`sensor` run now includes the class `timeout` (§9.1), hence 39.4 instead of 14.7 million states. The
+A1 numbers are in `regression/setup2_a1.json` and git history; the Setup 1 runs (55,600 / 3,359,887 /
+88,132 states) in the legacy branch. Never-reached states are listed per run (e.g. `R2: E6` without
+process faults, which is expected: no undersized parts).
+
+**NuSMV has not been run on these models.** The cloud session of A2.1 could not download it (network
+policy), so the old `.nusmv.txt` outputs, which belonged to the A1 models, were removed. The
+cross-check is the workflow `full verification` (§11) or a local run (§12); until then the A2.1
+results rest on the explicit search alone.
 
 ### 9.4 NuSMV export (`toSmv(ir)`) and cross-check
 
@@ -604,8 +620,9 @@ branch. Never-reached states are listed per run
   L1–L3 are CTL `AG EF`.
 - `verify.js` runs each model in two NuSMV processes (invariants; CTL), each spec its own command so
   output appears as it finishes, matches results by formula and compares verdicts and reachable
-  state counts. 46 specs per model; all agree; NuSMV time up to ~2 h for the sensor-fault model
-  (≈ 1 h total wall clock with 8 parallel jobs).
+  state counts. At the end of A1: 46 specs per model; all agree; NuSMV time up to ~2 h for the
+  sensor-fault model (≈ 1 h total wall clock with 8 parallel jobs). Not yet run on the A2.1 models
+  (§9.3).
 - Manual run of one file: `NuSMV -dynamic -dcx -r cell_setup2_none.smv`.
 
 What the agreement means: additional evidence that the explicit search and the NuSMV export are
@@ -639,11 +656,11 @@ branch `legacy-setup1-setup2`.
 | `npm run check` | Lint (§5.13) and that every generated text file (10 SVG figures, the simulator page, the model JSON, the 3 `.smv` files) is exactly what the sources give; stale figure files; missing PNGs |
 | `node export_model.js --check` | The JSON read by Python matches `cell-model.js` (not that the Python interpreter is correct) |
 | `node test_sim.js basic` | Simulator loads, runs, no console errors |
-| `node test_sim.js fault` | CP-2 fault → 3 mismatches → line stop → verify → reset works |
+| `node test_sim.js fault` | Dead PE-41 (CP-2) → Robot 1 FAULT on the missing confirmation, cleared by the operator → third mismatch → line stop → clear the FAULT so that Robot 1 parks → verify → reset works |
 | `node test_sim.js s2` | Two undersized parts → NOK chute and quality hold |
 | `node test_sim.js mobile` | No horizontal scroll at 400 px |
 | `node test_sim.js conform` | 20 h of simulated operation (2 h nominal; 2 h, 8 h and 8 h with random faults; seeds 1–4): every state change is a model transition, every job takes its model time, no property violated, nominal idle = KPI |
-| `node test_sim.js engine` | Browser and Python traces identical (2 scenarios × 1 h) |
+| `node test_sim.js engine` | Browser and Python traces identical (3 scenarios × 1 h: nominal; dead PE-41; camera wrong / stale image / proximity glitch at all five checkpoints), same property violations |
 | `npm test` | All the `test_sim.js` modes |
 | `npm run regress` | Setup 2 fingerprint identical to `regression/setup2_reference.json` (KPIs, state times, NuSMV models, figures, browser and Python traces, no page errors) |
 | `python -m unittest test_engine` (in `engine/`) | §7 |

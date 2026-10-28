@@ -1896,7 +1896,7 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
     d.arrow([[q1b.right, q1b.cy], [MC - 3, q1b.cy]], ['Yes'], { at: [(q1b.right + MC) / 2 - 10, q1b.cy - 13] });
     const ag = d.node('AG', RX, q2.cy - 36, RW, 72, ['AGREE', 'use the value, the', 'sequence continues'], { shape: 'term', kind: 'ok' });
     d.arrow([[q2.right, q2.cy], [ag.left, q2.cy]], ['Yes'], { at: [(q2.right + ag.left) / 2, q2.cy - 13], kind: 'ok' });
-    const mm = d.node('MM', MX, q2.bottom + 40, MW, 90, ['MISMATCH', 'USE THE SAFE VALUE OF THE CP', 'log time, CP and both readings', 'amber light · HMI names the sensor'], { kind: 'warn', titleLines: 2 });
+    const mm = d.node('MM', MX, q2.bottom + 40, MW, 90, ['MISMATCH', 'USE THE VALUE OF THE CP RULE', 'log time, CP and both readings', 'amber light · HMI names the sensor'], { kind: 'warn', titleLines: 2 });
     d.arrow([[MC, q2.bottom], [MC, mm.top]], ['No'], { at: [MC + 14, (q2.bottom + mm.top) / 2], anchor: 'start', kind: 'fault' });
     const wn = d.node('WN', MX, mm.bottom + 30, MW, 58, ['ADD TO THE 10-MIN WINDOW', 'events older than 10 min drop out']);
     d.arrow([[MC, mm.bottom], [MC, wn.top]]);
@@ -3278,13 +3278,18 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
     let key = '', title = '', text = '', cls = '', acts = [], list = [];
     if (ev('lineStop')) {
       const h = stateOf('SUP', MCH.SUP.state).hmi;
-      key = `stop:${MCH.SUP.state}:${S.verify ? S.verify.i + ':' + S.verify.done : ''}:${S.inputs.verify}:${ev('CELL.stopped')}`;
+      key = `stop:${MCH.SUP.state}:${S.verify ? S.verify.i + ':' + S.verify.done : ''}:${S.inputs.verify}:${ev('CELL.stopped')}:${fault || ''}`;
       title = h.title;
       text = `${S.stopReason}. Controlled stop: the CNC finishes the part in the machine, the robots park at home and the belt starts no new transport.`;
       cls = 'bad';
       if (h.act === 'verify') {
         if (S.inputs.verify && !ev('CELL.stopped')) text += ' The check starts as soon as both robots are parked and the belt is stopped.';
         acts = [[S.inputs.verify ? 'Waiting for the cell to stop…' : 'Start sensor verification', 'verify', 'bad', S.inputs.verify]];
+      }
+      // a machine in FAULT parks only after the fault is cleared: offer it here too, or the cell never stops
+      if (fault) {
+        text += ` ${M.SLOTS[fault].label} is in FAULT (${S.faults[fault]}): check the part and clear the fault so that it can park.`;
+        acts.unshift(['Part checked · clear fault', 'clear', 'bad']);
       }
       if (h.act === 'reset' && S.verify) {
         list = S.verify.steps.map((s, i) => [s, i < S.verify.i ? 'done' : i === S.verify.i && !S.verify.done ? 'run' : '']);
