@@ -15,7 +15,7 @@ reference behind it.
 | Live simulator | https://juanlopez-gif.github.io/CNC-Cell-Simulator/ (GitHub Pages from `main`, root `index.html` redirects to `simulation/`) |
 | Scope | **Setup 2 only** (dual gripper on Robot 1, gauge and NOK sorting on Robot 2) since step A1 |
 | Branch `main` | Step A1 merged (Setup 2 only, CI, one build command, regression references) |
-| Branch `a2-design-gaps` | Step A2 in progress (A2.1 done). **Local only**: the cloud session has no GitHub access; copies of the branch are delivered as git bundles |
+| Branch `a2-design-gaps` | Step A2 in progress (A2.1 done; A2.2 policy decided, not yet implemented). On GitHub since 2026-10-28 (the cloud session had no GitHub access; its work came as a git bundle) |
 | Branch `legacy-setup1-setup2` | Commit `1f4b8ad`: the last version with Setup 1 and Setup 2, frozen |
 | Branch `state-machines-as-data` | Commit `6204b09`; history only, no work on it |
 | Continuous integration | GitHub Actions `checks` on every push; `full verification` (NuSMV) by hand (§11) |
@@ -42,7 +42,8 @@ reference behind it.
 | Both setups frozen in `legacy-setup1-setup2` | Yes | Yes |
 | Claims limited to what the evidence shows (§1.1) | Yes | Yes (this revision) |
 | Cross-check rule tested against camera errors | Yes (A2.1, 2026-10-28): rule per checkpoint (CP-1 camera; CP-2, CP-3, CP-4 absent; CP-5 present) and four FAULT-recovery changes | **Yes, in branch `a2-design-gaps`** (not merged): camera false positive, false negative and stale image in the verifier and both simulators; evidence in `verification/camera_policy.md` |
-| Roadmap A1–A6, B, C (§15) | Yes | A0 and A1 done; A2 in progress (A2.1 done); progress table in §15 |
+| Gauge specification: guard band (accept from 48.05 mm), calibration every 4 h, validity range (§5.14) | Yes (A2.2, 2026-10-28) | **No**: the model accepts at 48.00 mm and checks the master only at start-up and after a sensor verification |
+| Roadmap A1–A6, B, C (§15) | Yes | A0 and A1 done; A2 in progress (A2.1 done, A2.2 decided); progress table in §15 |
 
 ---
 
@@ -461,6 +462,19 @@ the initial state**; the diagram `view` places every state exactly once; every `
 mentioned in a state's text is really used by a step or guard of that machine. `verify.js` and
 `export_model.js` refuse to run if lint fails; `cell-diagrams.js` stops if a transition cannot be drawn.
 
+### 5.14 Gauge specification (decided in A2.2, 2026-10-28; not yet in the model)
+
+Alternatives, consequences and the uncertainty budget: `verification/gauge_policy.md`.
+
+| Item | Specification |
+|---|---|
+| Fixture and datums | 3-2-1 nest (base, back, side datum faces), tilted towards the datum corner; air blow-off of nest and part before loading; one laser per axis facing the free face (LS-61 X, LS-62 Y, LS-63 Z) |
+| Distance to size | `size = 50.000 + (d_master − d_part)` per axis; a reading outside 45–52 mm is invalid (`GAUGE.valid` false) and the measurement is repeated |
+| Calibration | master cube MST-60 (50.000 mm, certified) at start-up, after every sensor verification, every 4 h and after a gauge FAULT; accepted if every axis reads 50.000 ± 0.010 mm, otherwise gauge FAULT |
+| Uncertainty | U = 0.05 mm (k = 2), estimated (combined 14.7 µm, expanded 29 µm, rounded up for aluminium and the linearity not yet taken from the datasheet) |
+| Decision rule | OK only if L, W and H ≥ 48.05 mm (limit 48.00 + guard band U, inside the tolerance, ISO 14253-1); otherwise NOK chute. A part in 48.00–48.05 is NOK, counts for the quality hold and is logged as "rejected in guard band" |
+| Upper limit | none specified by the assignment; none is applied |
+
 ---
 
 ## 6. Browser simulator (`source/sim-src/app.js`)
@@ -737,9 +751,10 @@ Gotchas met before:
     measurements (pick pose, parts left, output slot) are not cross-checked; the error rate of the
     timed study is chosen, not measured; with the safe values a dead proximity sensor costs up to 3
     FAULTs before the line stop.
-11. **Gauge only partly defined.** Datums, conversion of distances to L, W, H, uncertainty of the
-    whole station, chips and coolant, a guard band near 48.00 mm and calibration are not specified.
-    The assignment gives only a lower limit. Step A2.2.
+11. **Gauge specified, not yet implemented** (A2.2, §5.14, `verification/gauge_policy.md`). The
+    model still accepts at 48.00 mm without guard band and checks the master cube only at start-up
+    and after a sensor verification. The uncertainty budget is an estimate; the assignment gives
+    only a lower limit.
 12. **Times without source or tolerance.** Every value in `T` is a planning estimate. Step A2.3.
 13. **KPIs are nominal.** Idle time counts only the idle-band states of the exchange; waits for
     material, pallet changes, holds and repairs are not in it. Step A2.4.
@@ -825,7 +840,7 @@ and ends with every check of §11 green. Effort figures are indicative only.
 |---|---|---|---|
 | A0 Claims and assumptions stated | Done | `main` | 2026-10-23 |
 | A1 Base: Setup 2 only, CI, one build | Done | `a1-base` → `main` | 2026-10-23 |
-| A2 Design gaps: camera policy, gauge, times, KPIs, faults | In progress: A2.1 done (2026-10-28); next A2.2 gauge | `a2-design-gaps` (local, not pushed) | |
+| A2 Design gaps: camera policy, gauge, times, KPIs, faults | In progress: A2.1 done (2026-10-28); A2.2 gauge: policy decided (2026-10-28), implementation next | `a2-design-gaps` | |
 | A3 PLC demonstration | Not started | | |
 | A4 Timed verification (UPPAAL) | Not started | | |
 | A5 Studies with the Python engine | Not started | | |
@@ -1035,3 +1050,5 @@ Newest last. Every change to the plan or to a design rule is written here first 
 | 2026-10-23 | **A1 closed.** Setup 2 identical to the recorded reference except the intended figure changes; one defect introduced and fixed (page stopped drawing); `regress.js` extended to fail on page errors. With Setup 1 gone, the two nominal conformance runs were identical, so one was replaced by a 2 h run with faults (20 h total: 2 h nominal, 18 h with faults). The build scripts of the round-1 documents and the `docx` dependency left `main` | Done-when of A1 met: regression documented, CI green from a clean install, documents describe Setup 2 |
 | 2026-10-23 | Add the workflow `full verification` (NuSMV in GitHub Actions, by hand) and try to continue the work in a cloud session | The author wants to work without the local computer running; Remote Control is blocked by the organization. Infrastructure only, no change to the steps of the plan |
 | 2026-10-28 | **A2.1 camera policy decided by the author** on the evidence of `verification/camera_policy.md`: CP-1 camera, CP-2 absent, CP-3 absent, CP-4 absent, CP-5 present (§5.3). Four FAULT-recovery changes applied with it (CP-2 absent is safe only with them; confirmed explicitly by the author on 2026-10-28, after the decision): B7 pre-check and place only `when: 'GR-21B'`, E2 pick only `when: '!GR-51'`, E3 gauge load only `when: 'GR-51'`, conveyor start-up checks repeated `until` clear. New property P11. Every verification run with sensor faults includes the PLC confirmation timeouts. The HMI offers "clear fault" during a line stop (a robot in FAULT parks only after it is cleared) | With camera errors modelled, "the camera decides" failed P6 at CP-4, and the repetition of a state after a FAULT repeated a place, pick or load already done (P5, P11, a livelock). With the decided rules and the changes every property holds with one wrong source at every checkpoint (§9.3). Cost, reported to the author after the decision: with a dead proximity sensor up to 3 FAULTs before the line stop; 12.4 instead of 4.0 FAULTs cleared and 1.1 % fewer good parts per 8 h in random runs |
+| 2026-10-28 | Branch `a2-design-gaps` brought from the cloud session (git bundle) and pushed to GitHub; the checks pass locally with Google Chrome; figures 3, 4 and 7 re-rendered with Chrome. NuSMV cross-check of the five A2.1 models started locally | Infrastructure only, no change to the steps of the plan |
+| 2026-10-28 | **A2.2 gauge policy decided by the author**, the recommended set as a whole (`verification/gauge_policy.md`, §5.14): 3-2-1 nest tilted to the datum corner with air blow-off, one laser per axis; `size = 50.000 + (d_master − d_part)`, readings outside 45–52 mm invalid; master cube at start-up, after every sensor verification, every 4 h and after a gauge FAULT, accepted at 50.000 ± 0.010 mm; U = 0.05 mm (k = 2, estimated); OK only if L, W, H ≥ 48.05 mm (guard band inside the tolerance, ISO 14253-1), a part in the band is NOK and counts for the quality hold; no upper limit. To be implemented in the model next. An early tool-wear warning is placed in A6 | The tolerance (2 mm) is about forty times the estimated uncertainty, so the conservative rule rejects practically no good part; rejecting in the band adds no state to the machines; recalibration every 4 h bounds drift at < 0.1 % of production |
