@@ -7,7 +7,7 @@ the evidence as presented before the decision; the decision and what followed ar
 
 The author chose: **CP-1 camera, CP-2 absent, CP-3 absent, CP-4 absent, CP-5 present.** The four
 recovery changes of §3 were applied with it, because CP-2 = absent is safe only with them (the
-author has not yet confirmed them explicitly). Both are in `source/src/cell-model.js` and logged in
+author confirmed them explicitly later the same day). Both are in `source/src/cell-model.js` and logged in
 PROJECT_STATUS.md §17.
 
 Found after the decision, while re-running the tests:
