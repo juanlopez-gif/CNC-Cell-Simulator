@@ -30,7 +30,7 @@ reference behind it.
 | Python engine tests | `python -m unittest test_engine` | 5 tests OK |
 | Browser tests | `npm test` (basic, fault, quality hold, phone width, 20 h conformance, Python parity in 3 scenarios) | all pass, no page errors, no property violation |
 | Regression | `npm run regress` | identical to `regression/setup2_reference.json` (recorded at the end of A2.1); differences to the A1 reference all intended (`regression/README.md`) |
-| Exhaustive verification | `npm run verify` | 5 runs, 14 properties hold, no deadlock (§9.3). **NuSMV not run** on these models (not downloadable in the cloud session): to be done with the workflow `full verification` or locally |
+| Exhaustive verification | `npm run verify` | 5 runs, 14 properties hold, no deadlock (§9.3). NuSMV 2.7.1 agrees on all 47 specifications and on the reachable states of every run (run locally, 2026-10-29, §9.4) |
 | Environment of this check | — | cloud session: Node.js 22, Python 3.13, Chromium 1243 (Playwright build); PNGs of unchanged figures were not re-rendered there |
 | KPIs | `M.KPI` | idle 20.5 s, cycle 140.5 s, 85.4 % of the cycle machining, 25.6 parts/h; baseline `M.BASELINE` 36.5 s |
 
@@ -79,7 +79,7 @@ formal verification are all generated from or interpret that file.
 | The browser and Python simulators run the same controller logic | Export check; identical traces in 3 deterministic scenarios (1 h each, one with camera errors) | Shows that the Python port reproduces the browser in those scenarios. Python is a line-by-line port, so an error in the original would be reproduced, not detected |
 | Both simulators follow the model | Conformance runs, 20 h with random faults | Only with the simulated plant and the faults it can inject |
 | 13 properties hold and there is no deadlock | Exhaustive search of the abstract model, 3 runs (nominal, sensor faults, process faults) | Untimed plant; **the fused check result always equals the physical truth** (a mismatch only adds to the counter, the camera is never wrong); output pallet of 2 slots; sensor and process faults never combined in one run; L1–L3 are AG EF: the goal can always still be reached, not that it will be reached |
-| The search and the NuSMV export agree | Same verdicts and state counts in all 3 runs | Additional evidence of consistency. Both start from the same intermediate representation (`build()`), so an error made there would be shared |
+| The search and the NuSMV export agree | Same verdicts and state counts in all 5 runs (47 specifications each) | Additional evidence of consistency. Both start from the same intermediate representation (`build()`), so an error made there would be shared |
 | CNC idle 36.5 s → 20.5 s; 23.0 → 25.6 parts/h | Setup 2: sum of nominal step times of the states in the idle band, reproduced by the simulators without faults. Setup 1: fixed baseline numbers (`M.BASELINE`) computed before A1 | Planning estimates, not measurements. Nominal exchange only: excludes material shortage, pallet changes, holds and repairs. Idle time falls 43.8 %, output rises 11.4 %. The 85.4 % is the share of the nominal cycle spent machining, not availability or OEE |
 | Removing Setup 1 (A1) did not change Setup 2 | `regression/`: identical KPIs, NuSMV models, browser and Python traces (deterministic and seeded random runs) | Covers the recorded scenarios and the three abstract models, not every possible run |
 | The cross-check rules of §5.3 keep the properties with one wrong source | Exhaustive search with proximity wrong, camera false positive / false negative / stale image at every checkpoint, PLC timeouts included (§9.3); timed study, `verification/camera_policy.md` | One source wrong at a time: both wrong the same way (common mode) is not modelled and no rule detects it. The original rule "the camera decides" was **not** safe: it failed P6 at CP-4, and FAULT recovery failed P5 and P11 (`camera_policy.md` §2–3) |
@@ -620,10 +620,9 @@ A1 numbers are in `regression/setup2_a1.json` and git history; the Setup 1 runs 
 88,132 states) in the legacy branch. Never-reached states are listed per run (e.g. `R2: E6` without
 process faults, which is expected: no undersized parts).
 
-**NuSMV has not been run on these models.** The cloud session of A2.1 could not download it (network
-policy), so the old `.nusmv.txt` outputs, which belonged to the A1 models, were removed. The
-cross-check is the workflow `full verification` (§11) or a local run (§12); until then the A2.1
-results rest on the explicit search alone.
+NuSMV 2.7.1 was run on these models locally on 2026-10-29 (the cloud session of A2.1 could not
+download it): same verdict on all 47 specifications of every run and the same number of reachable
+states (§9.4). Outputs in `verification/cell_setup2_<run>.nusmv.txt`.
 
 ### 9.4 NuSMV export (`toSmv(ir)`) and cross-check
 
@@ -637,12 +636,14 @@ results rest on the explicit search alone.
 - `verify.js` runs each model in two NuSMV processes (invariants; CTL), each spec its own command so
   output appears as it finishes, matches results by formula and compares verdicts and reachable
   state counts. At the end of A1: 46 specs per model; all agree; NuSMV time up to ~2 h for the
-  sensor-fault model (≈ 1 h total wall clock with 8 parallel jobs). Not yet run on the A2.1 models
-  (§9.3).
+  sensor-fault model (≈ 1 h total wall clock with 8 parallel jobs). A2.1 models (2026-10-29): 47
+  specs per model, all agree, states equal in all 5 runs; NuSMV time per model from 160 s (`none`)
+  to 7.3 h (`sensor`, its next-state invariants alone 5.5 h), about 5.5 h of wall clock with 8
+  parallel jobs (`NUSMV_TIMEOUT` raised to 12 h; the default 4 h is too short for `sensor`).
 - Manual run of one file: `NuSMV -dynamic -dcx -r cell_setup2_none.smv`.
 
 What the agreement means: additional evidence that the explicit search and the NuSMV export are
-consistent for these three models and these specifications. Both start from the same intermediate
+consistent for these five models and these specifications. Both start from the same intermediate
 representation (`build()`), so an error made there would be shared and not detected. It says
 nothing about whether the abstraction matches the real cell or the timed simulators.
 
