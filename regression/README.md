@@ -15,7 +15,8 @@ node regress.js --compare ../regression/setup2_baseline.json # compare with anot
 |---|---|---|
 | `setup2_baseline.json` | 2026-10-23, commit `2d3173b` | Setup 2 **before** step A1 removed Setup 1 from the code |
 | `setup2_a1.json` | 2026-10-23, end of step A1 | Setup 2 after A1 (was `setup2_reference.json` until A2.1) |
-| `setup2_reference.json` | 2026-10-28, end of step A2.1 | The current reference; `npm run regress` and CI compare with it |
+| `setup2_a21.json` | 2026-10-28, end of step A2.1 | Setup 2 after A2.1 (was `setup2_reference.json` until A2.2) |
+| `setup2_reference.json` | 2026-10-29, end of step A2.2 | The current reference; `npm run regress` and CI compare with it |
 
 ## Step A1: removing Setup 1
 
@@ -50,3 +51,19 @@ are all intended:
 - Python fingerprints: times are now written as JavaScript writes them (`300`, not `300.0`). This
   changed the hash of the nominal Python runs without changing their traces; the browser and Python
   hashes of the same scenario are now equal.
+
+## Step A2.2: gauge policy
+
+Comparison of the code at the end of A2.2 with `setup2_a21.json` (39 differences). KPIs and the
+nominal state times of Robot 1 and the conveyor are identical. The differences are all intended:
+
+- state times of Robot 2: E0 1.5 → 8.5 s (master check `r2Master` 6 s and the move home after it),
+  E1 1 → 7 s (the conditional master check counted as if it ran), E3 3.5 → 4 s (`blowOff` 0.5 s);
+- NuSMV models: one more variable (`due`) and more commands in every run (P12, the steps of the
+  master check, the 4-h timer; `process` also the class `master`);
+- figures `fig10` (Robot 2 times) and `fig13` (Robot 2 diagram: E0, E1, E3, E4 texts, guard band);
+- deterministic scenarios `nominal` and `cp2fault`: same number of state changes, later times on
+  Robot 2 (blow-off, master check at start-up), browser and Python identical;
+- Python random runs: the 2 h nominal run has one more job; the 8 h run injects "master check out of
+  tolerance" (a new disturbance, 5 % of them, taken from the share of undersized parts), so its
+  counts differ (2 master faults, 1 undersized part instead of 3).

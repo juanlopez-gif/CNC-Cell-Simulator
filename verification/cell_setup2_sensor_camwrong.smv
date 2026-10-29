@@ -12,7 +12,7 @@ VAR
   R1_res : {none, B0_0, B1_0, B2_0, B3_0, B4_0, B5_0, B6_0, Q_B6_0, B7_0, B7_2, B7_4, W1_0}; -- where R1 continues after HOLD / FAULT
   CONV : {I_0, I_1, I_x, C1_x, C2_1, C2_2, C2_x, C3_x, C4_x, C5_1, C5_x, H_x, F_x}; -- location of the CONV machine (state_step)
   CONV_res : {none, C1_0, C2_0, C2_2, C3_0, C4_0, C5_0, C5_1}; -- where CONV continues after HOLD / FAULT
-  R2 : {I_x, E0_0, E0_1, E0_2, E0_3, E0_x, E1_0, E1_x, E2_0, E2_1, E2_x, E3_0, E3_1, E3_x, E4_0, E4_x, E5_1, E5_2, E5_3, E5_x, E6_0, E6_1, E6_x, E7_0, E7_1, E7_2, E7_x, H_0, H_x, F_x}; -- location of the R2 machine (state_step)
+  R2 : {I_x, E0_0, E0_1, E0_2, E0_3, E0_4, E0_x, E1_0, E1_1, E1_2, E1_x, E2_0, E2_1, E2_x, E3_0, E3_1, E3_x, E4_0, E4_x, E5_1, E5_2, E5_3, E5_x, E6_0, E6_1, E6_x, E7_0, E7_1, E7_2, E7_x, H_0, H_x, F_x}; -- location of the R2 machine (state_step)
   R2_res : {none, E0_0, E0_1, E0_2, E1_0, E2_0, E2_1, E3_0, E3_1, E4_0, Q_E4_0, E5_0, E5_2, Q_E5_0, E6_0, E7_0, E7_2}; -- where R2 continues after HOLD / FAULT
   SUP : {I_x, X1_x, X2_x, X3_x, X4_x}; -- location of the SUP machine (state_step)
   partPlaced : boolean; -- PLC variable
@@ -51,9 +51,10 @@ VAR
   nest : {none, raw, ok, nok}; -- part in the gauge nest
   measured : boolean; -- gauge reading valid
   zeroed : boolean; -- gauge zeroed with the master cube
+  due : boolean; -- master check due (4 h since the last one)
   pe65 : boolean; -- PE-65 saw a part fall
 IVAR
-  cmd : {idle, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16, c17, c18, c19, c20, c21, c22, c23, c24, c25, c26, c27, c28, c29, c30, c31, c32, c33, c34, c35, c36, c37, c38, c39, c40, c41, c42, c43, c44, c45, c46, c47, c48, c49, c50, c51, c52, c53, c54, c55, c56, c57, c58, c59, c60, c61, c62, c63, c64, c65, c66, c67, c68, c69, c70, c71, c72, c73, c74, c75, c76, c77, c78, c79, c80, c81, c82, c83, c84, c85, c86, c87, c88, c89, c90, c91, c92, c93, c94, c95, c96, c97, c98, c99, c100, c101, c102, c103, c104, c105, c106, c107, c108, c109, c110, c111, c112, c113, c114, c115, c116, c117, c118, c119, c120, c121, c122, c123, c124, c125, c126, c127, c128, c129, c130, c131, c132, c133, c134, c135, c136, c137, c138, c139, c140, c141, c142, c143, c144, c145, c146, c147, c148, c149, c150, c151, c152, c153, c154, c155, c156, c157, c158, c159, c160, c161, c162, c163, c164, c165, c166, c167, c168, c169, c170, c171, c172, c173, c174, c175, c176, c177, c178, c179, c180, c181, c182, c183, c184, c185, c186, c187, c188, c189, c190, c191, c192, c193, c194, c195, c196, c197, c198, c199, c200, c201, c202, c203, c204, c205, c206, c207, c208, c209, c210, c211, c212, c213, c214, c215, c216, c217, c218, c219, c220, c221, c222, c223, c224, c225, c226, c227, c228, c229, c230, c231, c232, c233, c234, c235, c236, c237, c238, c239, c240, c241, c242, c243, c244, c245, c246, c247, c248, c249, c250, c251, c252, c253, c254, c255, c256, c257, c258, c259, c260, c261, c262, c263, c264, c265, c266, c267, c268, c269, c270, c271, c272, c273, c274, c275, c276, c277, c278, c279, c280, c281, c282, c283, c284, c285, c286, c287, c288, c289, c290, c291, c292, c293, c294, c295, c296, c297, c298, c299, c300, c301, c302, c303, c304, c305, c306, c307, c308, c309, c310, c311, c312, c313, c314, c315, c316, c317, c318, c319, c320, c321, c322, c323, c324, c325, c326, c327, c328, c329, c330, c331, c332, c333, c334, c335, c336, c337, c338, c339, c340, c341, c342, c343, c344, c345, c346, c347, c348, c349, c350, c351, c352, c353, c354, c355, c356, c357, c358, c359, c360, c361, c362, c363, c364, c365};
+  cmd : {idle, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16, c17, c18, c19, c20, c21, c22, c23, c24, c25, c26, c27, c28, c29, c30, c31, c32, c33, c34, c35, c36, c37, c38, c39, c40, c41, c42, c43, c44, c45, c46, c47, c48, c49, c50, c51, c52, c53, c54, c55, c56, c57, c58, c59, c60, c61, c62, c63, c64, c65, c66, c67, c68, c69, c70, c71, c72, c73, c74, c75, c76, c77, c78, c79, c80, c81, c82, c83, c84, c85, c86, c87, c88, c89, c90, c91, c92, c93, c94, c95, c96, c97, c98, c99, c100, c101, c102, c103, c104, c105, c106, c107, c108, c109, c110, c111, c112, c113, c114, c115, c116, c117, c118, c119, c120, c121, c122, c123, c124, c125, c126, c127, c128, c129, c130, c131, c132, c133, c134, c135, c136, c137, c138, c139, c140, c141, c142, c143, c144, c145, c146, c147, c148, c149, c150, c151, c152, c153, c154, c155, c156, c157, c158, c159, c160, c161, c162, c163, c164, c165, c166, c167, c168, c169, c170, c171, c172, c173, c174, c175, c176, c177, c178, c179, c180, c181, c182, c183, c184, c185, c186, c187, c188, c189, c190, c191, c192, c193, c194, c195, c196, c197, c198, c199, c200, c201, c202, c203, c204, c205, c206, c207, c208, c209, c210, c211, c212, c213, c214, c215, c216, c217, c218, c219, c220, c221, c222, c223, c224, c225, c226, c227, c228, c229, c230, c231, c232, c233, c234, c235, c236, c237, c238, c239, c240, c241, c242, c243, c244, c245, c246, c247, c248, c249, c250, c251, c252, c253, c254, c255, c256, c257, c258, c259, c260, c261, c262, c263, c264, c265, c266, c267, c268, c269, c270, c271, c272, c273, c274, c275, c276, c277, c278, c279, c280, c281, c282, c283, c284, c285, c286, c287, c288, c289, c290, c291, c292, c293, c294, c295, c296, c297, c298, c299, c300, c301, c302, c303, c304, c305, c306, c307, c308, c309, c310, c311, c312, c313, c314, c315, c316, c317, c318, c319, c320, c321, c322, c323, c324, c325, c326, c327, c328, c329, c330, c331, c332, c333, c334, c335, c336, c337, c338, c339, c340, c341, c342, c343, c344, c345, c346, c347, c348, c349, c350, c351, c352, c353, c354, c355, c356, c357, c358, c359, c360, c361, c362, c363, c364, c365, c366, c367, c368, c369, c370, c371, c372, c373, c374, c375, c376, c377, c378, c379, c380, c381, c382, c383, c384, c385, c386, c387, c388, c389, c390, c391, c392, c393, c394, c395, c396, c397, c398, c399, c400, c401, c402, c403, c404};
 DEFINE
   g0 := (R1 = I_x & !((r1Home & !(R1 in {B0_0, B1_1, B2_0, B3_0, B4_0, B4_1, B4_2, B5_0, B5_1, B6_1, B7_0, B7_3, W1_0, H_0})))); -- R1: I -> B0
   g1 := (R1 = I_x & (r1Home & !(R1 in {B0_0, B1_1, B2_0, B3_0, B4_0, B4_1, B4_2, B5_0, B5_1, B6_1, B7_0, B7_3, W1_0, H_0}))); -- R1: I -> B0
@@ -245,8 +246,8 @@ DEFINE
   g187 := (CONV = F_x & (CONV_res = C5_0 & ((SUP = X3_x | SUP = X4_x) | CAM_FAULT))); -- CONV: F: cleared during a line stop
   g188 := (CONV = F_x & (CONV_res = C5_1 & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)))); -- CONV: F: cleared, repeat C5@1
   g189 := (CONV = F_x & (CONV_res = C5_1 & ((SUP = X3_x | SUP = X4_x) | CAM_FAULT))); -- CONV: F: cleared during a line stop
-  g190 := (R2 = I_x & !((r2Home & !(R2 in {E0_0, E0_3, E1_0, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0})))); -- R2: I -> E0
-  g191 := (R2 = I_x & (r2Home & !(R2 in {E0_0, E0_3, E1_0, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0}))); -- R2: I -> E0
+  g190 := (R2 = I_x & !((r2Home & !(R2 in {E0_0, E0_3, E0_4, E1_1, E1_2, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0})))); -- R2: I -> E0
+  g191 := (R2 = I_x & (r2Home & !(R2 in {E0_0, E0_3, E0_4, E1_1, E1_2, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0}))); -- R2: I -> E0
   g192 := R2 = E0_0; -- R2: E0: R2.home done
   g193 := R2 = E0_1; -- R2: E0: CP-4 agree
   g194 := R2 = E0_1; -- R2: E0: CP-4 mismatch
@@ -254,175 +255,214 @@ DEFINE
   g196 := (R2 = E0_1 & outPresent); -- R2: E0: CP-4 camera false negative
   g197 := (R2 = E0_1 & ((res_R2_CP_4 & !(outPresent)) | (!(res_R2_CP_4) & outPresent))); -- R2: E0: CP-4 stale image
   g198 := R2 = E0_1; -- R2: E0: CP-4 camera fault
-  g199 := R2 = E0_2; -- R2: E0: CP-5 agree
-  g200 := R2 = E0_2; -- R2: E0: CP-5 mismatch
-  g201 := (R2 = E0_2 & nest = none); -- R2: E0: CP-5 camera false positive
-  g202 := (R2 = E0_2 & !(nest = none)); -- R2: E0: CP-5 camera false negative
-  g203 := (R2 = E0_2 & ((res_R2_CP_5 & nest = none) | (!(res_R2_CP_5) & !(nest = none)))); -- R2: E0: CP-5 stale image
-  g204 := R2 = E0_2; -- R2: E0: CP-5 camera fault
-  g205 := R2 = E0_3; -- R2: E0: GAUGE.master done
-  g206 := (R2 = E0_x & (((r2Home & !(R2 in {E0_0, E0_3, E1_0, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0})) & res_R2_CP_4 & !(res_R2_CP_5) & zeroed) & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & !((r2Home & !(R2 in {E0_0, E0_3, E1_0, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0})))); -- R2: E0 -> E1
-  g207 := (R2 = E0_x & (((r2Home & !(R2 in {E0_0, E0_3, E1_0, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0})) & res_R2_CP_4 & !(res_R2_CP_5) & zeroed) & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & (r2Home & !(R2 in {E0_0, E0_3, E1_0, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0}))); -- R2: E0 -> E1
-  g208 := (R2 = E0_x & (((r2Home & !(R2 in {E0_0, E0_3, E1_0, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0})) & res_R2_CP_4 & !(res_R2_CP_5) & zeroed) & ((SUP = X3_x | SUP = X4_x) | CAM_FAULT))); -- R2: E0: hold before E1
-  g209 := (R2 = E0_x & !(((r2Home & !(R2 in {E0_0, E0_3, E1_0, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0})) & res_R2_CP_4 & !(res_R2_CP_5) & zeroed))); -- R2: E0: confirmation timeout
-  g210 := R2 = E1_0; -- R2: E1: R2.home done
-  g211 := (R2 = E1_x & ((CONV in {C5_1, C5_x} & pickAllowed & !(moving)) & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & r2S = none); -- R2: E1 -> E2
-  g212 := (R2 = E1_x & ((CONV in {C5_1, C5_x} & pickAllowed & !(moving)) & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & !(r2S = none)); -- R2: E1 -> E2
-  g213 := (R2 = E1_x & ((CONV in {C5_1, C5_x} & pickAllowed & !(moving)) & ((SUP = X3_x | SUP = X4_x) | CAM_FAULT))); -- R2: E1: hold before E2
-  g214 := (R2 = E1_x & (!((CONV in {C5_1, C5_x} & pickAllowed & !(moving))) & ((SUP = X3_x | SUP = X4_x) | CAM_FAULT))); -- R2: E1: hold while waiting
-  g215 := R2 = E2_0; -- R2: E2: R2.pickConv done
-  g216 := (R2 = E2_1 & (!(r2S = none) & beltExit = none)); -- R2: E2: CP-3 agree
-  g217 := (R2 = E2_1 & !((!(r2S = none) & beltExit = none))); -- R2: E2: CP-3 agree
-  g218 := (R2 = E2_1 & !(r2S = none)); -- R2: E2: CP-3 mismatch
-  g219 := (R2 = E2_1 & r2S = none); -- R2: E2: CP-3 mismatch
-  g220 := (R2 = E2_1 & beltExit = none & !(r2S = none)); -- R2: E2: CP-3 camera false positive
-  g221 := (R2 = E2_1 & beltExit = none & r2S = none); -- R2: E2: CP-3 camera false positive
-  g222 := (R2 = E2_1 & !(beltExit = none) & !(r2S = none)); -- R2: E2: CP-3 camera false negative
-  g223 := (R2 = E2_1 & !(beltExit = none) & r2S = none); -- R2: E2: CP-3 camera false negative
-  g224 := (R2 = E2_1 & ((res_R2_CP_3 & beltExit = none) | (!(res_R2_CP_3) & !(beltExit = none))) & !(r2S = none)); -- R2: E2: CP-3 stale image
-  g225 := (R2 = E2_1 & ((res_R2_CP_3 & beltExit = none) | (!(res_R2_CP_3) & !(beltExit = none))) & r2S = none); -- R2: E2: CP-3 stale image
-  g226 := R2 = E2_1; -- R2: E2: CP-3 camera fault
-  g227 := (R2 = E2_x & ((!(r2S = none) & !(res_R2_CP_3) & !(R2 = E2_0)) & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & !(r2S = none)); -- R2: E2 -> E3
-  g228 := (R2 = E2_x & ((!(r2S = none) & !(res_R2_CP_3) & !(R2 = E2_0)) & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & r2S = none); -- R2: E2 -> E3
-  g229 := (R2 = E2_x & ((!(r2S = none) & !(res_R2_CP_3) & !(R2 = E2_0)) & ((SUP = X3_x | SUP = X4_x) | CAM_FAULT))); -- R2: E2: hold before E3
-  g230 := (R2 = E2_x & !((!(r2S = none) & !(res_R2_CP_3) & !(R2 = E2_0)))); -- R2: E2: confirmation timeout
-  g231 := R2 = E3_0; -- R2: E3: R2.loadGauge done
-  g232 := R2 = E3_1; -- R2: E3: CP-5 agree
-  g233 := R2 = E3_1; -- R2: E3: CP-5 mismatch
-  g234 := (R2 = E3_1 & nest = none); -- R2: E3: CP-5 camera false positive
-  g235 := (R2 = E3_1 & !(nest = none)); -- R2: E3: CP-5 camera false negative
-  g236 := (R2 = E3_1 & ((res_R2_CP_5 & nest = none) | (!(res_R2_CP_5) & !(nest = none)))); -- R2: E3: CP-5 stale image
-  g237 := R2 = E3_1; -- R2: E3: CP-5 camera fault
-  g238 := (R2 = E3_x & ((res_R2_CP_5 & !(R2 in {E3_0, E5_1, E6_0})) & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)))); -- R2: E3 -> E4
-  g239 := (R2 = E3_x & ((res_R2_CP_5 & !(R2 in {E3_0, E5_1, E6_0})) & ((SUP = X3_x | SUP = X4_x) | CAM_FAULT))); -- R2: E3: hold before E4
-  g240 := (R2 = E3_x & !((res_R2_CP_5 & !(R2 in {E3_0, E5_1, E6_0})))); -- R2: E3: confirmation timeout
-  g241 := R2 = E4_0; -- R2: E4: GAUGE.measure done
-  g242 := (R2 = E4_x & (measured & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & nest = ok); -- R2: E4 -> Q_E4
-  g243 := (R2 = E4_x & (measured & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & !(nest = ok)); -- R2: E4 -> Q_E4
-  g244 := (R2 = E4_x & (measured & ((SUP = X3_x | SUP = X4_x) | CAM_FAULT))); -- R2: E4: hold before Q_E4
-  g245 := (R2 = E4_x & !(measured)); -- R2: E4: confirmation timeout
-  g246 := R2 = E5_1; -- R2: E5: R2.repick done
-  g247 := (R2 = E5_2 & outPresent); -- R2: E5: CP-4 agree
-  g248 := (R2 = E5_2 & !(outPresent)); -- R2: E5: CP-4 agree, confirmation missing
-  g249 := R2 = E5_2; -- R2: E5: CP-4 mismatch, confirmation missing
-  g250 := R2 = E5_2; -- R2: E5: CP-4 camera fault
-  g251 := R2 = E5_3; -- R2: E5: R2.placePallet done
-  g252 := (R2 = E5_x & (r2S = none & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & (outCount = 2 & !((r2Home & !(R2 in {E0_0, E0_3, E1_0, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0}))))); -- R2: E5 -> Q_E5
-  g253 := (R2 = E5_x & (r2S = none & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & (outCount = 2 & (r2Home & !(R2 in {E0_0, E0_3, E1_0, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0})))); -- R2: E5 -> Q_E5
-  g254 := (R2 = E5_x & (r2S = none & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & (!(outCount = 2) & !((r2Home & !(R2 in {E0_0, E0_3, E1_0, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0}))))); -- R2: E5 -> Q_E5
-  g255 := (R2 = E5_x & (r2S = none & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & (!(outCount = 2) & (r2Home & !(R2 in {E0_0, E0_3, E1_0, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0})))); -- R2: E5 -> Q_E5
-  g256 := (R2 = E5_x & (r2S = none & ((SUP = X3_x | SUP = X4_x) | CAM_FAULT))); -- R2: E5: hold before Q_E5
-  g257 := (R2 = E5_x & !(r2S = none)); -- R2: E5: confirmation timeout
-  g258 := R2 = E6_0; -- R2: E6: R2.repick done
-  g259 := (R2 = E6_1 & consecNok in {1, 2}); -- R2: E6: R2.dropNok done
-  g260 := (R2 = E6_1 & !(consecNok in {1, 2})); -- R2: E6: R2.dropNok done
-  g261 := (R2 = E6_x & (pe65 & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & !((r2Home & !(R2 in {E0_0, E0_3, E1_0, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0})))); -- R2: E6 -> E1
-  g262 := (R2 = E6_x & (pe65 & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & (r2Home & !(R2 in {E0_0, E0_3, E1_0, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0}))); -- R2: E6 -> E1
-  g263 := (R2 = E6_x & (pe65 & ((SUP = X3_x | SUP = X4_x) | CAM_FAULT))); -- R2: E6: hold before E1
-  g264 := (R2 = E6_x & !(pe65)); -- R2: E6: confirmation timeout
-  g265 := R2 = E7_0; -- R2: E7: R2.home done
-  g266 := (R2 = E7_1 & outCount = 0); -- R2: E7: await PALLET.empty
-  g267 := (R2 = E7_1 & (!(outCount = 0) & ((SUP = X3_x | SUP = X4_x) | CAM_FAULT))); -- R2: E7: hold while waiting
-  g268 := (R2 = E7_2 & outPresent); -- R2: E7: CP-4 agree
-  g269 := (R2 = E7_2 & !(outPresent) & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))); -- R2: E7: CP-4 agree, not yet
-  g270 := (R2 = E7_2 & (!(outPresent) & ((SUP = X3_x | SUP = X4_x) | CAM_FAULT))); -- R2: E7: hold while waiting
-  g271 := (R2 = E7_2 & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))); -- R2: E7: CP-4 mismatch, not yet
-  g272 := (R2 = E7_2 & ((SUP = X3_x | SUP = X4_x) | CAM_FAULT)); -- R2: E7: hold while waiting
-  g273 := R2 = E7_2; -- R2: E7: CP-4 camera fault
-  g274 := (R2 = E7_x & ((res_R2_CP_4 & outCount = 0) & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & !((r2Home & !(R2 in {E0_0, E0_3, E1_0, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0})))); -- R2: E7 -> E1
-  g275 := (R2 = E7_x & ((res_R2_CP_4 & outCount = 0) & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & (r2Home & !(R2 in {E0_0, E0_3, E1_0, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0}))); -- R2: E7 -> E1
-  g276 := (R2 = E7_x & ((res_R2_CP_4 & outCount = 0) & ((SUP = X3_x | SUP = X4_x) | CAM_FAULT))); -- R2: E7: hold before E1
-  g277 := (R2 = E7_x & (!((res_R2_CP_4 & outCount = 0)) & ((SUP = X3_x | SUP = X4_x) | CAM_FAULT))); -- R2: E7: hold while waiting
-  g278 := R2 = H_0; -- R2: H: R2.park done
-  g279 := (R2 = H_x & (!(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)) & R2_res = E0_0) & !((r2Home & !(R2 in {E0_0, E0_3, E1_0, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0})))); -- R2: H: resume E0@0
-  g280 := (R2 = H_x & (!(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)) & R2_res = E0_0) & (r2Home & !(R2 in {E0_0, E0_3, E1_0, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0}))); -- R2: H: resume E0@0
-  g281 := (R2 = H_x & (!(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)) & R2_res = E0_1)); -- R2: H: resume E0@1
-  g282 := (R2 = H_x & (!(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)) & R2_res = E0_2)); -- R2: H: resume E0@2
-  g283 := (R2 = H_x & (!(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)) & R2_res = E1_0) & !((r2Home & !(R2 in {E0_0, E0_3, E1_0, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0})))); -- R2: H: resume E1@0
-  g284 := (R2 = H_x & (!(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)) & R2_res = E1_0) & (r2Home & !(R2 in {E0_0, E0_3, E1_0, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0}))); -- R2: H: resume E1@0
-  g285 := (R2 = H_x & (!(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)) & R2_res = E2_0) & r2S = none); -- R2: H: resume E2@0
-  g286 := (R2 = H_x & (!(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)) & R2_res = E2_0) & !(r2S = none)); -- R2: H: resume E2@0
-  g287 := (R2 = H_x & (!(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)) & R2_res = E2_1)); -- R2: H: resume E2@1
-  g288 := (R2 = H_x & (!(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)) & R2_res = E3_0) & !(r2S = none)); -- R2: H: resume E3@0
-  g289 := (R2 = H_x & (!(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)) & R2_res = E3_0) & r2S = none); -- R2: H: resume E3@0
-  g290 := (R2 = H_x & (!(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)) & R2_res = E3_1)); -- R2: H: resume E3@1
-  g291 := (R2 = H_x & (!(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)) & R2_res = E4_0)); -- R2: H: resume E4@0
-  g292 := (R2 = H_x & (!(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)) & R2_res = Q_E4_0) & nest = ok); -- R2: H: resume Q_E4@0
-  g293 := (R2 = H_x & (!(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)) & R2_res = Q_E4_0) & !(nest = ok)); -- R2: H: resume Q_E4@0
-  g294 := (R2 = H_x & (!(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)) & R2_res = E5_0)); -- R2: H: resume E5@0
-  g295 := (R2 = H_x & (!(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)) & R2_res = E5_2)); -- R2: H: resume E5@2
-  g296 := (R2 = H_x & (!(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)) & R2_res = Q_E5_0) & (outCount = 2 & !((r2Home & !(R2 in {E0_0, E0_3, E1_0, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0}))))); -- R2: H: resume Q_E5@0
-  g297 := (R2 = H_x & (!(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)) & R2_res = Q_E5_0) & (outCount = 2 & (r2Home & !(R2 in {E0_0, E0_3, E1_0, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0})))); -- R2: H: resume Q_E5@0
-  g298 := (R2 = H_x & (!(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)) & R2_res = Q_E5_0) & (!(outCount = 2) & !((r2Home & !(R2 in {E0_0, E0_3, E1_0, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0}))))); -- R2: H: resume Q_E5@0
-  g299 := (R2 = H_x & (!(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)) & R2_res = Q_E5_0) & (!(outCount = 2) & (r2Home & !(R2 in {E0_0, E0_3, E1_0, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0})))); -- R2: H: resume Q_E5@0
-  g300 := (R2 = H_x & (!(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)) & R2_res = E6_0)); -- R2: H: resume E6@0
-  g301 := (R2 = H_x & (!(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)) & R2_res = E7_0) & !((r2Home & !(R2 in {E0_0, E0_3, E1_0, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0})))); -- R2: H: resume E7@0
-  g302 := (R2 = H_x & (!(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)) & R2_res = E7_0) & (r2Home & !(R2 in {E0_0, E0_3, E1_0, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0}))); -- R2: H: resume E7@0
-  g303 := (R2 = H_x & (!(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)) & R2_res = E7_2)); -- R2: H: resume E7@2
-  g304 := (R2 = F_x & (R2_res = E0_0 & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & !((r2Home & !(R2 in {E0_0, E0_3, E1_0, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0})))); -- R2: F: cleared, repeat E0@0
-  g305 := (R2 = F_x & (R2_res = E0_0 & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & (r2Home & !(R2 in {E0_0, E0_3, E1_0, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0}))); -- R2: F: cleared, repeat E0@0
-  g306 := (R2 = F_x & (R2_res = E0_0 & ((SUP = X3_x | SUP = X4_x) | CAM_FAULT))); -- R2: F: cleared during a line stop
-  g307 := (R2 = F_x & (R2_res = E0_1 & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)))); -- R2: F: cleared, repeat E0@1
-  g308 := (R2 = F_x & (R2_res = E0_1 & ((SUP = X3_x | SUP = X4_x) | CAM_FAULT))); -- R2: F: cleared during a line stop
-  g309 := (R2 = F_x & (R2_res = E0_2 & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)))); -- R2: F: cleared, repeat E0@2
-  g310 := (R2 = F_x & (R2_res = E0_2 & ((SUP = X3_x | SUP = X4_x) | CAM_FAULT))); -- R2: F: cleared during a line stop
-  g311 := (R2 = F_x & (R2_res = E1_0 & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & !((r2Home & !(R2 in {E0_0, E0_3, E1_0, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0})))); -- R2: F: cleared, repeat E1@0
-  g312 := (R2 = F_x & (R2_res = E1_0 & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & (r2Home & !(R2 in {E0_0, E0_3, E1_0, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0}))); -- R2: F: cleared, repeat E1@0
-  g313 := (R2 = F_x & (R2_res = E1_0 & ((SUP = X3_x | SUP = X4_x) | CAM_FAULT))); -- R2: F: cleared during a line stop
-  g314 := (R2 = F_x & (R2_res = E2_0 & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & r2S = none); -- R2: F: cleared, repeat E2@0
-  g315 := (R2 = F_x & (R2_res = E2_0 & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & !(r2S = none)); -- R2: F: cleared, repeat E2@0
-  g316 := (R2 = F_x & (R2_res = E2_0 & ((SUP = X3_x | SUP = X4_x) | CAM_FAULT))); -- R2: F: cleared during a line stop
-  g317 := (R2 = F_x & (R2_res = E2_1 & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)))); -- R2: F: cleared, repeat E2@1
-  g318 := (R2 = F_x & (R2_res = E2_1 & ((SUP = X3_x | SUP = X4_x) | CAM_FAULT))); -- R2: F: cleared during a line stop
-  g319 := (R2 = F_x & (R2_res = E3_0 & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & !(r2S = none)); -- R2: F: cleared, repeat E3@0
-  g320 := (R2 = F_x & (R2_res = E3_0 & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & r2S = none); -- R2: F: cleared, repeat E3@0
-  g321 := (R2 = F_x & (R2_res = E3_0 & ((SUP = X3_x | SUP = X4_x) | CAM_FAULT))); -- R2: F: cleared during a line stop
-  g322 := (R2 = F_x & (R2_res = E3_1 & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)))); -- R2: F: cleared, repeat E3@1
-  g323 := (R2 = F_x & (R2_res = E3_1 & ((SUP = X3_x | SUP = X4_x) | CAM_FAULT))); -- R2: F: cleared during a line stop
-  g324 := (R2 = F_x & (R2_res = E4_0 & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)))); -- R2: F: cleared, repeat E4@0
-  g325 := (R2 = F_x & (R2_res = E4_0 & ((SUP = X3_x | SUP = X4_x) | CAM_FAULT))); -- R2: F: cleared during a line stop
-  g326 := (R2 = F_x & (R2_res = Q_E4_0 & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & nest = ok); -- R2: F: cleared, repeat Q_E4@0
-  g327 := (R2 = F_x & (R2_res = Q_E4_0 & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & !(nest = ok)); -- R2: F: cleared, repeat Q_E4@0
-  g328 := (R2 = F_x & (R2_res = Q_E4_0 & ((SUP = X3_x | SUP = X4_x) | CAM_FAULT))); -- R2: F: cleared during a line stop
-  g329 := (R2 = F_x & (R2_res = E5_0 & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)))); -- R2: F: cleared, repeat E5@0
-  g330 := (R2 = F_x & (R2_res = E5_0 & ((SUP = X3_x | SUP = X4_x) | CAM_FAULT))); -- R2: F: cleared during a line stop
-  g331 := (R2 = F_x & (R2_res = E5_2 & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)))); -- R2: F: cleared, repeat E5@2
-  g332 := (R2 = F_x & (R2_res = E5_2 & ((SUP = X3_x | SUP = X4_x) | CAM_FAULT))); -- R2: F: cleared during a line stop
-  g333 := (R2 = F_x & (R2_res = Q_E5_0 & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & (outCount = 2 & !((r2Home & !(R2 in {E0_0, E0_3, E1_0, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0}))))); -- R2: F: cleared, repeat Q_E5@0
-  g334 := (R2 = F_x & (R2_res = Q_E5_0 & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & (outCount = 2 & (r2Home & !(R2 in {E0_0, E0_3, E1_0, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0})))); -- R2: F: cleared, repeat Q_E5@0
-  g335 := (R2 = F_x & (R2_res = Q_E5_0 & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & (!(outCount = 2) & !((r2Home & !(R2 in {E0_0, E0_3, E1_0, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0}))))); -- R2: F: cleared, repeat Q_E5@0
-  g336 := (R2 = F_x & (R2_res = Q_E5_0 & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & (!(outCount = 2) & (r2Home & !(R2 in {E0_0, E0_3, E1_0, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0})))); -- R2: F: cleared, repeat Q_E5@0
-  g337 := (R2 = F_x & (R2_res = Q_E5_0 & ((SUP = X3_x | SUP = X4_x) | CAM_FAULT))); -- R2: F: cleared during a line stop
-  g338 := (R2 = F_x & (R2_res = E6_0 & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)))); -- R2: F: cleared, repeat E6@0
-  g339 := (R2 = F_x & (R2_res = E6_0 & ((SUP = X3_x | SUP = X4_x) | CAM_FAULT))); -- R2: F: cleared during a line stop
-  g340 := (R2 = F_x & (R2_res = E7_0 & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & !((r2Home & !(R2 in {E0_0, E0_3, E1_0, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0})))); -- R2: F: cleared, repeat E7@0
-  g341 := (R2 = F_x & (R2_res = E7_0 & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & (r2Home & !(R2 in {E0_0, E0_3, E1_0, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0}))); -- R2: F: cleared, repeat E7@0
-  g342 := (R2 = F_x & (R2_res = E7_0 & ((SUP = X3_x | SUP = X4_x) | CAM_FAULT))); -- R2: F: cleared during a line stop
-  g343 := (R2 = F_x & (R2_res = E7_2 & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)))); -- R2: F: cleared, repeat E7@2
-  g344 := (R2 = F_x & (R2_res = E7_2 & ((SUP = X3_x | SUP = X4_x) | CAM_FAULT))); -- R2: F: cleared during a line stop
-  g345 := SUP = I_x; -- SUP: I -> X1
-  g346 := (SUP = X1_x & CAM_FAULT); -- SUP: X1 -> X3
-  g347 := (SUP = X1_x & (mismatches in {1, 2, 3} & !(CAM_FAULT))); -- SUP: X1 -> X2
-  g348 := (SUP = X2_x & (mismatches = 3 | CAM_FAULT)); -- SUP: X2 -> X3
-  g349 := (SUP = X2_x & (mismatches = 0 & !((mismatches = 3 | CAM_FAULT)))); -- SUP: X2 -> X1
-  g350 := (SUP = X3_x & ((r1Home & !(R1 in {B0_0, B1_1, B2_0, B3_0, B4_0, B4_1, B4_2, B5_0, B5_1, B6_1, B7_0, B7_3, W1_0, H_0})) & (r2Home & !(R2 in {E0_0, E0_3, E1_0, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0})) & !(moving))); -- SUP: X3 -> X4 [HMI.verify]
-  g351 := SUP = X4_x; -- SUP: X4 -> X4 [VERIFY.fail]
-  g352 := SUP = X4_x; -- SUP: X4 -> X1 [VERIFY.pass, HMI.reset]
-  g353 := (run & cnc = raw); -- CNC: CNC: cycle complete (part OK or undersized)
-  g354 := (run & !(cnc = raw)); -- CNC: CNC: cycle complete (empty)
-  g355 := (!(run) & lock & cnc in {ok, nok}); -- CNC: CNC: guard lock released after the cycle
-  g356 := (CONV = C3_x & !(moving)); -- BELT: belt starts
-  g357 := (!(CONV = C3_x) & moving); -- BELT: belt stops
-  g358 := (moving & !(beltEntry = none) & beltMid = none); -- BELT: part moves from the entry
-  g359 := (moving & !(beltMid = none) & beltExit = none); -- BELT: part reaches the end stop
-  g360 := (inPresent & !(inParts)); -- OP: operator removes the empty input pallet
-  g361 := !(inPresent); -- OP: operator places a full input pallet
-  g362 := (R2 in {E7_0, E7_1, E7_2, E7_x} & outPresent); -- OP: operator takes the full output pallet away
-  g363 := !(outPresent); -- OP: operator places an empty output pallet
-  g364 := mismatches > 0; -- ENV: a mismatch leaves the 10-min window
-  g365 := QH; -- OP: rung: tool and offsets checked -> quality hold released
-  urgent := g345 | g346 | g347 | g348 | g349; -- the supervisor must react
-  enabled := g0 | g1 | g2 | g3 | g4 | g5 | g6 | g7 | g8 | g9 | g10 | g11 | g12 | g13 | g14 | g15 | g16 | g17 | g18 | g19 | g20 | g21 | g22 | g23 | g24 | g25 | g26 | g27 | g28 | g29 | g30 | g31 | g32 | g33 | g34 | g35 | g36 | g37 | g38 | g39 | g40 | g41 | g42 | g43 | g44 | g45 | g46 | g47 | g48 | g49 | g50 | g51 | g52 | g53 | g54 | g55 | g56 | g57 | g58 | g59 | g60 | g61 | g62 | g63 | g64 | g65 | g66 | g67 | g68 | g69 | g70 | g71 | g72 | g73 | g74 | g75 | g76 | g77 | g78 | g79 | g80 | g81 | g82 | g83 | g84 | g85 | g86 | g87 | g88 | g89 | g90 | g91 | g92 | g93 | g94 | g95 | g96 | g97 | g98 | g99 | g100 | g101 | g102 | g103 | g104 | g105 | g106 | g107 | g108 | g109 | g110 | g111 | g112 | g113 | g114 | g115 | g116 | g117 | g118 | g119 | g120 | g121 | g122 | g123 | g124 | g125 | g126 | g127 | g128 | g129 | g130 | g131 | g132 | g133 | g134 | g135 | g136 | g137 | g138 | g139 | g140 | g141 | g142 | g143 | g144 | g145 | g146 | g147 | g148 | g149 | g150 | g151 | g152 | g153 | g154 | g155 | g156 | g157 | g158 | g159 | g160 | g161 | g162 | g163 | g164 | g165 | g166 | g167 | g168 | g169 | g170 | g171 | g172 | g173 | g174 | g175 | g176 | g177 | g178 | g179 | g180 | g181 | g182 | g183 | g184 | g185 | g186 | g187 | g188 | g189 | g190 | g191 | g192 | g193 | g194 | g195 | g196 | g197 | g198 | g199 | g200 | g201 | g202 | g203 | g204 | g205 | g206 | g207 | g208 | g209 | g210 | g211 | g212 | g213 | g214 | g215 | g216 | g217 | g218 | g219 | g220 | g221 | g222 | g223 | g224 | g225 | g226 | g227 | g228 | g229 | g230 | g231 | g232 | g233 | g234 | g235 | g236 | g237 | g238 | g239 | g240 | g241 | g242 | g243 | g244 | g245 | g246 | g247 | g248 | g249 | g250 | g251 | g252 | g253 | g254 | g255 | g256 | g257 | g258 | g259 | g260 | g261 | g262 | g263 | g264 | g265 | g266 | g267 | g268 | g269 | g270 | g271 | g272 | g273 | g274 | g275 | g276 | g277 | g278 | g279 | g280 | g281 | g282 | g283 | g284 | g285 | g286 | g287 | g288 | g289 | g290 | g291 | g292 | g293 | g294 | g295 | g296 | g297 | g298 | g299 | g300 | g301 | g302 | g303 | g304 | g305 | g306 | g307 | g308 | g309 | g310 | g311 | g312 | g313 | g314 | g315 | g316 | g317 | g318 | g319 | g320 | g321 | g322 | g323 | g324 | g325 | g326 | g327 | g328 | g329 | g330 | g331 | g332 | g333 | g334 | g335 | g336 | g337 | g338 | g339 | g340 | g341 | g342 | g343 | g344 | g345 | g346 | g347 | g348 | g349 | g350 | g351 | g352 | g353 | g354 | g355 | g356 | g357 | g358 | g359 | g360 | g361 | g362 | g363 | g364 | g365; -- some command other than idle can be taken
+  g199 := (R2 = E0_2 & nest = none); -- R2: E0: CP-5 agree
+  g200 := (R2 = E0_2 & (!(nest = none) & !((r2Home & !(R2 in {E0_0, E0_3, E0_4, E1_1, E1_2, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0}))))); -- R2: E0: CP-5 agree
+  g201 := (R2 = E0_2 & (!(nest = none) & (r2Home & !(R2 in {E0_0, E0_3, E0_4, E1_1, E1_2, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0})))); -- R2: E0: CP-5 agree
+  g202 := (R2 = E0_2 & !((r2Home & !(R2 in {E0_0, E0_3, E0_4, E1_1, E1_2, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0})))); -- R2: E0: CP-5 mismatch
+  g203 := (R2 = E0_2 & (r2Home & !(R2 in {E0_0, E0_3, E0_4, E1_1, E1_2, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0}))); -- R2: E0: CP-5 mismatch
+  g204 := (R2 = E0_2 & nest = none & !((r2Home & !(R2 in {E0_0, E0_3, E0_4, E1_1, E1_2, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0})))); -- R2: E0: CP-5 camera false positive
+  g205 := (R2 = E0_2 & nest = none & (r2Home & !(R2 in {E0_0, E0_3, E0_4, E1_1, E1_2, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0}))); -- R2: E0: CP-5 camera false positive
+  g206 := (R2 = E0_2 & !(nest = none) & !((r2Home & !(R2 in {E0_0, E0_3, E0_4, E1_1, E1_2, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0})))); -- R2: E0: CP-5 camera false negative
+  g207 := (R2 = E0_2 & !(nest = none) & (r2Home & !(R2 in {E0_0, E0_3, E0_4, E1_1, E1_2, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0}))); -- R2: E0: CP-5 camera false negative
+  g208 := (R2 = E0_2 & ((res_R2_CP_5 & nest = none) | (!(res_R2_CP_5) & !(nest = none))) & !((r2Home & !(R2 in {E0_0, E0_3, E0_4, E1_1, E1_2, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0})))); -- R2: E0: CP-5 stale image
+  g209 := (R2 = E0_2 & ((res_R2_CP_5 & nest = none) | (!(res_R2_CP_5) & !(nest = none))) & (r2Home & !(R2 in {E0_0, E0_3, E0_4, E1_1, E1_2, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0}))); -- R2: E0: CP-5 stale image
+  g210 := R2 = E0_2; -- R2: E0: CP-5 camera fault
+  g211 := (R2 = E0_3 & !((r2Home & !(R2 in {E0_0, E0_3, E0_4, E1_1, E1_2, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0})))); -- R2: E0: GAUGE.master done
+  g212 := (R2 = E0_3 & (r2Home & !(R2 in {E0_0, E0_3, E0_4, E1_1, E1_2, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0}))); -- R2: E0: GAUGE.master done
+  g213 := R2 = E0_4; -- R2: E0: R2.home done
+  g214 := (R2 = E0_x & (((r2Home & !(R2 in {E0_0, E0_3, E0_4, E1_1, E1_2, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0})) & res_R2_CP_4 & !(res_R2_CP_5) & zeroed) & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & (due | !(zeroed))); -- R2: E0 -> E1
+  g215 := (R2 = E0_x & (((r2Home & !(R2 in {E0_0, E0_3, E0_4, E1_1, E1_2, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0})) & res_R2_CP_4 & !(res_R2_CP_5) & zeroed) & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & (!((due | !(zeroed))) & ((due | !(zeroed)) & !(res_R2_CP_5)))); -- R2: E0 -> E1
+  g216 := (R2 = E0_x & (((r2Home & !(R2 in {E0_0, E0_3, E0_4, E1_1, E1_2, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0})) & res_R2_CP_4 & !(res_R2_CP_5) & zeroed) & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & ((!((due | !(zeroed))) & !(((due | !(zeroed)) & !(res_R2_CP_5)))) & !((r2Home & !(R2 in {E0_0, E0_3, E0_4, E1_1, E1_2, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0}))))); -- R2: E0 -> E1
+  g217 := (R2 = E0_x & (((r2Home & !(R2 in {E0_0, E0_3, E0_4, E1_1, E1_2, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0})) & res_R2_CP_4 & !(res_R2_CP_5) & zeroed) & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & ((!((due | !(zeroed))) & !(((due | !(zeroed)) & !(res_R2_CP_5)))) & (r2Home & !(R2 in {E0_0, E0_3, E0_4, E1_1, E1_2, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0})))); -- R2: E0 -> E1
+  g218 := (R2 = E0_x & (((r2Home & !(R2 in {E0_0, E0_3, E0_4, E1_1, E1_2, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0})) & res_R2_CP_4 & !(res_R2_CP_5) & zeroed) & ((SUP = X3_x | SUP = X4_x) | CAM_FAULT))); -- R2: E0: hold before E1
+  g219 := (R2 = E0_x & !(((r2Home & !(R2 in {E0_0, E0_3, E0_4, E1_1, E1_2, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0})) & res_R2_CP_4 & !(res_R2_CP_5) & zeroed))); -- R2: E0: confirmation timeout
+  g220 := (R2 = E1_0 & ((due | !(zeroed)) & nest = none)); -- R2: E1: CP-5 agree
+  g221 := (R2 = E1_0 & (!(((due | !(zeroed)) & nest = none)) & !((r2Home & !(R2 in {E0_0, E0_3, E0_4, E1_1, E1_2, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0}))))); -- R2: E1: CP-5 agree
+  g222 := (R2 = E1_0 & (!(((due | !(zeroed)) & nest = none)) & (r2Home & !(R2 in {E0_0, E0_3, E0_4, E1_1, E1_2, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0})))); -- R2: E1: CP-5 agree
+  g223 := (R2 = E1_0 & !((r2Home & !(R2 in {E0_0, E0_3, E0_4, E1_1, E1_2, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0})))); -- R2: E1: CP-5 mismatch
+  g224 := (R2 = E1_0 & (r2Home & !(R2 in {E0_0, E0_3, E0_4, E1_1, E1_2, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0}))); -- R2: E1: CP-5 mismatch
+  g225 := (R2 = E1_0 & nest = none & !((r2Home & !(R2 in {E0_0, E0_3, E0_4, E1_1, E1_2, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0})))); -- R2: E1: CP-5 camera false positive
+  g226 := (R2 = E1_0 & nest = none & (r2Home & !(R2 in {E0_0, E0_3, E0_4, E1_1, E1_2, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0}))); -- R2: E1: CP-5 camera false positive
+  g227 := (R2 = E1_0 & !(nest = none) & !((r2Home & !(R2 in {E0_0, E0_3, E0_4, E1_1, E1_2, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0})))); -- R2: E1: CP-5 camera false negative
+  g228 := (R2 = E1_0 & !(nest = none) & (r2Home & !(R2 in {E0_0, E0_3, E0_4, E1_1, E1_2, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0}))); -- R2: E1: CP-5 camera false negative
+  g229 := (R2 = E1_0 & ((res_R2_CP_5 & nest = none) | (!(res_R2_CP_5) & !(nest = none))) & !((r2Home & !(R2 in {E0_0, E0_3, E0_4, E1_1, E1_2, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0})))); -- R2: E1: CP-5 stale image
+  g230 := (R2 = E1_0 & ((res_R2_CP_5 & nest = none) | (!(res_R2_CP_5) & !(nest = none))) & (r2Home & !(R2 in {E0_0, E0_3, E0_4, E1_1, E1_2, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0}))); -- R2: E1: CP-5 stale image
+  g231 := R2 = E1_0; -- R2: E1: CP-5 camera fault
+  g232 := (R2 = E1_1 & !((r2Home & !(R2 in {E0_0, E0_3, E0_4, E1_1, E1_2, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0})))); -- R2: E1: GAUGE.master done
+  g233 := (R2 = E1_1 & (r2Home & !(R2 in {E0_0, E0_3, E0_4, E1_1, E1_2, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0}))); -- R2: E1: GAUGE.master done
+  g234 := R2 = E1_2; -- R2: E1: R2.home done
+  g235 := (R2 = E1_x & ((CONV in {C5_1, C5_x} & pickAllowed & !(moving) & zeroed) & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & r2S = none); -- R2: E1 -> E2
+  g236 := (R2 = E1_x & ((CONV in {C5_1, C5_x} & pickAllowed & !(moving) & zeroed) & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & !(r2S = none)); -- R2: E1 -> E2
+  g237 := (R2 = E1_x & ((CONV in {C5_1, C5_x} & pickAllowed & !(moving) & zeroed) & ((SUP = X3_x | SUP = X4_x) | CAM_FAULT))); -- R2: E1: hold before E2
+  g238 := (R2 = E1_x & (!((CONV in {C5_1, C5_x} & pickAllowed & !(moving) & zeroed)) & ((SUP = X3_x | SUP = X4_x) | CAM_FAULT))); -- R2: E1: hold while waiting
+  g239 := R2 = E2_0; -- R2: E2: R2.pickConv done
+  g240 := (R2 = E2_1 & (!(r2S = none) & beltExit = none)); -- R2: E2: CP-3 agree
+  g241 := (R2 = E2_1 & !((!(r2S = none) & beltExit = none))); -- R2: E2: CP-3 agree
+  g242 := (R2 = E2_1 & !(r2S = none)); -- R2: E2: CP-3 mismatch
+  g243 := (R2 = E2_1 & r2S = none); -- R2: E2: CP-3 mismatch
+  g244 := (R2 = E2_1 & beltExit = none & !(r2S = none)); -- R2: E2: CP-3 camera false positive
+  g245 := (R2 = E2_1 & beltExit = none & r2S = none); -- R2: E2: CP-3 camera false positive
+  g246 := (R2 = E2_1 & !(beltExit = none) & !(r2S = none)); -- R2: E2: CP-3 camera false negative
+  g247 := (R2 = E2_1 & !(beltExit = none) & r2S = none); -- R2: E2: CP-3 camera false negative
+  g248 := (R2 = E2_1 & ((res_R2_CP_3 & beltExit = none) | (!(res_R2_CP_3) & !(beltExit = none))) & !(r2S = none)); -- R2: E2: CP-3 stale image
+  g249 := (R2 = E2_1 & ((res_R2_CP_3 & beltExit = none) | (!(res_R2_CP_3) & !(beltExit = none))) & r2S = none); -- R2: E2: CP-3 stale image
+  g250 := R2 = E2_1; -- R2: E2: CP-3 camera fault
+  g251 := (R2 = E2_x & ((!(r2S = none) & !(res_R2_CP_3) & !(R2 = E2_0)) & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & !(r2S = none)); -- R2: E2 -> E3
+  g252 := (R2 = E2_x & ((!(r2S = none) & !(res_R2_CP_3) & !(R2 = E2_0)) & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & r2S = none); -- R2: E2 -> E3
+  g253 := (R2 = E2_x & ((!(r2S = none) & !(res_R2_CP_3) & !(R2 = E2_0)) & ((SUP = X3_x | SUP = X4_x) | CAM_FAULT))); -- R2: E2: hold before E3
+  g254 := (R2 = E2_x & !((!(r2S = none) & !(res_R2_CP_3) & !(R2 = E2_0)))); -- R2: E2: confirmation timeout
+  g255 := R2 = E3_0; -- R2: E3: R2.loadGauge done
+  g256 := R2 = E3_1; -- R2: E3: CP-5 agree
+  g257 := R2 = E3_1; -- R2: E3: CP-5 mismatch
+  g258 := (R2 = E3_1 & nest = none); -- R2: E3: CP-5 camera false positive
+  g259 := (R2 = E3_1 & !(nest = none)); -- R2: E3: CP-5 camera false negative
+  g260 := (R2 = E3_1 & ((res_R2_CP_5 & nest = none) | (!(res_R2_CP_5) & !(nest = none)))); -- R2: E3: CP-5 stale image
+  g261 := R2 = E3_1; -- R2: E3: CP-5 camera fault
+  g262 := (R2 = E3_x & ((res_R2_CP_5 & !(R2 in {E0_3, E1_1, E3_0, E5_1, E6_0})) & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)))); -- R2: E3 -> E4
+  g263 := (R2 = E3_x & ((res_R2_CP_5 & !(R2 in {E0_3, E1_1, E3_0, E5_1, E6_0})) & ((SUP = X3_x | SUP = X4_x) | CAM_FAULT))); -- R2: E3: hold before E4
+  g264 := (R2 = E3_x & !((res_R2_CP_5 & !(R2 in {E0_3, E1_1, E3_0, E5_1, E6_0})))); -- R2: E3: confirmation timeout
+  g265 := R2 = E4_0; -- R2: E4: GAUGE.measure done
+  g266 := (R2 = E4_x & (measured & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & nest = ok); -- R2: E4 -> Q_E4
+  g267 := (R2 = E4_x & (measured & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & !(nest = ok)); -- R2: E4 -> Q_E4
+  g268 := (R2 = E4_x & (measured & ((SUP = X3_x | SUP = X4_x) | CAM_FAULT))); -- R2: E4: hold before Q_E4
+  g269 := (R2 = E4_x & !(measured)); -- R2: E4: confirmation timeout
+  g270 := R2 = E5_1; -- R2: E5: R2.repick done
+  g271 := (R2 = E5_2 & outPresent); -- R2: E5: CP-4 agree
+  g272 := (R2 = E5_2 & !(outPresent)); -- R2: E5: CP-4 agree, confirmation missing
+  g273 := R2 = E5_2; -- R2: E5: CP-4 mismatch, confirmation missing
+  g274 := R2 = E5_2; -- R2: E5: CP-4 camera fault
+  g275 := R2 = E5_3; -- R2: E5: R2.placePallet done
+  g276 := (R2 = E5_x & (r2S = none & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & (outCount = 2 & !((r2Home & !(R2 in {E0_0, E0_3, E0_4, E1_1, E1_2, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0}))))); -- R2: E5 -> Q_E5
+  g277 := (R2 = E5_x & (r2S = none & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & (outCount = 2 & (r2Home & !(R2 in {E0_0, E0_3, E0_4, E1_1, E1_2, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0})))); -- R2: E5 -> Q_E5
+  g278 := (R2 = E5_x & (r2S = none & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & (!(outCount = 2) & (due | !(zeroed)))); -- R2: E5 -> Q_E5
+  g279 := (R2 = E5_x & (r2S = none & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & ((!(outCount = 2) & !((due | !(zeroed)))) & ((due | !(zeroed)) & !(res_R2_CP_5)))); -- R2: E5 -> Q_E5
+  g280 := (R2 = E5_x & (r2S = none & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & (((!(outCount = 2) & !((due | !(zeroed)))) & !(((due | !(zeroed)) & !(res_R2_CP_5)))) & !((r2Home & !(R2 in {E0_0, E0_3, E0_4, E1_1, E1_2, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0}))))); -- R2: E5 -> Q_E5
+  g281 := (R2 = E5_x & (r2S = none & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & (((!(outCount = 2) & !((due | !(zeroed)))) & !(((due | !(zeroed)) & !(res_R2_CP_5)))) & (r2Home & !(R2 in {E0_0, E0_3, E0_4, E1_1, E1_2, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0})))); -- R2: E5 -> Q_E5
+  g282 := (R2 = E5_x & (r2S = none & ((SUP = X3_x | SUP = X4_x) | CAM_FAULT))); -- R2: E5: hold before Q_E5
+  g283 := (R2 = E5_x & !(r2S = none)); -- R2: E5: confirmation timeout
+  g284 := R2 = E6_0; -- R2: E6: R2.repick done
+  g285 := (R2 = E6_1 & consecNok in {1, 2}); -- R2: E6: R2.dropNok done
+  g286 := (R2 = E6_1 & !(consecNok in {1, 2})); -- R2: E6: R2.dropNok done
+  g287 := (R2 = E6_x & (pe65 & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & (due | !(zeroed))); -- R2: E6 -> E1
+  g288 := (R2 = E6_x & (pe65 & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & (!((due | !(zeroed))) & ((due | !(zeroed)) & !(res_R2_CP_5)))); -- R2: E6 -> E1
+  g289 := (R2 = E6_x & (pe65 & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & ((!((due | !(zeroed))) & !(((due | !(zeroed)) & !(res_R2_CP_5)))) & !((r2Home & !(R2 in {E0_0, E0_3, E0_4, E1_1, E1_2, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0}))))); -- R2: E6 -> E1
+  g290 := (R2 = E6_x & (pe65 & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & ((!((due | !(zeroed))) & !(((due | !(zeroed)) & !(res_R2_CP_5)))) & (r2Home & !(R2 in {E0_0, E0_3, E0_4, E1_1, E1_2, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0})))); -- R2: E6 -> E1
+  g291 := (R2 = E6_x & (pe65 & ((SUP = X3_x | SUP = X4_x) | CAM_FAULT))); -- R2: E6: hold before E1
+  g292 := (R2 = E6_x & !(pe65)); -- R2: E6: confirmation timeout
+  g293 := R2 = E7_0; -- R2: E7: R2.home done
+  g294 := (R2 = E7_1 & outCount = 0); -- R2: E7: await PALLET.empty
+  g295 := (R2 = E7_1 & (!(outCount = 0) & ((SUP = X3_x | SUP = X4_x) | CAM_FAULT))); -- R2: E7: hold while waiting
+  g296 := (R2 = E7_2 & outPresent); -- R2: E7: CP-4 agree
+  g297 := (R2 = E7_2 & !(outPresent) & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))); -- R2: E7: CP-4 agree, not yet
+  g298 := (R2 = E7_2 & (!(outPresent) & ((SUP = X3_x | SUP = X4_x) | CAM_FAULT))); -- R2: E7: hold while waiting
+  g299 := (R2 = E7_2 & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))); -- R2: E7: CP-4 mismatch, not yet
+  g300 := (R2 = E7_2 & ((SUP = X3_x | SUP = X4_x) | CAM_FAULT)); -- R2: E7: hold while waiting
+  g301 := R2 = E7_2; -- R2: E7: CP-4 camera fault
+  g302 := (R2 = E7_x & ((res_R2_CP_4 & outCount = 0) & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & (due | !(zeroed))); -- R2: E7 -> E1
+  g303 := (R2 = E7_x & ((res_R2_CP_4 & outCount = 0) & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & (!((due | !(zeroed))) & ((due | !(zeroed)) & !(res_R2_CP_5)))); -- R2: E7 -> E1
+  g304 := (R2 = E7_x & ((res_R2_CP_4 & outCount = 0) & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & ((!((due | !(zeroed))) & !(((due | !(zeroed)) & !(res_R2_CP_5)))) & !((r2Home & !(R2 in {E0_0, E0_3, E0_4, E1_1, E1_2, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0}))))); -- R2: E7 -> E1
+  g305 := (R2 = E7_x & ((res_R2_CP_4 & outCount = 0) & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & ((!((due | !(zeroed))) & !(((due | !(zeroed)) & !(res_R2_CP_5)))) & (r2Home & !(R2 in {E0_0, E0_3, E0_4, E1_1, E1_2, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0})))); -- R2: E7 -> E1
+  g306 := (R2 = E7_x & ((res_R2_CP_4 & outCount = 0) & ((SUP = X3_x | SUP = X4_x) | CAM_FAULT))); -- R2: E7: hold before E1
+  g307 := (R2 = E7_x & (!((res_R2_CP_4 & outCount = 0)) & ((SUP = X3_x | SUP = X4_x) | CAM_FAULT))); -- R2: E7: hold while waiting
+  g308 := R2 = H_0; -- R2: H: R2.park done
+  g309 := (R2 = H_x & (!(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)) & R2_res = E0_0) & !((r2Home & !(R2 in {E0_0, E0_3, E0_4, E1_1, E1_2, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0})))); -- R2: H: resume E0@0
+  g310 := (R2 = H_x & (!(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)) & R2_res = E0_0) & (r2Home & !(R2 in {E0_0, E0_3, E0_4, E1_1, E1_2, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0}))); -- R2: H: resume E0@0
+  g311 := (R2 = H_x & (!(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)) & R2_res = E0_1)); -- R2: H: resume E0@1
+  g312 := (R2 = H_x & (!(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)) & R2_res = E0_2)); -- R2: H: resume E0@2
+  g313 := (R2 = H_x & (!(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)) & R2_res = E1_0) & (due | !(zeroed))); -- R2: H: resume E1@0
+  g314 := (R2 = H_x & (!(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)) & R2_res = E1_0) & (!((due | !(zeroed))) & ((due | !(zeroed)) & !(res_R2_CP_5)))); -- R2: H: resume E1@0
+  g315 := (R2 = H_x & (!(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)) & R2_res = E1_0) & ((!((due | !(zeroed))) & !(((due | !(zeroed)) & !(res_R2_CP_5)))) & !((r2Home & !(R2 in {E0_0, E0_3, E0_4, E1_1, E1_2, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0}))))); -- R2: H: resume E1@0
+  g316 := (R2 = H_x & (!(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)) & R2_res = E1_0) & ((!((due | !(zeroed))) & !(((due | !(zeroed)) & !(res_R2_CP_5)))) & (r2Home & !(R2 in {E0_0, E0_3, E0_4, E1_1, E1_2, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0})))); -- R2: H: resume E1@0
+  g317 := (R2 = H_x & (!(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)) & R2_res = E2_0) & r2S = none); -- R2: H: resume E2@0
+  g318 := (R2 = H_x & (!(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)) & R2_res = E2_0) & !(r2S = none)); -- R2: H: resume E2@0
+  g319 := (R2 = H_x & (!(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)) & R2_res = E2_1)); -- R2: H: resume E2@1
+  g320 := (R2 = H_x & (!(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)) & R2_res = E3_0) & !(r2S = none)); -- R2: H: resume E3@0
+  g321 := (R2 = H_x & (!(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)) & R2_res = E3_0) & r2S = none); -- R2: H: resume E3@0
+  g322 := (R2 = H_x & (!(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)) & R2_res = E3_1)); -- R2: H: resume E3@1
+  g323 := (R2 = H_x & (!(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)) & R2_res = E4_0)); -- R2: H: resume E4@0
+  g324 := (R2 = H_x & (!(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)) & R2_res = Q_E4_0) & nest = ok); -- R2: H: resume Q_E4@0
+  g325 := (R2 = H_x & (!(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)) & R2_res = Q_E4_0) & !(nest = ok)); -- R2: H: resume Q_E4@0
+  g326 := (R2 = H_x & (!(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)) & R2_res = E5_0)); -- R2: H: resume E5@0
+  g327 := (R2 = H_x & (!(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)) & R2_res = E5_2)); -- R2: H: resume E5@2
+  g328 := (R2 = H_x & (!(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)) & R2_res = Q_E5_0) & (outCount = 2 & !((r2Home & !(R2 in {E0_0, E0_3, E0_4, E1_1, E1_2, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0}))))); -- R2: H: resume Q_E5@0
+  g329 := (R2 = H_x & (!(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)) & R2_res = Q_E5_0) & (outCount = 2 & (r2Home & !(R2 in {E0_0, E0_3, E0_4, E1_1, E1_2, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0})))); -- R2: H: resume Q_E5@0
+  g330 := (R2 = H_x & (!(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)) & R2_res = Q_E5_0) & (!(outCount = 2) & (due | !(zeroed)))); -- R2: H: resume Q_E5@0
+  g331 := (R2 = H_x & (!(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)) & R2_res = Q_E5_0) & ((!(outCount = 2) & !((due | !(zeroed)))) & ((due | !(zeroed)) & !(res_R2_CP_5)))); -- R2: H: resume Q_E5@0
+  g332 := (R2 = H_x & (!(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)) & R2_res = Q_E5_0) & (((!(outCount = 2) & !((due | !(zeroed)))) & !(((due | !(zeroed)) & !(res_R2_CP_5)))) & !((r2Home & !(R2 in {E0_0, E0_3, E0_4, E1_1, E1_2, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0}))))); -- R2: H: resume Q_E5@0
+  g333 := (R2 = H_x & (!(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)) & R2_res = Q_E5_0) & (((!(outCount = 2) & !((due | !(zeroed)))) & !(((due | !(zeroed)) & !(res_R2_CP_5)))) & (r2Home & !(R2 in {E0_0, E0_3, E0_4, E1_1, E1_2, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0})))); -- R2: H: resume Q_E5@0
+  g334 := (R2 = H_x & (!(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)) & R2_res = E6_0)); -- R2: H: resume E6@0
+  g335 := (R2 = H_x & (!(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)) & R2_res = E7_0) & !((r2Home & !(R2 in {E0_0, E0_3, E0_4, E1_1, E1_2, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0})))); -- R2: H: resume E7@0
+  g336 := (R2 = H_x & (!(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)) & R2_res = E7_0) & (r2Home & !(R2 in {E0_0, E0_3, E0_4, E1_1, E1_2, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0}))); -- R2: H: resume E7@0
+  g337 := (R2 = H_x & (!(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)) & R2_res = E7_2)); -- R2: H: resume E7@2
+  g338 := (R2 = F_x & (R2_res = E0_0 & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & !((r2Home & !(R2 in {E0_0, E0_3, E0_4, E1_1, E1_2, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0})))); -- R2: F: cleared, repeat E0@0
+  g339 := (R2 = F_x & (R2_res = E0_0 & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & (r2Home & !(R2 in {E0_0, E0_3, E0_4, E1_1, E1_2, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0}))); -- R2: F: cleared, repeat E0@0
+  g340 := (R2 = F_x & (R2_res = E0_0 & ((SUP = X3_x | SUP = X4_x) | CAM_FAULT))); -- R2: F: cleared during a line stop
+  g341 := (R2 = F_x & (R2_res = E0_1 & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)))); -- R2: F: cleared, repeat E0@1
+  g342 := (R2 = F_x & (R2_res = E0_1 & ((SUP = X3_x | SUP = X4_x) | CAM_FAULT))); -- R2: F: cleared during a line stop
+  g343 := (R2 = F_x & (R2_res = E0_2 & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)))); -- R2: F: cleared, repeat E0@2
+  g344 := (R2 = F_x & (R2_res = E0_2 & ((SUP = X3_x | SUP = X4_x) | CAM_FAULT))); -- R2: F: cleared during a line stop
+  g345 := (R2 = F_x & (R2_res = E1_0 & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & (due | !(zeroed))); -- R2: F: cleared, repeat E1@0
+  g346 := (R2 = F_x & (R2_res = E1_0 & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & (!((due | !(zeroed))) & ((due | !(zeroed)) & !(res_R2_CP_5)))); -- R2: F: cleared, repeat E1@0
+  g347 := (R2 = F_x & (R2_res = E1_0 & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & ((!((due | !(zeroed))) & !(((due | !(zeroed)) & !(res_R2_CP_5)))) & !((r2Home & !(R2 in {E0_0, E0_3, E0_4, E1_1, E1_2, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0}))))); -- R2: F: cleared, repeat E1@0
+  g348 := (R2 = F_x & (R2_res = E1_0 & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & ((!((due | !(zeroed))) & !(((due | !(zeroed)) & !(res_R2_CP_5)))) & (r2Home & !(R2 in {E0_0, E0_3, E0_4, E1_1, E1_2, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0})))); -- R2: F: cleared, repeat E1@0
+  g349 := (R2 = F_x & (R2_res = E1_0 & ((SUP = X3_x | SUP = X4_x) | CAM_FAULT))); -- R2: F: cleared during a line stop
+  g350 := (R2 = F_x & (R2_res = E2_0 & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & r2S = none); -- R2: F: cleared, repeat E2@0
+  g351 := (R2 = F_x & (R2_res = E2_0 & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & !(r2S = none)); -- R2: F: cleared, repeat E2@0
+  g352 := (R2 = F_x & (R2_res = E2_0 & ((SUP = X3_x | SUP = X4_x) | CAM_FAULT))); -- R2: F: cleared during a line stop
+  g353 := (R2 = F_x & (R2_res = E2_1 & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)))); -- R2: F: cleared, repeat E2@1
+  g354 := (R2 = F_x & (R2_res = E2_1 & ((SUP = X3_x | SUP = X4_x) | CAM_FAULT))); -- R2: F: cleared during a line stop
+  g355 := (R2 = F_x & (R2_res = E3_0 & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & !(r2S = none)); -- R2: F: cleared, repeat E3@0
+  g356 := (R2 = F_x & (R2_res = E3_0 & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & r2S = none); -- R2: F: cleared, repeat E3@0
+  g357 := (R2 = F_x & (R2_res = E3_0 & ((SUP = X3_x | SUP = X4_x) | CAM_FAULT))); -- R2: F: cleared during a line stop
+  g358 := (R2 = F_x & (R2_res = E3_1 & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)))); -- R2: F: cleared, repeat E3@1
+  g359 := (R2 = F_x & (R2_res = E3_1 & ((SUP = X3_x | SUP = X4_x) | CAM_FAULT))); -- R2: F: cleared during a line stop
+  g360 := (R2 = F_x & (R2_res = E4_0 & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)))); -- R2: F: cleared, repeat E4@0
+  g361 := (R2 = F_x & (R2_res = E4_0 & ((SUP = X3_x | SUP = X4_x) | CAM_FAULT))); -- R2: F: cleared during a line stop
+  g362 := (R2 = F_x & (R2_res = Q_E4_0 & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & nest = ok); -- R2: F: cleared, repeat Q_E4@0
+  g363 := (R2 = F_x & (R2_res = Q_E4_0 & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & !(nest = ok)); -- R2: F: cleared, repeat Q_E4@0
+  g364 := (R2 = F_x & (R2_res = Q_E4_0 & ((SUP = X3_x | SUP = X4_x) | CAM_FAULT))); -- R2: F: cleared during a line stop
+  g365 := (R2 = F_x & (R2_res = E5_0 & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)))); -- R2: F: cleared, repeat E5@0
+  g366 := (R2 = F_x & (R2_res = E5_0 & ((SUP = X3_x | SUP = X4_x) | CAM_FAULT))); -- R2: F: cleared during a line stop
+  g367 := (R2 = F_x & (R2_res = E5_2 & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)))); -- R2: F: cleared, repeat E5@2
+  g368 := (R2 = F_x & (R2_res = E5_2 & ((SUP = X3_x | SUP = X4_x) | CAM_FAULT))); -- R2: F: cleared during a line stop
+  g369 := (R2 = F_x & (R2_res = Q_E5_0 & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & (outCount = 2 & !((r2Home & !(R2 in {E0_0, E0_3, E0_4, E1_1, E1_2, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0}))))); -- R2: F: cleared, repeat Q_E5@0
+  g370 := (R2 = F_x & (R2_res = Q_E5_0 & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & (outCount = 2 & (r2Home & !(R2 in {E0_0, E0_3, E0_4, E1_1, E1_2, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0})))); -- R2: F: cleared, repeat Q_E5@0
+  g371 := (R2 = F_x & (R2_res = Q_E5_0 & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & (!(outCount = 2) & (due | !(zeroed)))); -- R2: F: cleared, repeat Q_E5@0
+  g372 := (R2 = F_x & (R2_res = Q_E5_0 & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & ((!(outCount = 2) & !((due | !(zeroed)))) & ((due | !(zeroed)) & !(res_R2_CP_5)))); -- R2: F: cleared, repeat Q_E5@0
+  g373 := (R2 = F_x & (R2_res = Q_E5_0 & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & (((!(outCount = 2) & !((due | !(zeroed)))) & !(((due | !(zeroed)) & !(res_R2_CP_5)))) & !((r2Home & !(R2 in {E0_0, E0_3, E0_4, E1_1, E1_2, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0}))))); -- R2: F: cleared, repeat Q_E5@0
+  g374 := (R2 = F_x & (R2_res = Q_E5_0 & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & (((!(outCount = 2) & !((due | !(zeroed)))) & !(((due | !(zeroed)) & !(res_R2_CP_5)))) & (r2Home & !(R2 in {E0_0, E0_3, E0_4, E1_1, E1_2, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0})))); -- R2: F: cleared, repeat Q_E5@0
+  g375 := (R2 = F_x & (R2_res = Q_E5_0 & ((SUP = X3_x | SUP = X4_x) | CAM_FAULT))); -- R2: F: cleared during a line stop
+  g376 := (R2 = F_x & (R2_res = E6_0 & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)))); -- R2: F: cleared, repeat E6@0
+  g377 := (R2 = F_x & (R2_res = E6_0 & ((SUP = X3_x | SUP = X4_x) | CAM_FAULT))); -- R2: F: cleared during a line stop
+  g378 := (R2 = F_x & (R2_res = E7_0 & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & !((r2Home & !(R2 in {E0_0, E0_3, E0_4, E1_1, E1_2, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0})))); -- R2: F: cleared, repeat E7@0
+  g379 := (R2 = F_x & (R2_res = E7_0 & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT))) & (r2Home & !(R2 in {E0_0, E0_3, E0_4, E1_1, E1_2, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0}))); -- R2: F: cleared, repeat E7@0
+  g380 := (R2 = F_x & (R2_res = E7_0 & ((SUP = X3_x | SUP = X4_x) | CAM_FAULT))); -- R2: F: cleared during a line stop
+  g381 := (R2 = F_x & (R2_res = E7_2 & !(((SUP = X3_x | SUP = X4_x) | CAM_FAULT)))); -- R2: F: cleared, repeat E7@2
+  g382 := (R2 = F_x & (R2_res = E7_2 & ((SUP = X3_x | SUP = X4_x) | CAM_FAULT))); -- R2: F: cleared during a line stop
+  g383 := SUP = I_x; -- SUP: I -> X1
+  g384 := (SUP = X1_x & CAM_FAULT); -- SUP: X1 -> X3
+  g385 := (SUP = X1_x & (mismatches in {1, 2, 3} & !(CAM_FAULT))); -- SUP: X1 -> X2
+  g386 := (SUP = X2_x & (mismatches = 3 | CAM_FAULT)); -- SUP: X2 -> X3
+  g387 := (SUP = X2_x & (mismatches = 0 & !((mismatches = 3 | CAM_FAULT)))); -- SUP: X2 -> X1
+  g388 := (SUP = X3_x & ((r1Home & !(R1 in {B0_0, B1_1, B2_0, B3_0, B4_0, B4_1, B4_2, B5_0, B5_1, B6_1, B7_0, B7_3, W1_0, H_0})) & (r2Home & !(R2 in {E0_0, E0_3, E0_4, E1_1, E1_2, E2_0, E3_0, E4_0, E5_1, E5_3, E6_0, E6_1, E7_0, H_0})) & !(moving))); -- SUP: X3 -> X4 [HMI.verify]
+  g389 := SUP = X4_x; -- SUP: X4 -> X4 [VERIFY.fail]
+  g390 := SUP = X4_x; -- SUP: X4 -> X1 [VERIFY.pass, HMI.reset]
+  g391 := (run & cnc = raw); -- CNC: CNC: cycle complete (part OK or undersized)
+  g392 := (run & !(cnc = raw)); -- CNC: CNC: cycle complete (empty)
+  g393 := (!(run) & lock & cnc in {ok, nok}); -- CNC: CNC: guard lock released after the cycle
+  g394 := (CONV = C3_x & !(moving)); -- BELT: belt starts
+  g395 := (!(CONV = C3_x) & moving); -- BELT: belt stops
+  g396 := (moving & !(beltEntry = none) & beltMid = none); -- BELT: part moves from the entry
+  g397 := (moving & !(beltMid = none) & beltExit = none); -- BELT: part reaches the end stop
+  g398 := (inPresent & !(inParts)); -- OP: operator removes the empty input pallet
+  g399 := !(inPresent); -- OP: operator places a full input pallet
+  g400 := (R2 in {E7_0, E7_1, E7_2, E7_x} & outPresent); -- OP: operator takes the full output pallet away
+  g401 := !(outPresent); -- OP: operator places an empty output pallet
+  g402 := (zeroed & !(due) & R2 in {E5_x, E6_x}); -- ENV: 4 h pass since the last master check
+  g403 := mismatches > 0; -- ENV: a mismatch leaves the 10-min window
+  g404 := QH; -- OP: rung: tool and offsets checked -> quality hold released
+  urgent := g383 | g384 | g385 | g386 | g387; -- the supervisor must react
+  enabled := g0 | g1 | g2 | g3 | g4 | g5 | g6 | g7 | g8 | g9 | g10 | g11 | g12 | g13 | g14 | g15 | g16 | g17 | g18 | g19 | g20 | g21 | g22 | g23 | g24 | g25 | g26 | g27 | g28 | g29 | g30 | g31 | g32 | g33 | g34 | g35 | g36 | g37 | g38 | g39 | g40 | g41 | g42 | g43 | g44 | g45 | g46 | g47 | g48 | g49 | g50 | g51 | g52 | g53 | g54 | g55 | g56 | g57 | g58 | g59 | g60 | g61 | g62 | g63 | g64 | g65 | g66 | g67 | g68 | g69 | g70 | g71 | g72 | g73 | g74 | g75 | g76 | g77 | g78 | g79 | g80 | g81 | g82 | g83 | g84 | g85 | g86 | g87 | g88 | g89 | g90 | g91 | g92 | g93 | g94 | g95 | g96 | g97 | g98 | g99 | g100 | g101 | g102 | g103 | g104 | g105 | g106 | g107 | g108 | g109 | g110 | g111 | g112 | g113 | g114 | g115 | g116 | g117 | g118 | g119 | g120 | g121 | g122 | g123 | g124 | g125 | g126 | g127 | g128 | g129 | g130 | g131 | g132 | g133 | g134 | g135 | g136 | g137 | g138 | g139 | g140 | g141 | g142 | g143 | g144 | g145 | g146 | g147 | g148 | g149 | g150 | g151 | g152 | g153 | g154 | g155 | g156 | g157 | g158 | g159 | g160 | g161 | g162 | g163 | g164 | g165 | g166 | g167 | g168 | g169 | g170 | g171 | g172 | g173 | g174 | g175 | g176 | g177 | g178 | g179 | g180 | g181 | g182 | g183 | g184 | g185 | g186 | g187 | g188 | g189 | g190 | g191 | g192 | g193 | g194 | g195 | g196 | g197 | g198 | g199 | g200 | g201 | g202 | g203 | g204 | g205 | g206 | g207 | g208 | g209 | g210 | g211 | g212 | g213 | g214 | g215 | g216 | g217 | g218 | g219 | g220 | g221 | g222 | g223 | g224 | g225 | g226 | g227 | g228 | g229 | g230 | g231 | g232 | g233 | g234 | g235 | g236 | g237 | g238 | g239 | g240 | g241 | g242 | g243 | g244 | g245 | g246 | g247 | g248 | g249 | g250 | g251 | g252 | g253 | g254 | g255 | g256 | g257 | g258 | g259 | g260 | g261 | g262 | g263 | g264 | g265 | g266 | g267 | g268 | g269 | g270 | g271 | g272 | g273 | g274 | g275 | g276 | g277 | g278 | g279 | g280 | g281 | g282 | g283 | g284 | g285 | g286 | g287 | g288 | g289 | g290 | g291 | g292 | g293 | g294 | g295 | g296 | g297 | g298 | g299 | g300 | g301 | g302 | g303 | g304 | g305 | g306 | g307 | g308 | g309 | g310 | g311 | g312 | g313 | g314 | g315 | g316 | g317 | g318 | g319 | g320 | g321 | g322 | g323 | g324 | g325 | g326 | g327 | g328 | g329 | g330 | g331 | g332 | g333 | g334 | g335 | g336 | g337 | g338 | g339 | g340 | g341 | g342 | g343 | g344 | g345 | g346 | g347 | g348 | g349 | g350 | g351 | g352 | g353 | g354 | g355 | g356 | g357 | g358 | g359 | g360 | g361 | g362 | g363 | g364 | g365 | g366 | g367 | g368 | g369 | g370 | g371 | g372 | g373 | g374 | g375 | g376 | g377 | g378 | g379 | g380 | g381 | g382 | g383 | g384 | g385 | g386 | g387 | g388 | g389 | g390 | g391 | g392 | g393 | g394 | g395 | g396 | g397 | g398 | g399 | g400 | g401 | g402 | g403 | g404; -- some command other than idle can be taken
 ASSIGN
   init(R1) := I_x;
   init(R1_res) := none;
@@ -467,6 +507,7 @@ ASSIGN
   init(nest) := none;
   init(measured) := FALSE;
   init(zeroed) := FALSE;
+  init(due) := FALSE;
   init(pe65) := FALSE;
   next(R1) := case
     cmd = c0 & g0 & !urgent : B0_0;
@@ -866,149 +907,187 @@ ASSIGN
     cmd = c197 & g197 & !urgent : E0_2;
     cmd = c198 & g198 & !urgent : H_0;
     cmd = c199 & g199 & !urgent : E0_3;
-    cmd = c200 & g200 & !urgent : E0_3;
-    cmd = c201 & g201 & !urgent : E0_3;
-    cmd = c202 & g202 & !urgent : E0_3;
-    cmd = c203 & g203 & !urgent : E0_3;
-    cmd = c204 & g204 & !urgent : H_0;
+    cmd = c200 & g200 & !urgent : E0_4;
+    cmd = c201 & g201 & !urgent : E0_x;
+    cmd = c202 & g202 & !urgent : E0_4;
+    cmd = c203 & g203 & !urgent : E0_x;
+    cmd = c204 & g204 & !urgent : E0_4;
     cmd = c205 & g205 & !urgent : E0_x;
-    cmd = c206 & g206 & !urgent : E1_0;
-    cmd = c207 & g207 & !urgent : E1_x;
-    cmd = c208 & g208 & !urgent : H_0;
-    cmd = c209 & g209 & !urgent : F_x;
-    cmd = c210 & g210 & !urgent : E1_x;
-    cmd = c211 & g211 & !urgent : E2_0;
-    cmd = c212 & g212 & !urgent : E2_1;
-    cmd = c213 & g213 & !urgent : H_0;
-    cmd = c214 & g214 & !urgent : H_0;
-    cmd = c215 & g215 & !urgent : E2_1;
-    cmd = c216 & g216 & !urgent : E2_x;
-    cmd = c217 & g217 & !urgent : E2_x;
-    cmd = c218 & g218 & !urgent : E2_x;
-    cmd = c219 & g219 & !urgent : E2_x;
-    cmd = c220 & g220 & !urgent : E2_x;
-    cmd = c221 & g221 & !urgent : E2_x;
-    cmd = c222 & g222 & !urgent : E2_x;
-    cmd = c223 & g223 & !urgent : E2_x;
-    cmd = c224 & g224 & !urgent : E2_x;
-    cmd = c225 & g225 & !urgent : E2_x;
-    cmd = c226 & g226 & !urgent : H_0;
-    cmd = c227 & g227 & !urgent : E3_0;
-    cmd = c228 & g228 & !urgent : E3_1;
-    cmd = c229 & g229 & !urgent : H_0;
-    cmd = c230 & g230 & !urgent : F_x;
-    cmd = c231 & g231 & !urgent : E3_1;
-    cmd = c232 & g232 & !urgent : E3_x;
-    cmd = c233 & g233 & !urgent : E3_x;
-    cmd = c234 & g234 & !urgent : E3_x;
-    cmd = c235 & g235 & !urgent : E3_x;
-    cmd = c236 & g236 & !urgent : E3_x;
+    cmd = c206 & g206 & !urgent : E0_4;
+    cmd = c207 & g207 & !urgent : E0_x;
+    cmd = c208 & g208 & !urgent : E0_4;
+    cmd = c209 & g209 & !urgent : E0_x;
+    cmd = c210 & g210 & !urgent : H_0;
+    cmd = c211 & g211 & !urgent : E0_4;
+    cmd = c212 & g212 & !urgent : E0_x;
+    cmd = c213 & g213 & !urgent : E0_x;
+    cmd = c214 & g214 & !urgent : E1_0;
+    cmd = c215 & g215 & !urgent : E1_1;
+    cmd = c216 & g216 & !urgent : E1_2;
+    cmd = c217 & g217 & !urgent : E1_x;
+    cmd = c218 & g218 & !urgent : H_0;
+    cmd = c219 & g219 & !urgent : F_x;
+    cmd = c220 & g220 & !urgent : E1_1;
+    cmd = c221 & g221 & !urgent : E1_2;
+    cmd = c222 & g222 & !urgent : E1_x;
+    cmd = c223 & g223 & !urgent : E1_2;
+    cmd = c224 & g224 & !urgent : E1_x;
+    cmd = c225 & g225 & !urgent : E1_2;
+    cmd = c226 & g226 & !urgent : E1_x;
+    cmd = c227 & g227 & !urgent : E1_2;
+    cmd = c228 & g228 & !urgent : E1_x;
+    cmd = c229 & g229 & !urgent : E1_2;
+    cmd = c230 & g230 & !urgent : E1_x;
+    cmd = c231 & g231 & !urgent : H_0;
+    cmd = c232 & g232 & !urgent : E1_2;
+    cmd = c233 & g233 & !urgent : E1_x;
+    cmd = c234 & g234 & !urgent : E1_x;
+    cmd = c235 & g235 & !urgent : E2_0;
+    cmd = c236 & g236 & !urgent : E2_1;
     cmd = c237 & g237 & !urgent : H_0;
-    cmd = c238 & g238 & !urgent : E4_0;
-    cmd = c239 & g239 & !urgent : H_0;
-    cmd = c240 & g240 & !urgent : F_x;
-    cmd = c241 & g241 & !urgent : E4_x;
-    cmd = c242 & g242 & !urgent : E5_1;
-    cmd = c243 & g243 & !urgent : E6_0;
-    cmd = c244 & g244 & !urgent : H_0;
-    cmd = c245 & g245 & !urgent : F_x;
-    cmd = c246 & g246 & !urgent : E5_2;
-    cmd = c247 & g247 & !urgent : E5_3;
-    cmd = c248 & g248 & !urgent : F_x;
-    cmd = c249 & g249 & !urgent : F_x;
+    cmd = c238 & g238 & !urgent : H_0;
+    cmd = c239 & g239 & !urgent : E2_1;
+    cmd = c240 & g240 & !urgent : E2_x;
+    cmd = c241 & g241 & !urgent : E2_x;
+    cmd = c242 & g242 & !urgent : E2_x;
+    cmd = c243 & g243 & !urgent : E2_x;
+    cmd = c244 & g244 & !urgent : E2_x;
+    cmd = c245 & g245 & !urgent : E2_x;
+    cmd = c246 & g246 & !urgent : E2_x;
+    cmd = c247 & g247 & !urgent : E2_x;
+    cmd = c248 & g248 & !urgent : E2_x;
+    cmd = c249 & g249 & !urgent : E2_x;
     cmd = c250 & g250 & !urgent : H_0;
-    cmd = c251 & g251 & !urgent : E5_x;
-    cmd = c252 & g252 & !urgent : E7_0;
-    cmd = c253 & g253 & !urgent : E7_1;
-    cmd = c254 & g254 & !urgent : E1_0;
-    cmd = c255 & g255 & !urgent : E1_x;
-    cmd = c256 & g256 & !urgent : H_0;
-    cmd = c257 & g257 & !urgent : F_x;
-    cmd = c258 & g258 & !urgent : E6_1;
-    cmd = c259 & g259 & !urgent : E6_x;
-    cmd = c260 & g260 & !urgent : E6_x;
-    cmd = c261 & g261 & !urgent : E1_0;
-    cmd = c262 & g262 & !urgent : E1_x;
+    cmd = c251 & g251 & !urgent : E3_0;
+    cmd = c252 & g252 & !urgent : E3_1;
+    cmd = c253 & g253 & !urgent : H_0;
+    cmd = c254 & g254 & !urgent : F_x;
+    cmd = c255 & g255 & !urgent : E3_1;
+    cmd = c256 & g256 & !urgent : E3_x;
+    cmd = c257 & g257 & !urgent : E3_x;
+    cmd = c258 & g258 & !urgent : E3_x;
+    cmd = c259 & g259 & !urgent : E3_x;
+    cmd = c260 & g260 & !urgent : E3_x;
+    cmd = c261 & g261 & !urgent : H_0;
+    cmd = c262 & g262 & !urgent : E4_0;
     cmd = c263 & g263 & !urgent : H_0;
     cmd = c264 & g264 & !urgent : F_x;
-    cmd = c265 & g265 & !urgent : E7_1;
-    cmd = c266 & g266 & !urgent : E7_2;
-    cmd = c267 & g267 & !urgent : H_0;
-    cmd = c268 & g268 & !urgent : E7_x;
-    cmd = c270 & g270 & !urgent : H_0;
-    cmd = c272 & g272 & !urgent : H_0;
-    cmd = c273 & g273 & !urgent : H_0;
-    cmd = c274 & g274 & !urgent : E1_0;
-    cmd = c275 & g275 & !urgent : E1_x;
-    cmd = c276 & g276 & !urgent : H_0;
-    cmd = c277 & g277 & !urgent : H_0;
-    cmd = c278 & g278 & !urgent : H_x;
-    cmd = c279 & g279 & !urgent : E0_0;
-    cmd = c280 & g280 & !urgent : E0_1;
-    cmd = c281 & g281 & !urgent : E0_1;
-    cmd = c282 & g282 & !urgent : E0_2;
-    cmd = c283 & g283 & !urgent : E1_0;
-    cmd = c284 & g284 & !urgent : E1_x;
-    cmd = c285 & g285 & !urgent : E2_0;
-    cmd = c286 & g286 & !urgent : E2_1;
-    cmd = c287 & g287 & !urgent : E2_1;
-    cmd = c288 & g288 & !urgent : E3_0;
-    cmd = c289 & g289 & !urgent : E3_1;
-    cmd = c290 & g290 & !urgent : E3_1;
-    cmd = c291 & g291 & !urgent : E4_0;
-    cmd = c292 & g292 & !urgent : E5_1;
-    cmd = c293 & g293 & !urgent : E6_0;
-    cmd = c294 & g294 & !urgent : E5_1;
-    cmd = c295 & g295 & !urgent : E5_2;
-    cmd = c296 & g296 & !urgent : E7_0;
-    cmd = c297 & g297 & !urgent : E7_1;
-    cmd = c298 & g298 & !urgent : E1_0;
-    cmd = c299 & g299 & !urgent : E1_x;
-    cmd = c300 & g300 & !urgent : E6_0;
-    cmd = c301 & g301 & !urgent : E7_0;
-    cmd = c302 & g302 & !urgent : E7_1;
-    cmd = c303 & g303 & !urgent : E7_2;
-    cmd = c304 & g304 & !urgent : E0_0;
-    cmd = c305 & g305 & !urgent : E0_1;
+    cmd = c265 & g265 & !urgent : E4_x;
+    cmd = c266 & g266 & !urgent : E5_1;
+    cmd = c267 & g267 & !urgent : E6_0;
+    cmd = c268 & g268 & !urgent : H_0;
+    cmd = c269 & g269 & !urgent : F_x;
+    cmd = c270 & g270 & !urgent : E5_2;
+    cmd = c271 & g271 & !urgent : E5_3;
+    cmd = c272 & g272 & !urgent : F_x;
+    cmd = c273 & g273 & !urgent : F_x;
+    cmd = c274 & g274 & !urgent : H_0;
+    cmd = c275 & g275 & !urgent : E5_x;
+    cmd = c276 & g276 & !urgent : E7_0;
+    cmd = c277 & g277 & !urgent : E7_1;
+    cmd = c278 & g278 & !urgent : E1_0;
+    cmd = c279 & g279 & !urgent : E1_1;
+    cmd = c280 & g280 & !urgent : E1_2;
+    cmd = c281 & g281 & !urgent : E1_x;
+    cmd = c282 & g282 & !urgent : H_0;
+    cmd = c283 & g283 & !urgent : F_x;
+    cmd = c284 & g284 & !urgent : E6_1;
+    cmd = c285 & g285 & !urgent : E6_x;
+    cmd = c286 & g286 & !urgent : E6_x;
+    cmd = c287 & g287 & !urgent : E1_0;
+    cmd = c288 & g288 & !urgent : E1_1;
+    cmd = c289 & g289 & !urgent : E1_2;
+    cmd = c290 & g290 & !urgent : E1_x;
+    cmd = c291 & g291 & !urgent : H_0;
+    cmd = c292 & g292 & !urgent : F_x;
+    cmd = c293 & g293 & !urgent : E7_1;
+    cmd = c294 & g294 & !urgent : E7_2;
+    cmd = c295 & g295 & !urgent : H_0;
+    cmd = c296 & g296 & !urgent : E7_x;
+    cmd = c298 & g298 & !urgent : H_0;
+    cmd = c300 & g300 & !urgent : H_0;
+    cmd = c301 & g301 & !urgent : H_0;
+    cmd = c302 & g302 & !urgent : E1_0;
+    cmd = c303 & g303 & !urgent : E1_1;
+    cmd = c304 & g304 & !urgent : E1_2;
+    cmd = c305 & g305 & !urgent : E1_x;
     cmd = c306 & g306 & !urgent : H_0;
-    cmd = c307 & g307 & !urgent : E0_1;
-    cmd = c308 & g308 & !urgent : H_0;
-    cmd = c309 & g309 & !urgent : E0_2;
-    cmd = c310 & g310 & !urgent : H_0;
-    cmd = c311 & g311 & !urgent : E1_0;
-    cmd = c312 & g312 & !urgent : E1_x;
-    cmd = c313 & g313 & !urgent : H_0;
-    cmd = c314 & g314 & !urgent : E2_0;
-    cmd = c315 & g315 & !urgent : E2_1;
-    cmd = c316 & g316 & !urgent : H_0;
-    cmd = c317 & g317 & !urgent : E2_1;
-    cmd = c318 & g318 & !urgent : H_0;
-    cmd = c319 & g319 & !urgent : E3_0;
-    cmd = c320 & g320 & !urgent : E3_1;
-    cmd = c321 & g321 & !urgent : H_0;
+    cmd = c307 & g307 & !urgent : H_0;
+    cmd = c308 & g308 & !urgent : H_x;
+    cmd = c309 & g309 & !urgent : E0_0;
+    cmd = c310 & g310 & !urgent : E0_1;
+    cmd = c311 & g311 & !urgent : E0_1;
+    cmd = c312 & g312 & !urgent : E0_2;
+    cmd = c313 & g313 & !urgent : E1_0;
+    cmd = c314 & g314 & !urgent : E1_1;
+    cmd = c315 & g315 & !urgent : E1_2;
+    cmd = c316 & g316 & !urgent : E1_x;
+    cmd = c317 & g317 & !urgent : E2_0;
+    cmd = c318 & g318 & !urgent : E2_1;
+    cmd = c319 & g319 & !urgent : E2_1;
+    cmd = c320 & g320 & !urgent : E3_0;
+    cmd = c321 & g321 & !urgent : E3_1;
     cmd = c322 & g322 & !urgent : E3_1;
-    cmd = c323 & g323 & !urgent : H_0;
-    cmd = c324 & g324 & !urgent : E4_0;
-    cmd = c325 & g325 & !urgent : H_0;
+    cmd = c323 & g323 & !urgent : E4_0;
+    cmd = c324 & g324 & !urgent : E5_1;
+    cmd = c325 & g325 & !urgent : E6_0;
     cmd = c326 & g326 & !urgent : E5_1;
-    cmd = c327 & g327 & !urgent : E6_0;
-    cmd = c328 & g328 & !urgent : H_0;
-    cmd = c329 & g329 & !urgent : E5_1;
-    cmd = c330 & g330 & !urgent : H_0;
-    cmd = c331 & g331 & !urgent : E5_2;
-    cmd = c332 & g332 & !urgent : H_0;
-    cmd = c333 & g333 & !urgent : E7_0;
-    cmd = c334 & g334 & !urgent : E7_1;
-    cmd = c335 & g335 & !urgent : E1_0;
-    cmd = c336 & g336 & !urgent : E1_x;
-    cmd = c337 & g337 & !urgent : H_0;
-    cmd = c338 & g338 & !urgent : E6_0;
-    cmd = c339 & g339 & !urgent : H_0;
-    cmd = c340 & g340 & !urgent : E7_0;
-    cmd = c341 & g341 & !urgent : E7_1;
+    cmd = c327 & g327 & !urgent : E5_2;
+    cmd = c328 & g328 & !urgent : E7_0;
+    cmd = c329 & g329 & !urgent : E7_1;
+    cmd = c330 & g330 & !urgent : E1_0;
+    cmd = c331 & g331 & !urgent : E1_1;
+    cmd = c332 & g332 & !urgent : E1_2;
+    cmd = c333 & g333 & !urgent : E1_x;
+    cmd = c334 & g334 & !urgent : E6_0;
+    cmd = c335 & g335 & !urgent : E7_0;
+    cmd = c336 & g336 & !urgent : E7_1;
+    cmd = c337 & g337 & !urgent : E7_2;
+    cmd = c338 & g338 & !urgent : E0_0;
+    cmd = c339 & g339 & !urgent : E0_1;
+    cmd = c340 & g340 & !urgent : H_0;
+    cmd = c341 & g341 & !urgent : E0_1;
     cmd = c342 & g342 & !urgent : H_0;
-    cmd = c343 & g343 & !urgent : E7_2;
+    cmd = c343 & g343 & !urgent : E0_2;
     cmd = c344 & g344 & !urgent : H_0;
+    cmd = c345 & g345 & !urgent : E1_0;
+    cmd = c346 & g346 & !urgent : E1_1;
+    cmd = c347 & g347 & !urgent : E1_2;
+    cmd = c348 & g348 & !urgent : E1_x;
+    cmd = c349 & g349 & !urgent : H_0;
+    cmd = c350 & g350 & !urgent : E2_0;
+    cmd = c351 & g351 & !urgent : E2_1;
+    cmd = c352 & g352 & !urgent : H_0;
+    cmd = c353 & g353 & !urgent : E2_1;
+    cmd = c354 & g354 & !urgent : H_0;
+    cmd = c355 & g355 & !urgent : E3_0;
+    cmd = c356 & g356 & !urgent : E3_1;
+    cmd = c357 & g357 & !urgent : H_0;
+    cmd = c358 & g358 & !urgent : E3_1;
+    cmd = c359 & g359 & !urgent : H_0;
+    cmd = c360 & g360 & !urgent : E4_0;
+    cmd = c361 & g361 & !urgent : H_0;
+    cmd = c362 & g362 & !urgent : E5_1;
+    cmd = c363 & g363 & !urgent : E6_0;
+    cmd = c364 & g364 & !urgent : H_0;
+    cmd = c365 & g365 & !urgent : E5_1;
+    cmd = c366 & g366 & !urgent : H_0;
+    cmd = c367 & g367 & !urgent : E5_2;
+    cmd = c368 & g368 & !urgent : H_0;
+    cmd = c369 & g369 & !urgent : E7_0;
+    cmd = c370 & g370 & !urgent : E7_1;
+    cmd = c371 & g371 & !urgent : E1_0;
+    cmd = c372 & g372 & !urgent : E1_1;
+    cmd = c373 & g373 & !urgent : E1_2;
+    cmd = c374 & g374 & !urgent : E1_x;
+    cmd = c375 & g375 & !urgent : H_0;
+    cmd = c376 & g376 & !urgent : E6_0;
+    cmd = c377 & g377 & !urgent : H_0;
+    cmd = c378 & g378 & !urgent : E7_0;
+    cmd = c379 & g379 & !urgent : E7_1;
+    cmd = c380 & g380 & !urgent : H_0;
+    cmd = c381 & g381 & !urgent : E7_2;
+    cmd = c382 & g382 & !urgent : H_0;
     TRUE : R2;
   esac;
   next(R2_res) := case
@@ -1026,83 +1105,86 @@ ASSIGN
     cmd = c201 & g201 & !urgent : none;
     cmd = c202 & g202 & !urgent : none;
     cmd = c203 & g203 & !urgent : none;
-    cmd = c204 & g204 & !urgent : E0_2;
+    cmd = c204 & g204 & !urgent : none;
     cmd = c205 & g205 & !urgent : none;
     cmd = c206 & g206 & !urgent : none;
     cmd = c207 & g207 & !urgent : none;
-    cmd = c208 & g208 & !urgent : E1_0;
-    cmd = c209 & g209 & !urgent : E0_0;
-    cmd = c210 & g210 & !urgent : none;
+    cmd = c208 & g208 & !urgent : none;
+    cmd = c209 & g209 & !urgent : none;
+    cmd = c210 & g210 & !urgent : E0_2;
     cmd = c211 & g211 & !urgent : none;
     cmd = c212 & g212 & !urgent : none;
-    cmd = c213 & g213 & !urgent : E2_0;
-    cmd = c214 & g214 & !urgent : E1_0;
+    cmd = c213 & g213 & !urgent : none;
+    cmd = c214 & g214 & !urgent : none;
     cmd = c215 & g215 & !urgent : none;
     cmd = c216 & g216 & !urgent : none;
     cmd = c217 & g217 & !urgent : none;
-    cmd = c218 & g218 & !urgent : none;
-    cmd = c219 & g219 & !urgent : none;
+    cmd = c218 & g218 & !urgent : E1_0;
+    cmd = c219 & g219 & !urgent : E0_0;
     cmd = c220 & g220 & !urgent : none;
     cmd = c221 & g221 & !urgent : none;
     cmd = c222 & g222 & !urgent : none;
     cmd = c223 & g223 & !urgent : none;
     cmd = c224 & g224 & !urgent : none;
     cmd = c225 & g225 & !urgent : none;
-    cmd = c226 & g226 & !urgent : E2_1;
+    cmd = c226 & g226 & !urgent : none;
     cmd = c227 & g227 & !urgent : none;
     cmd = c228 & g228 & !urgent : none;
-    cmd = c229 & g229 & !urgent : E3_0;
-    cmd = c230 & g230 & !urgent : E2_0;
-    cmd = c231 & g231 & !urgent : none;
+    cmd = c229 & g229 & !urgent : none;
+    cmd = c230 & g230 & !urgent : none;
+    cmd = c231 & g231 & !urgent : E1_0;
     cmd = c232 & g232 & !urgent : none;
     cmd = c233 & g233 & !urgent : none;
     cmd = c234 & g234 & !urgent : none;
     cmd = c235 & g235 & !urgent : none;
     cmd = c236 & g236 & !urgent : none;
-    cmd = c237 & g237 & !urgent : E3_1;
-    cmd = c238 & g238 & !urgent : none;
-    cmd = c239 & g239 & !urgent : E4_0;
-    cmd = c240 & g240 & !urgent : E3_0;
+    cmd = c237 & g237 & !urgent : E2_0;
+    cmd = c238 & g238 & !urgent : E1_0;
+    cmd = c239 & g239 & !urgent : none;
+    cmd = c240 & g240 & !urgent : none;
     cmd = c241 & g241 & !urgent : none;
     cmd = c242 & g242 & !urgent : none;
     cmd = c243 & g243 & !urgent : none;
-    cmd = c244 & g244 & !urgent : Q_E4_0;
-    cmd = c245 & g245 & !urgent : E4_0;
+    cmd = c244 & g244 & !urgent : none;
+    cmd = c245 & g245 & !urgent : none;
     cmd = c246 & g246 & !urgent : none;
     cmd = c247 & g247 & !urgent : none;
-    cmd = c248 & g248 & !urgent : E5_0;
-    cmd = c249 & g249 & !urgent : E5_0;
-    cmd = c250 & g250 & !urgent : E5_2;
+    cmd = c248 & g248 & !urgent : none;
+    cmd = c249 & g249 & !urgent : none;
+    cmd = c250 & g250 & !urgent : E2_1;
     cmd = c251 & g251 & !urgent : none;
     cmd = c252 & g252 & !urgent : none;
-    cmd = c253 & g253 & !urgent : none;
-    cmd = c254 & g254 & !urgent : none;
+    cmd = c253 & g253 & !urgent : E3_0;
+    cmd = c254 & g254 & !urgent : E2_0;
     cmd = c255 & g255 & !urgent : none;
-    cmd = c256 & g256 & !urgent : Q_E5_0;
-    cmd = c257 & g257 & !urgent : E5_0;
+    cmd = c256 & g256 & !urgent : none;
+    cmd = c257 & g257 & !urgent : none;
     cmd = c258 & g258 & !urgent : none;
     cmd = c259 & g259 & !urgent : none;
     cmd = c260 & g260 & !urgent : none;
-    cmd = c261 & g261 & !urgent : none;
+    cmd = c261 & g261 & !urgent : E3_1;
     cmd = c262 & g262 & !urgent : none;
-    cmd = c263 & g263 & !urgent : E1_0;
-    cmd = c264 & g264 & !urgent : E6_0;
+    cmd = c263 & g263 & !urgent : E4_0;
+    cmd = c264 & g264 & !urgent : E3_0;
     cmd = c265 & g265 & !urgent : none;
     cmd = c266 & g266 & !urgent : none;
-    cmd = c267 & g267 & !urgent : E7_0;
-    cmd = c268 & g268 & !urgent : none;
-    cmd = c270 & g270 & !urgent : E7_0;
-    cmd = c272 & g272 & !urgent : E7_0;
-    cmd = c273 & g273 & !urgent : E7_2;
-    cmd = c274 & g274 & !urgent : none;
+    cmd = c267 & g267 & !urgent : none;
+    cmd = c268 & g268 & !urgent : Q_E4_0;
+    cmd = c269 & g269 & !urgent : E4_0;
+    cmd = c270 & g270 & !urgent : none;
+    cmd = c271 & g271 & !urgent : none;
+    cmd = c272 & g272 & !urgent : E5_0;
+    cmd = c273 & g273 & !urgent : E5_0;
+    cmd = c274 & g274 & !urgent : E5_2;
     cmd = c275 & g275 & !urgent : none;
-    cmd = c276 & g276 & !urgent : E1_0;
-    cmd = c277 & g277 & !urgent : E7_0;
+    cmd = c276 & g276 & !urgent : none;
+    cmd = c277 & g277 & !urgent : none;
+    cmd = c278 & g278 & !urgent : none;
     cmd = c279 & g279 & !urgent : none;
     cmd = c280 & g280 & !urgent : none;
     cmd = c281 & g281 & !urgent : none;
-    cmd = c282 & g282 & !urgent : none;
-    cmd = c283 & g283 & !urgent : none;
+    cmd = c282 & g282 & !urgent : Q_E5_0;
+    cmd = c283 & g283 & !urgent : E5_0;
     cmd = c284 & g284 & !urgent : none;
     cmd = c285 & g285 & !urgent : none;
     cmd = c286 & g286 & !urgent : none;
@@ -1110,71 +1192,106 @@ ASSIGN
     cmd = c288 & g288 & !urgent : none;
     cmd = c289 & g289 & !urgent : none;
     cmd = c290 & g290 & !urgent : none;
-    cmd = c291 & g291 & !urgent : none;
-    cmd = c292 & g292 & !urgent : none;
+    cmd = c291 & g291 & !urgent : E1_0;
+    cmd = c292 & g292 & !urgent : E6_0;
     cmd = c293 & g293 & !urgent : none;
     cmd = c294 & g294 & !urgent : none;
-    cmd = c295 & g295 & !urgent : none;
+    cmd = c295 & g295 & !urgent : E7_0;
     cmd = c296 & g296 & !urgent : none;
-    cmd = c297 & g297 & !urgent : none;
-    cmd = c298 & g298 & !urgent : none;
-    cmd = c299 & g299 & !urgent : none;
-    cmd = c300 & g300 & !urgent : none;
-    cmd = c301 & g301 & !urgent : none;
+    cmd = c298 & g298 & !urgent : E7_0;
+    cmd = c300 & g300 & !urgent : E7_0;
+    cmd = c301 & g301 & !urgent : E7_2;
     cmd = c302 & g302 & !urgent : none;
     cmd = c303 & g303 & !urgent : none;
     cmd = c304 & g304 & !urgent : none;
     cmd = c305 & g305 & !urgent : none;
-    cmd = c306 & g306 & !urgent : E0_0;
-    cmd = c307 & g307 & !urgent : none;
-    cmd = c308 & g308 & !urgent : E0_1;
+    cmd = c306 & g306 & !urgent : E1_0;
+    cmd = c307 & g307 & !urgent : E7_0;
     cmd = c309 & g309 & !urgent : none;
-    cmd = c310 & g310 & !urgent : E0_2;
+    cmd = c310 & g310 & !urgent : none;
     cmd = c311 & g311 & !urgent : none;
     cmd = c312 & g312 & !urgent : none;
-    cmd = c313 & g313 & !urgent : E1_0;
+    cmd = c313 & g313 & !urgent : none;
     cmd = c314 & g314 & !urgent : none;
     cmd = c315 & g315 & !urgent : none;
-    cmd = c316 & g316 & !urgent : E2_0;
+    cmd = c316 & g316 & !urgent : none;
     cmd = c317 & g317 & !urgent : none;
-    cmd = c318 & g318 & !urgent : E2_1;
+    cmd = c318 & g318 & !urgent : none;
     cmd = c319 & g319 & !urgent : none;
     cmd = c320 & g320 & !urgent : none;
-    cmd = c321 & g321 & !urgent : E3_0;
+    cmd = c321 & g321 & !urgent : none;
     cmd = c322 & g322 & !urgent : none;
-    cmd = c323 & g323 & !urgent : E3_1;
+    cmd = c323 & g323 & !urgent : none;
     cmd = c324 & g324 & !urgent : none;
-    cmd = c325 & g325 & !urgent : E4_0;
+    cmd = c325 & g325 & !urgent : none;
     cmd = c326 & g326 & !urgent : none;
     cmd = c327 & g327 & !urgent : none;
-    cmd = c328 & g328 & !urgent : Q_E4_0;
+    cmd = c328 & g328 & !urgent : none;
     cmd = c329 & g329 & !urgent : none;
-    cmd = c330 & g330 & !urgent : E5_0;
+    cmd = c330 & g330 & !urgent : none;
     cmd = c331 & g331 & !urgent : none;
-    cmd = c332 & g332 & !urgent : E5_2;
+    cmd = c332 & g332 & !urgent : none;
     cmd = c333 & g333 & !urgent : none;
     cmd = c334 & g334 & !urgent : none;
     cmd = c335 & g335 & !urgent : none;
     cmd = c336 & g336 & !urgent : none;
-    cmd = c337 & g337 & !urgent : Q_E5_0;
+    cmd = c337 & g337 & !urgent : none;
     cmd = c338 & g338 & !urgent : none;
-    cmd = c339 & g339 & !urgent : E6_0;
-    cmd = c340 & g340 & !urgent : none;
+    cmd = c339 & g339 & !urgent : none;
+    cmd = c340 & g340 & !urgent : E0_0;
     cmd = c341 & g341 & !urgent : none;
-    cmd = c342 & g342 & !urgent : E7_0;
+    cmd = c342 & g342 & !urgent : E0_1;
     cmd = c343 & g343 & !urgent : none;
-    cmd = c344 & g344 & !urgent : E7_2;
+    cmd = c344 & g344 & !urgent : E0_2;
+    cmd = c345 & g345 & !urgent : none;
+    cmd = c346 & g346 & !urgent : none;
+    cmd = c347 & g347 & !urgent : none;
+    cmd = c348 & g348 & !urgent : none;
+    cmd = c349 & g349 & !urgent : E1_0;
+    cmd = c350 & g350 & !urgent : none;
+    cmd = c351 & g351 & !urgent : none;
+    cmd = c352 & g352 & !urgent : E2_0;
+    cmd = c353 & g353 & !urgent : none;
+    cmd = c354 & g354 & !urgent : E2_1;
+    cmd = c355 & g355 & !urgent : none;
+    cmd = c356 & g356 & !urgent : none;
+    cmd = c357 & g357 & !urgent : E3_0;
+    cmd = c358 & g358 & !urgent : none;
+    cmd = c359 & g359 & !urgent : E3_1;
+    cmd = c360 & g360 & !urgent : none;
+    cmd = c361 & g361 & !urgent : E4_0;
+    cmd = c362 & g362 & !urgent : none;
+    cmd = c363 & g363 & !urgent : none;
+    cmd = c364 & g364 & !urgent : Q_E4_0;
+    cmd = c365 & g365 & !urgent : none;
+    cmd = c366 & g366 & !urgent : E5_0;
+    cmd = c367 & g367 & !urgent : none;
+    cmd = c368 & g368 & !urgent : E5_2;
+    cmd = c369 & g369 & !urgent : none;
+    cmd = c370 & g370 & !urgent : none;
+    cmd = c371 & g371 & !urgent : none;
+    cmd = c372 & g372 & !urgent : none;
+    cmd = c373 & g373 & !urgent : none;
+    cmd = c374 & g374 & !urgent : none;
+    cmd = c375 & g375 & !urgent : Q_E5_0;
+    cmd = c376 & g376 & !urgent : none;
+    cmd = c377 & g377 & !urgent : E6_0;
+    cmd = c378 & g378 & !urgent : none;
+    cmd = c379 & g379 & !urgent : none;
+    cmd = c380 & g380 & !urgent : E7_0;
+    cmd = c381 & g381 & !urgent : none;
+    cmd = c382 & g382 & !urgent : E7_2;
     TRUE : R2_res;
   esac;
   next(SUP) := case
-    cmd = c345 & g345 : X1_x;
-    cmd = c346 & g346 : X3_x;
-    cmd = c347 & g347 : X2_x;
-    cmd = c348 & g348 : X3_x;
-    cmd = c349 & g349 : X1_x;
-    cmd = c350 & g350 & !urgent : X4_x;
-    cmd = c351 & g351 & !urgent : X4_x;
-    cmd = c352 & g352 & !urgent : X1_x;
+    cmd = c383 & g383 : X1_x;
+    cmd = c384 & g384 : X3_x;
+    cmd = c385 & g385 : X2_x;
+    cmd = c386 & g386 : X3_x;
+    cmd = c387 & g387 : X1_x;
+    cmd = c388 & g388 & !urgent : X4_x;
+    cmd = c389 & g389 & !urgent : X4_x;
+    cmd = c390 & g390 & !urgent : X1_x;
     TRUE : SUP;
   esac;
   next(partPlaced) := case
@@ -1193,11 +1310,11 @@ ASSIGN
     cmd = c174 & g174 & !urgent : FALSE;
     cmd = c176 & g176 & !urgent : FALSE;
     cmd = c186 & g186 & !urgent : FALSE;
-    cmd = c216 & g216 & !urgent : FALSE;
-    cmd = c218 & g218 & !urgent : FALSE;
-    cmd = c220 & g220 & !urgent : FALSE;
-    cmd = c222 & g222 & !urgent : FALSE;
-    cmd = c224 & g224 & !urgent : FALSE;
+    cmd = c240 & g240 & !urgent : FALSE;
+    cmd = c242 & g242 & !urgent : FALSE;
+    cmd = c244 & g244 & !urgent : FALSE;
+    cmd = c246 & g246 & !urgent : FALSE;
+    cmd = c248 & g248 & !urgent : FALSE;
     TRUE : pickAllowed;
   esac;
   next(partPicked) := case
@@ -1205,11 +1322,11 @@ ASSIGN
     cmd = c167 & g167 & !urgent : FALSE;
     cmd = c169 & g169 & !urgent : FALSE;
     cmd = c176 & g176 & !urgent : FALSE;
-    cmd = c216 & g216 & !urgent : TRUE;
-    cmd = c218 & g218 & !urgent : TRUE;
-    cmd = c220 & g220 & !urgent : TRUE;
-    cmd = c222 & g222 & !urgent : TRUE;
-    cmd = c224 & g224 & !urgent : TRUE;
+    cmd = c240 & g240 & !urgent : TRUE;
+    cmd = c242 & g242 & !urgent : TRUE;
+    cmd = c244 & g244 & !urgent : TRUE;
+    cmd = c246 & g246 & !urgent : TRUE;
+    cmd = c248 & g248 & !urgent : TRUE;
     TRUE : partPicked;
   esac;
   next(CAM_FAULT) := case
@@ -1219,17 +1336,18 @@ ASSIGN
     cmd = c154 & g154 & !urgent : TRUE;
     cmd = c166 & g166 & !urgent : TRUE;
     cmd = c198 & g198 & !urgent : TRUE;
-    cmd = c204 & g204 & !urgent : TRUE;
-    cmd = c226 & g226 & !urgent : TRUE;
-    cmd = c237 & g237 & !urgent : TRUE;
+    cmd = c210 & g210 & !urgent : TRUE;
+    cmd = c231 & g231 & !urgent : TRUE;
     cmd = c250 & g250 & !urgent : TRUE;
-    cmd = c273 & g273 & !urgent : TRUE;
-    cmd = c352 & g352 & !urgent : FALSE;
+    cmd = c261 & g261 & !urgent : TRUE;
+    cmd = c274 & g274 & !urgent : TRUE;
+    cmd = c301 & g301 & !urgent : TRUE;
+    cmd = c390 & g390 & !urgent : FALSE;
     TRUE : CAM_FAULT;
   esac;
   next(QH) := case
-    cmd = c259 & g259 & !urgent : TRUE;
-    cmd = c365 & g365 & !urgent : FALSE;
+    cmd = c285 & g285 & !urgent : TRUE;
+    cmd = c404 & g404 & !urgent : FALSE;
     TRUE : QH;
   esac;
   next(mismatches) := case
@@ -1269,36 +1387,48 @@ ASSIGN
     cmd = c195 & g195 & !urgent : max(0, min(3, mismatches + 1));
     cmd = c196 & g196 & !urgent : max(0, min(3, mismatches + 1));
     cmd = c197 & g197 & !urgent : max(0, min(3, mismatches + 1));
-    cmd = c200 & g200 & !urgent : max(0, min(3, mismatches + 1));
-    cmd = c201 & g201 & !urgent : max(0, min(3, mismatches + 1));
     cmd = c202 & g202 & !urgent : max(0, min(3, mismatches + 1));
     cmd = c203 & g203 & !urgent : max(0, min(3, mismatches + 1));
-    cmd = c218 & g218 & !urgent : max(0, min(3, mismatches + 1));
-    cmd = c219 & g219 & !urgent : max(0, min(3, mismatches + 1));
-    cmd = c220 & g220 & !urgent : max(0, min(3, mismatches + 1));
-    cmd = c221 & g221 & !urgent : max(0, min(3, mismatches + 1));
-    cmd = c222 & g222 & !urgent : max(0, min(3, mismatches + 1));
+    cmd = c204 & g204 & !urgent : max(0, min(3, mismatches + 1));
+    cmd = c205 & g205 & !urgent : max(0, min(3, mismatches + 1));
+    cmd = c206 & g206 & !urgent : max(0, min(3, mismatches + 1));
+    cmd = c207 & g207 & !urgent : max(0, min(3, mismatches + 1));
+    cmd = c208 & g208 & !urgent : max(0, min(3, mismatches + 1));
+    cmd = c209 & g209 & !urgent : max(0, min(3, mismatches + 1));
     cmd = c223 & g223 & !urgent : max(0, min(3, mismatches + 1));
     cmd = c224 & g224 & !urgent : max(0, min(3, mismatches + 1));
     cmd = c225 & g225 & !urgent : max(0, min(3, mismatches + 1));
-    cmd = c233 & g233 & !urgent : max(0, min(3, mismatches + 1));
-    cmd = c234 & g234 & !urgent : max(0, min(3, mismatches + 1));
-    cmd = c235 & g235 & !urgent : max(0, min(3, mismatches + 1));
-    cmd = c236 & g236 & !urgent : max(0, min(3, mismatches + 1));
-    cmd = c271 & g271 & !urgent : max(0, min(3, mismatches + 1));
-    cmd = c352 & g352 & !urgent : 0;
-    cmd = c364 & g364 & !urgent : max(0, min(3, mismatches + -1));
+    cmd = c226 & g226 & !urgent : max(0, min(3, mismatches + 1));
+    cmd = c227 & g227 & !urgent : max(0, min(3, mismatches + 1));
+    cmd = c228 & g228 & !urgent : max(0, min(3, mismatches + 1));
+    cmd = c229 & g229 & !urgent : max(0, min(3, mismatches + 1));
+    cmd = c230 & g230 & !urgent : max(0, min(3, mismatches + 1));
+    cmd = c242 & g242 & !urgent : max(0, min(3, mismatches + 1));
+    cmd = c243 & g243 & !urgent : max(0, min(3, mismatches + 1));
+    cmd = c244 & g244 & !urgent : max(0, min(3, mismatches + 1));
+    cmd = c245 & g245 & !urgent : max(0, min(3, mismatches + 1));
+    cmd = c246 & g246 & !urgent : max(0, min(3, mismatches + 1));
+    cmd = c247 & g247 & !urgent : max(0, min(3, mismatches + 1));
+    cmd = c248 & g248 & !urgent : max(0, min(3, mismatches + 1));
+    cmd = c249 & g249 & !urgent : max(0, min(3, mismatches + 1));
+    cmd = c257 & g257 & !urgent : max(0, min(3, mismatches + 1));
+    cmd = c258 & g258 & !urgent : max(0, min(3, mismatches + 1));
+    cmd = c259 & g259 & !urgent : max(0, min(3, mismatches + 1));
+    cmd = c260 & g260 & !urgent : max(0, min(3, mismatches + 1));
+    cmd = c299 & g299 & !urgent : max(0, min(3, mismatches + 1));
+    cmd = c390 & g390 & !urgent : 0;
+    cmd = c403 & g403 & !urgent : max(0, min(3, mismatches + -1));
     TRUE : mismatches;
   esac;
   next(consecNok) := case
-    cmd = c242 & g242 & !urgent : 0;
-    cmd = c259 & g259 & !urgent : max(0, min(2, consecNok + 1));
-    cmd = c260 & g260 & !urgent : max(0, min(2, consecNok + 1));
-    cmd = c292 & g292 & !urgent : 0;
-    cmd = c294 & g294 & !urgent : 0;
+    cmd = c266 & g266 & !urgent : 0;
+    cmd = c285 & g285 & !urgent : max(0, min(2, consecNok + 1));
+    cmd = c286 & g286 & !urgent : max(0, min(2, consecNok + 1));
+    cmd = c324 & g324 & !urgent : 0;
     cmd = c326 & g326 & !urgent : 0;
-    cmd = c329 & g329 & !urgent : 0;
+    cmd = c362 & g362 & !urgent : 0;
     cmd = c365 & g365 & !urgent : 0;
+    cmd = c404 & g404 & !urgent : 0;
     TRUE : consecNok;
   esac;
   next(res_R1_CP_1) := case
@@ -1376,36 +1506,53 @@ ASSIGN
     cmd = c195 & g195 & !urgent : FALSE;
     cmd = c196 & g196 & !urgent : FALSE;
     cmd = c197 & g197 & !urgent : FALSE;
-    cmd = c247 & g247 & !urgent : outPresent;
-    cmd = c268 & g268 & !urgent : outPresent;
-    cmd = c269 & g269 & !urgent : outPresent;
-    cmd = c271 & g271 & !urgent : FALSE;
+    cmd = c271 & g271 & !urgent : outPresent;
+    cmd = c296 & g296 & !urgent : outPresent;
+    cmd = c297 & g297 & !urgent : outPresent;
+    cmd = c299 & g299 & !urgent : FALSE;
     TRUE : res_R2_CP_4;
   esac;
   next(res_R2_CP_5) := case
     cmd = c199 & g199 & !urgent : !(nest = none);
-    cmd = c200 & g200 & !urgent : TRUE;
-    cmd = c201 & g201 & !urgent : TRUE;
+    cmd = c200 & g200 & !urgent : !(nest = none);
+    cmd = c201 & g201 & !urgent : !(nest = none);
     cmd = c202 & g202 & !urgent : TRUE;
     cmd = c203 & g203 & !urgent : TRUE;
-    cmd = c232 & g232 & !urgent : !(nest = none);
-    cmd = c233 & g233 & !urgent : TRUE;
-    cmd = c234 & g234 & !urgent : TRUE;
-    cmd = c235 & g235 & !urgent : TRUE;
-    cmd = c236 & g236 & !urgent : TRUE;
+    cmd = c204 & g204 & !urgent : TRUE;
+    cmd = c205 & g205 & !urgent : TRUE;
+    cmd = c206 & g206 & !urgent : TRUE;
+    cmd = c207 & g207 & !urgent : TRUE;
+    cmd = c208 & g208 & !urgent : TRUE;
+    cmd = c209 & g209 & !urgent : TRUE;
+    cmd = c220 & g220 & !urgent : !(nest = none);
+    cmd = c221 & g221 & !urgent : !(nest = none);
+    cmd = c222 & g222 & !urgent : !(nest = none);
+    cmd = c223 & g223 & !urgent : TRUE;
+    cmd = c224 & g224 & !urgent : TRUE;
+    cmd = c225 & g225 & !urgent : TRUE;
+    cmd = c226 & g226 & !urgent : TRUE;
+    cmd = c227 & g227 & !urgent : TRUE;
+    cmd = c228 & g228 & !urgent : TRUE;
+    cmd = c229 & g229 & !urgent : TRUE;
+    cmd = c230 & g230 & !urgent : TRUE;
+    cmd = c256 & g256 & !urgent : !(nest = none);
+    cmd = c257 & g257 & !urgent : TRUE;
+    cmd = c258 & g258 & !urgent : TRUE;
+    cmd = c259 & g259 & !urgent : TRUE;
+    cmd = c260 & g260 & !urgent : TRUE;
     TRUE : res_R2_CP_5;
   esac;
   next(res_R2_CP_3) := case
-    cmd = c216 & g216 & !urgent : !(beltExit = none);
-    cmd = c217 & g217 & !urgent : !(beltExit = none);
-    cmd = c218 & g218 & !urgent : FALSE;
-    cmd = c219 & g219 & !urgent : FALSE;
-    cmd = c220 & g220 & !urgent : FALSE;
-    cmd = c221 & g221 & !urgent : FALSE;
-    cmd = c222 & g222 & !urgent : FALSE;
-    cmd = c223 & g223 & !urgent : FALSE;
-    cmd = c224 & g224 & !urgent : FALSE;
-    cmd = c225 & g225 & !urgent : FALSE;
+    cmd = c240 & g240 & !urgent : !(beltExit = none);
+    cmd = c241 & g241 & !urgent : !(beltExit = none);
+    cmd = c242 & g242 & !urgent : FALSE;
+    cmd = c243 & g243 & !urgent : FALSE;
+    cmd = c244 & g244 & !urgent : FALSE;
+    cmd = c245 & g245 & !urgent : FALSE;
+    cmd = c246 & g246 & !urgent : FALSE;
+    cmd = c247 & g247 & !urgent : FALSE;
+    cmd = c248 & g248 & !urgent : FALSE;
+    cmd = c249 & g249 & !urgent : FALSE;
     TRUE : res_R2_CP_3;
   esac;
   next(door) := case
@@ -1415,7 +1562,7 @@ ASSIGN
   esac;
   next(lock) := case
     cmd = c41 & g41 & !urgent : TRUE;
-    cmd = c355 & g355 & !urgent : FALSE;
+    cmd = c393 & g393 & !urgent : FALSE;
     TRUE : lock;
   esac;
   next(vise) := case
@@ -1426,13 +1573,13 @@ ASSIGN
   next(cnc) := case
     cmd = c34 & g34 & !urgent : none;
     cmd = c36 & g36 & !urgent : r1A;
-    cmd = c353 & g353 & !urgent : ok;
+    cmd = c391 & g391 & !urgent : ok;
     TRUE : cnc;
   esac;
   next(run) := case
     cmd = c47 & g47 & !urgent : TRUE;
-    cmd = c353 & g353 & !urgent : FALSE;
-    cmd = c354 & g354 & !urgent : FALSE;
+    cmd = c391 & g391 & !urgent : FALSE;
+    cmd = c392 & g392 & !urgent : FALSE;
     TRUE : run;
   esac;
   next(r1A) := case
@@ -1446,53 +1593,53 @@ ASSIGN
     TRUE : r1B;
   esac;
   next(r2S) := case
-    cmd = c215 & g215 & !urgent : beltExit;
-    cmd = c231 & g231 & !urgent : none;
-    cmd = c246 & g246 & !urgent : nest;
-    cmd = c251 & g251 & !urgent : none;
-    cmd = c258 & g258 & !urgent : nest;
-    cmd = c259 & g259 & !urgent : none;
-    cmd = c260 & g260 & !urgent : none;
+    cmd = c239 & g239 & !urgent : beltExit;
+    cmd = c255 & g255 & !urgent : none;
+    cmd = c270 & g270 & !urgent : nest;
+    cmd = c275 & g275 & !urgent : none;
+    cmd = c284 & g284 & !urgent : nest;
+    cmd = c285 & g285 & !urgent : none;
+    cmd = c286 & g286 & !urgent : none;
     TRUE : r2S;
   esac;
   next(beltEntry) := case
     cmd = c69 & g69 & !urgent : r1B;
-    cmd = c358 & g358 & !urgent : none;
+    cmd = c396 & g396 & !urgent : none;
     TRUE : beltEntry;
   esac;
   next(beltMid) := case
-    cmd = c358 & g358 & !urgent : beltEntry;
-    cmd = c359 & g359 & !urgent : none;
+    cmd = c396 & g396 & !urgent : beltEntry;
+    cmd = c397 & g397 & !urgent : none;
     TRUE : beltMid;
   esac;
   next(beltExit) := case
-    cmd = c215 & g215 & !urgent : none;
-    cmd = c359 & g359 & !urgent : beltMid;
+    cmd = c239 & g239 & !urgent : none;
+    cmd = c397 & g397 & !urgent : beltMid;
     TRUE : beltExit;
   esac;
   next(moving) := case
-    cmd = c356 & g356 & !urgent : TRUE;
-    cmd = c357 & g357 & !urgent : FALSE;
+    cmd = c394 & g394 & !urgent : TRUE;
+    cmd = c395 & g395 & !urgent : FALSE;
     TRUE : moving;
   esac;
   next(inPresent) := case
-    cmd = c360 & g360 & !urgent : FALSE;
-    cmd = c361 & g361 & !urgent : TRUE;
+    cmd = c398 & g398 & !urgent : FALSE;
+    cmd = c399 & g399 & !urgent : TRUE;
     TRUE : inPresent;
   esac;
   next(inParts) := case
     cmd = c17 & g17 & !urgent : {TRUE, FALSE};
-    cmd = c361 & g361 & !urgent : TRUE;
+    cmd = c399 & g399 & !urgent : TRUE;
     TRUE : inParts;
   esac;
   next(outPresent) := case
-    cmd = c362 & g362 & !urgent : FALSE;
-    cmd = c363 & g363 & !urgent : TRUE;
+    cmd = c400 & g400 & !urgent : FALSE;
+    cmd = c401 & g401 & !urgent : TRUE;
     TRUE : outPresent;
   esac;
   next(outCount) := case
-    cmd = c251 & g251 & !urgent : max(0, min(2, outCount + 1));
-    cmd = c362 & g362 & !urgent : 0;
+    cmd = c275 & g275 & !urgent : max(0, min(2, outCount + 1));
+    cmd = c400 & g400 & !urgent : 0;
     TRUE : outCount;
   esac;
   next(r1Home) := case
@@ -1573,166 +1720,224 @@ ASSIGN
     cmd = c190 & g190 & !urgent : FALSE;
     cmd = c192 & g192 & !urgent : TRUE;
     cmd = c198 & g198 & !urgent : FALSE;
+    cmd = c199 & g199 & !urgent : FALSE;
+    cmd = c200 & g200 & !urgent : FALSE;
+    cmd = c202 & g202 & !urgent : FALSE;
     cmd = c204 & g204 & !urgent : FALSE;
     cmd = c206 & g206 & !urgent : FALSE;
     cmd = c208 & g208 & !urgent : FALSE;
-    cmd = c210 & g210 & !urgent : TRUE;
+    cmd = c210 & g210 & !urgent : FALSE;
     cmd = c211 & g211 & !urgent : FALSE;
-    cmd = c213 & g213 & !urgent : FALSE;
-    cmd = c214 & g214 & !urgent : FALSE;
-    cmd = c226 & g226 & !urgent : FALSE;
+    cmd = c213 & g213 & !urgent : TRUE;
+    cmd = c215 & g215 & !urgent : FALSE;
+    cmd = c216 & g216 & !urgent : FALSE;
+    cmd = c218 & g218 & !urgent : FALSE;
+    cmd = c220 & g220 & !urgent : FALSE;
+    cmd = c221 & g221 & !urgent : FALSE;
+    cmd = c223 & g223 & !urgent : FALSE;
+    cmd = c225 & g225 & !urgent : FALSE;
     cmd = c227 & g227 & !urgent : FALSE;
     cmd = c229 & g229 & !urgent : FALSE;
+    cmd = c231 & g231 & !urgent : FALSE;
+    cmd = c232 & g232 & !urgent : FALSE;
+    cmd = c234 & g234 & !urgent : TRUE;
+    cmd = c235 & g235 & !urgent : FALSE;
     cmd = c237 & g237 & !urgent : FALSE;
-    cmd = c239 & g239 & !urgent : FALSE;
-    cmd = c242 & g242 & !urgent : FALSE;
-    cmd = c243 & g243 & !urgent : FALSE;
-    cmd = c244 & g244 & !urgent : FALSE;
-    cmd = c247 & g247 & !urgent : FALSE;
+    cmd = c238 & g238 & !urgent : FALSE;
     cmd = c250 & g250 & !urgent : FALSE;
-    cmd = c252 & g252 & !urgent : FALSE;
-    cmd = c254 & g254 & !urgent : FALSE;
-    cmd = c256 & g256 & !urgent : FALSE;
-    cmd = c258 & g258 & !urgent : FALSE;
+    cmd = c251 & g251 & !urgent : FALSE;
+    cmd = c253 & g253 & !urgent : FALSE;
     cmd = c261 & g261 & !urgent : FALSE;
     cmd = c263 & g263 & !urgent : FALSE;
-    cmd = c265 & g265 & !urgent : TRUE;
+    cmd = c266 & g266 & !urgent : FALSE;
     cmd = c267 & g267 & !urgent : FALSE;
-    cmd = c270 & g270 & !urgent : FALSE;
-    cmd = c272 & g272 & !urgent : FALSE;
-    cmd = c273 & g273 & !urgent : FALSE;
+    cmd = c268 & g268 & !urgent : FALSE;
+    cmd = c271 & g271 & !urgent : FALSE;
     cmd = c274 & g274 & !urgent : FALSE;
     cmd = c276 & g276 & !urgent : FALSE;
-    cmd = c277 & g277 & !urgent : FALSE;
-    cmd = c278 & g278 & !urgent : TRUE;
     cmd = c279 & g279 & !urgent : FALSE;
-    cmd = c283 & g283 & !urgent : FALSE;
-    cmd = c285 & g285 & !urgent : FALSE;
+    cmd = c280 & g280 & !urgent : FALSE;
+    cmd = c282 & g282 & !urgent : FALSE;
+    cmd = c284 & g284 & !urgent : FALSE;
     cmd = c288 & g288 & !urgent : FALSE;
-    cmd = c292 & g292 & !urgent : FALSE;
-    cmd = c293 & g293 & !urgent : FALSE;
-    cmd = c294 & g294 & !urgent : FALSE;
-    cmd = c296 & g296 & !urgent : FALSE;
+    cmd = c289 & g289 & !urgent : FALSE;
+    cmd = c291 & g291 & !urgent : FALSE;
+    cmd = c293 & g293 & !urgent : TRUE;
+    cmd = c295 & g295 & !urgent : FALSE;
     cmd = c298 & g298 & !urgent : FALSE;
     cmd = c300 & g300 & !urgent : FALSE;
     cmd = c301 & g301 & !urgent : FALSE;
+    cmd = c303 & g303 & !urgent : FALSE;
     cmd = c304 & g304 & !urgent : FALSE;
     cmd = c306 & g306 & !urgent : FALSE;
-    cmd = c308 & g308 & !urgent : FALSE;
-    cmd = c310 & g310 & !urgent : FALSE;
-    cmd = c311 & g311 & !urgent : FALSE;
-    cmd = c313 & g313 & !urgent : FALSE;
+    cmd = c307 & g307 & !urgent : FALSE;
+    cmd = c308 & g308 & !urgent : TRUE;
+    cmd = c309 & g309 & !urgent : FALSE;
     cmd = c314 & g314 & !urgent : FALSE;
-    cmd = c316 & g316 & !urgent : FALSE;
-    cmd = c318 & g318 & !urgent : FALSE;
-    cmd = c319 & g319 & !urgent : FALSE;
-    cmd = c321 & g321 & !urgent : FALSE;
-    cmd = c323 & g323 & !urgent : FALSE;
+    cmd = c315 & g315 & !urgent : FALSE;
+    cmd = c317 & g317 & !urgent : FALSE;
+    cmd = c320 & g320 & !urgent : FALSE;
+    cmd = c324 & g324 & !urgent : FALSE;
     cmd = c325 & g325 & !urgent : FALSE;
     cmd = c326 & g326 & !urgent : FALSE;
-    cmd = c327 & g327 & !urgent : FALSE;
     cmd = c328 & g328 & !urgent : FALSE;
-    cmd = c329 & g329 & !urgent : FALSE;
-    cmd = c330 & g330 & !urgent : FALSE;
+    cmd = c331 & g331 & !urgent : FALSE;
     cmd = c332 & g332 & !urgent : FALSE;
-    cmd = c333 & g333 & !urgent : FALSE;
+    cmd = c334 & g334 & !urgent : FALSE;
     cmd = c335 & g335 & !urgent : FALSE;
-    cmd = c337 & g337 & !urgent : FALSE;
     cmd = c338 & g338 & !urgent : FALSE;
-    cmd = c339 & g339 & !urgent : FALSE;
     cmd = c340 & g340 & !urgent : FALSE;
     cmd = c342 & g342 & !urgent : FALSE;
     cmd = c344 & g344 & !urgent : FALSE;
+    cmd = c346 & g346 & !urgent : FALSE;
+    cmd = c347 & g347 & !urgent : FALSE;
+    cmd = c349 & g349 & !urgent : FALSE;
+    cmd = c350 & g350 & !urgent : FALSE;
+    cmd = c352 & g352 & !urgent : FALSE;
+    cmd = c354 & g354 & !urgent : FALSE;
+    cmd = c355 & g355 & !urgent : FALSE;
+    cmd = c357 & g357 & !urgent : FALSE;
+    cmd = c359 & g359 & !urgent : FALSE;
+    cmd = c361 & g361 & !urgent : FALSE;
+    cmd = c362 & g362 & !urgent : FALSE;
+    cmd = c363 & g363 & !urgent : FALSE;
+    cmd = c364 & g364 & !urgent : FALSE;
+    cmd = c365 & g365 & !urgent : FALSE;
+    cmd = c366 & g366 & !urgent : FALSE;
+    cmd = c368 & g368 & !urgent : FALSE;
+    cmd = c369 & g369 & !urgent : FALSE;
+    cmd = c372 & g372 & !urgent : FALSE;
+    cmd = c373 & g373 & !urgent : FALSE;
+    cmd = c375 & g375 & !urgent : FALSE;
+    cmd = c376 & g376 & !urgent : FALSE;
+    cmd = c377 & g377 & !urgent : FALSE;
+    cmd = c378 & g378 & !urgent : FALSE;
+    cmd = c380 & g380 & !urgent : FALSE;
+    cmd = c382 & g382 & !urgent : FALSE;
     TRUE : r2Home;
   esac;
   next(nest) := case
-    cmd = c231 & g231 & !urgent : r2S;
-    cmd = c246 & g246 & !urgent : none;
-    cmd = c258 & g258 & !urgent : none;
+    cmd = c255 & g255 & !urgent : r2S;
+    cmd = c270 & g270 & !urgent : none;
+    cmd = c284 & g284 & !urgent : none;
     TRUE : nest;
   esac;
   next(measured) := case
-    cmd = c241 & g241 & !urgent : TRUE;
-    cmd = c246 & g246 & !urgent : FALSE;
-    cmd = c258 & g258 & !urgent : FALSE;
+    cmd = c265 & g265 & !urgent : TRUE;
+    cmd = c270 & g270 & !urgent : FALSE;
+    cmd = c284 & g284 & !urgent : FALSE;
     TRUE : measured;
   esac;
   next(zeroed) := case
-    cmd = c205 & g205 & !urgent : TRUE;
+    cmd = c211 & g211 & !urgent : TRUE;
+    cmd = c212 & g212 & !urgent : TRUE;
+    cmd = c232 & g232 & !urgent : TRUE;
+    cmd = c233 & g233 & !urgent : TRUE;
     TRUE : zeroed;
+  esac;
+  next(due) := case
+    cmd = c211 & g211 & !urgent : FALSE;
+    cmd = c212 & g212 & !urgent : FALSE;
+    cmd = c232 & g232 & !urgent : FALSE;
+    cmd = c233 & g233 & !urgent : FALSE;
+    cmd = c402 & g402 & !urgent : TRUE;
+    TRUE : due;
   esac;
   next(pe65) := case
     cmd = c190 & g190 & !urgent : FALSE;
     cmd = c198 & g198 & !urgent : FALSE;
+    cmd = c199 & g199 & !urgent : FALSE;
+    cmd = c200 & g200 & !urgent : FALSE;
+    cmd = c202 & g202 & !urgent : FALSE;
     cmd = c204 & g204 & !urgent : FALSE;
     cmd = c206 & g206 & !urgent : FALSE;
     cmd = c208 & g208 & !urgent : FALSE;
+    cmd = c210 & g210 & !urgent : FALSE;
     cmd = c211 & g211 & !urgent : FALSE;
-    cmd = c213 & g213 & !urgent : FALSE;
-    cmd = c214 & g214 & !urgent : FALSE;
-    cmd = c226 & g226 & !urgent : FALSE;
+    cmd = c215 & g215 & !urgent : FALSE;
+    cmd = c216 & g216 & !urgent : FALSE;
+    cmd = c218 & g218 & !urgent : FALSE;
+    cmd = c220 & g220 & !urgent : FALSE;
+    cmd = c221 & g221 & !urgent : FALSE;
+    cmd = c223 & g223 & !urgent : FALSE;
+    cmd = c225 & g225 & !urgent : FALSE;
     cmd = c227 & g227 & !urgent : FALSE;
     cmd = c229 & g229 & !urgent : FALSE;
+    cmd = c231 & g231 & !urgent : FALSE;
+    cmd = c232 & g232 & !urgent : FALSE;
+    cmd = c235 & g235 & !urgent : FALSE;
     cmd = c237 & g237 & !urgent : FALSE;
-    cmd = c239 & g239 & !urgent : FALSE;
-    cmd = c242 & g242 & !urgent : FALSE;
-    cmd = c243 & g243 & !urgent : FALSE;
-    cmd = c244 & g244 & !urgent : FALSE;
-    cmd = c247 & g247 & !urgent : FALSE;
+    cmd = c238 & g238 & !urgent : FALSE;
     cmd = c250 & g250 & !urgent : FALSE;
-    cmd = c252 & g252 & !urgent : FALSE;
-    cmd = c254 & g254 & !urgent : FALSE;
-    cmd = c256 & g256 & !urgent : FALSE;
-    cmd = c258 & g258 & !urgent : FALSE;
-    cmd = c259 & g259 & !urgent : TRUE;
-    cmd = c260 & g260 & !urgent : TRUE;
+    cmd = c251 & g251 & !urgent : FALSE;
+    cmd = c253 & g253 & !urgent : FALSE;
     cmd = c261 & g261 & !urgent : FALSE;
     cmd = c263 & g263 & !urgent : FALSE;
+    cmd = c266 & g266 & !urgent : FALSE;
     cmd = c267 & g267 & !urgent : FALSE;
-    cmd = c270 & g270 & !urgent : FALSE;
-    cmd = c272 & g272 & !urgent : FALSE;
-    cmd = c273 & g273 & !urgent : FALSE;
+    cmd = c268 & g268 & !urgent : FALSE;
+    cmd = c271 & g271 & !urgent : FALSE;
     cmd = c274 & g274 & !urgent : FALSE;
     cmd = c276 & g276 & !urgent : FALSE;
-    cmd = c277 & g277 & !urgent : FALSE;
     cmd = c279 & g279 & !urgent : FALSE;
-    cmd = c283 & g283 & !urgent : FALSE;
-    cmd = c285 & g285 & !urgent : FALSE;
+    cmd = c280 & g280 & !urgent : FALSE;
+    cmd = c282 & g282 & !urgent : FALSE;
+    cmd = c284 & g284 & !urgent : FALSE;
+    cmd = c285 & g285 & !urgent : TRUE;
+    cmd = c286 & g286 & !urgent : TRUE;
     cmd = c288 & g288 & !urgent : FALSE;
-    cmd = c292 & g292 & !urgent : FALSE;
-    cmd = c293 & g293 & !urgent : FALSE;
-    cmd = c294 & g294 & !urgent : FALSE;
-    cmd = c296 & g296 & !urgent : FALSE;
+    cmd = c289 & g289 & !urgent : FALSE;
+    cmd = c291 & g291 & !urgent : FALSE;
+    cmd = c295 & g295 & !urgent : FALSE;
     cmd = c298 & g298 & !urgent : FALSE;
     cmd = c300 & g300 & !urgent : FALSE;
     cmd = c301 & g301 & !urgent : FALSE;
+    cmd = c303 & g303 & !urgent : FALSE;
     cmd = c304 & g304 & !urgent : FALSE;
     cmd = c306 & g306 & !urgent : FALSE;
-    cmd = c308 & g308 & !urgent : FALSE;
-    cmd = c310 & g310 & !urgent : FALSE;
-    cmd = c311 & g311 & !urgent : FALSE;
-    cmd = c313 & g313 & !urgent : FALSE;
+    cmd = c307 & g307 & !urgent : FALSE;
+    cmd = c309 & g309 & !urgent : FALSE;
     cmd = c314 & g314 & !urgent : FALSE;
-    cmd = c316 & g316 & !urgent : FALSE;
-    cmd = c318 & g318 & !urgent : FALSE;
-    cmd = c319 & g319 & !urgent : FALSE;
-    cmd = c321 & g321 & !urgent : FALSE;
-    cmd = c323 & g323 & !urgent : FALSE;
+    cmd = c315 & g315 & !urgent : FALSE;
+    cmd = c317 & g317 & !urgent : FALSE;
+    cmd = c320 & g320 & !urgent : FALSE;
+    cmd = c324 & g324 & !urgent : FALSE;
     cmd = c325 & g325 & !urgent : FALSE;
     cmd = c326 & g326 & !urgent : FALSE;
-    cmd = c327 & g327 & !urgent : FALSE;
     cmd = c328 & g328 & !urgent : FALSE;
-    cmd = c329 & g329 & !urgent : FALSE;
-    cmd = c330 & g330 & !urgent : FALSE;
+    cmd = c331 & g331 & !urgent : FALSE;
     cmd = c332 & g332 & !urgent : FALSE;
-    cmd = c333 & g333 & !urgent : FALSE;
+    cmd = c334 & g334 & !urgent : FALSE;
     cmd = c335 & g335 & !urgent : FALSE;
-    cmd = c337 & g337 & !urgent : FALSE;
     cmd = c338 & g338 & !urgent : FALSE;
-    cmd = c339 & g339 & !urgent : FALSE;
     cmd = c340 & g340 & !urgent : FALSE;
     cmd = c342 & g342 & !urgent : FALSE;
     cmd = c344 & g344 & !urgent : FALSE;
+    cmd = c346 & g346 & !urgent : FALSE;
+    cmd = c347 & g347 & !urgent : FALSE;
+    cmd = c349 & g349 & !urgent : FALSE;
+    cmd = c350 & g350 & !urgent : FALSE;
+    cmd = c352 & g352 & !urgent : FALSE;
+    cmd = c354 & g354 & !urgent : FALSE;
+    cmd = c355 & g355 & !urgent : FALSE;
+    cmd = c357 & g357 & !urgent : FALSE;
+    cmd = c359 & g359 & !urgent : FALSE;
+    cmd = c361 & g361 & !urgent : FALSE;
+    cmd = c362 & g362 & !urgent : FALSE;
+    cmd = c363 & g363 & !urgent : FALSE;
+    cmd = c364 & g364 & !urgent : FALSE;
+    cmd = c365 & g365 & !urgent : FALSE;
+    cmd = c366 & g366 & !urgent : FALSE;
+    cmd = c368 & g368 & !urgent : FALSE;
+    cmd = c369 & g369 & !urgent : FALSE;
+    cmd = c372 & g372 & !urgent : FALSE;
+    cmd = c373 & g373 & !urgent : FALSE;
+    cmd = c375 & g375 & !urgent : FALSE;
+    cmd = c376 & g376 & !urgent : FALSE;
+    cmd = c377 & g377 & !urgent : FALSE;
+    cmd = c378 & g378 & !urgent : FALSE;
+    cmd = c380 & g380 & !urgent : FALSE;
+    cmd = c382 & g382 & !urgent : FALSE;
     TRUE : pe65;
   esac;
 -- properties (M.PROPERTIES)
@@ -1756,8 +1961,10 @@ INVARSPEC NAME P8 := ((next(R1) != R1 & (next(R1) in {B6_1}))) -> next(!(QH));
 INVARSPEC NAME P9 := !urgent -> !((mismatches = 3 & !((SUP = X3_x | SUP = X4_x))));
 -- P10: A camera fault always stops the line
 INVARSPEC NAME P10 := !urgent -> !((CAM_FAULT & !((SUP = X3_x | SUP = X4_x))));
--- P11: Robot 2 loads the gauge only into an empty nest
-INVARSPEC NAME P11 := ((next(R2) != R2 & (next(R2) in {E3_0}))) -> next(nest = none);
+-- P11: Robot 2 loads the gauge nest (part or master cube) only when it is empty
+INVARSPEC NAME P11 := ((next(R2) != R2 & (next(R2) in {E0_3, E1_1, E3_0}))) -> next(nest = none);
+-- P12: A part is measured only after a passed master check
+INVARSPEC NAME P12 := ((next(R2) != R2 & (next(R2) in {E4_0}))) -> next(zeroed);
 -- L1: A new CNC cycle can always be started again
 SPEC NAME L1 := AG EF (R1 = B6_1);
 -- L2: Robot 2 can always deliver a part again
@@ -1785,8 +1992,8 @@ INVARSPEC NAME unreachable_CONV_C4 := !(CONV in {C4_x});
 INVARSPEC NAME unreachable_CONV_C5 := !(CONV in {C5_1, C5_x});
 INVARSPEC NAME unreachable_CONV_H := !(CONV in {H_x});
 INVARSPEC NAME unreachable_CONV_F := !(CONV in {F_x});
-INVARSPEC NAME unreachable_R2_E0 := !(R2 in {E0_0, E0_1, E0_2, E0_3, E0_x});
-INVARSPEC NAME unreachable_R2_E1 := !(R2 in {E1_0, E1_x});
+INVARSPEC NAME unreachable_R2_E0 := !(R2 in {E0_0, E0_1, E0_2, E0_3, E0_4, E0_x});
+INVARSPEC NAME unreachable_R2_E1 := !(R2 in {E1_0, E1_1, E1_2, E1_x});
 INVARSPEC NAME unreachable_R2_E2 := !(R2 in {E2_0, E2_1, E2_x});
 INVARSPEC NAME unreachable_R2_E3 := !(R2 in {E3_0, E3_1, E3_x});
 INVARSPEC NAME unreachable_R2_E4 := !(R2 in {E4_0, E4_x});

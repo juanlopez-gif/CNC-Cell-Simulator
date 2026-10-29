@@ -41,7 +41,7 @@
     S = {
       t: 0, speed: +$('#selSpeed').value || 10, running: true, setup: 2, step: false,
       autoOp: $('#chkAuto').checked, logAll: $('#chkAll').checked,
-      inject: { under: 0, gripMiss: false, frames: { 'CAM-1': 0, 'CAM-2': 0 } }, faults: {}, camFault: null, askAt: null, verify: null,
+      inject: { under: 0, band: 0, master: false, gripMiss: false, frames: { 'CAM-1': 0, 'CAM-2': 0 } }, faults: {}, camFault: null, askAt: null, verify: null,
       stopReason: '', vars: {}, cp: {}, inputs: { verify: false, reset: false, release: false, clearAt: -1 },
     };
     Object.keys(M.SIGNALS).forEach((k) => { const s = M.SIGNALS[k]; if (s.kind === 'var' && k !== 'mismatches') S.vars[k] = s.num ? 0 : false; });
@@ -50,7 +50,7 @@
       cnc: { state: 'EMPTY', part: null, locked: false, startCmd: false, vise: 'open', runStart: 0, doneAt: null },
       door: { pos: 0, anim: null }, belt: { cmd: false, v: 0, off: 0 },
       r1: robot(L.r1, true), r2: robot(L.r2, false),
-      gauge: { zeroed: false, valid: false, ok: false }, lastSlot: null, beacon: false,
+      gauge: { zeroed: false, due: false, valid: false, ok: false, dMaster: null, masterAt: null }, lastSlot: null, beacon: false,
       ok: 0, nok: 0, pe65: -9,
       stats: { runTime: 0, firstStart: null, lastIdle: null, idleSum: 0, idleN: 0, cycles: 0, mism: 0, stops: 0, jobs: 0, violations: 0 },
     };
@@ -69,6 +69,7 @@
     spawn(runMachine('R2'));
     spawn(runMachine('SUP'));
     spawn(operatorProc());
+    spawn(gaugeClock());
     logs.length = 0; logDirty = true;
     log('info', `Setup 2 started · input pallet 9 raw parts · output pallet 8 of 12 · CNC empty`);
     buildUi();
@@ -130,7 +131,7 @@
     'PX-52': () => proxLive('CP-4'),
     'CAM-2.slot': () => W.lastSlot != null && W.parts.some((p) => p.loc.k === 'out' && p.loc.slot === W.lastSlot),
     'outCount': () => outCount(),
-    'GAUGE.zeroed': () => W.gauge.zeroed, 'GAUGE.valid': () => W.gauge.valid, 'GAUGE.ok': () => W.gauge.ok,
+    'GAUGE.zeroed': () => W.gauge.zeroed, 'GAUGE.due': () => W.gauge.due, 'GAUGE.valid': () => W.gauge.valid, 'GAUGE.ok': () => W.gauge.ok,
     'PE-65': () => S.t - W.pe65 < 0.8,
     'TRUE.entryPart': () => truth['CP-2'](), 'TRUE.outPallet': () => W.palletOut.present,
     'TRUE.r2Nok': () => undersized(W.r2.hold.S), 'TRUE.nestPart': () => truth['CP-5'](),
@@ -496,6 +497,7 @@
     },
     'R2.loadGauge': function* (r) {
       yield* moveTo(r, P.nest, T.r2ToGauge);
+      yield* wait(T.blowOff);                          // YV-66: chips and coolant off the nest and the part
       yield* wait(T.r2LoadGauge * 0.6);
       const p = r.hold.S; r.hold.S = null; r.fing = 'open';
       if (p) p.loc = { k: 'gauge' };
@@ -505,14 +507,26 @@
       yield* wait(T.measure);
       const p = W.parts.find((q) => q.loc.k === 'gauge');
       if (!p) { W.gauge.valid = false; return; }
-      const meas = p.dims.map((v) => v + (Math.random() - 0.5) * 0.004);
+      // each laser reads the distance to the free face; size = 50.000 + (d master − d part)
+      const dPart = p.dims.map((v) => RU.masterDist - (v - RU.nominal) - (Math.random() - 0.5) * 0.004);
+      const meas = dPart.map((d, i) => RU.nominal + (W.gauge.dMaster[i] - d));
       p.meas = meas;
-      W.gauge.valid = true; W.gauge.ok = meas.every((v) => v >= RU.minSize);
-      log('measure', `Part #${p.id}: L ${meas[0].toFixed(3)} · W ${meas[1].toFixed(3)} · H ${meas[2].toFixed(3)} mm → ${W.gauge.ok ? 'OK, all ≥ 48.00' : 'NOK, undersized'}`);
+      W.gauge.valid = meas.every((v) => v >= RU.validRange[0] && v <= RU.validRange[1]);
+      if (!W.gauge.valid) { log('measure', `Part #${p.id}: reading outside ${RU.validRange[0]}–${RU.validRange[1]} mm → invalid, not a part size`); return; }
+      W.gauge.ok = meas.every((v) => v >= RU.minSize + RU.guardBand);
+      const verdict = W.gauge.ok ? `OK, all ≥ ${(RU.minSize + RU.guardBand).toFixed(2)}` : meas.some((v) => v < RU.minSize) ? 'NOK, undersized' : 'NOK, rejected in guard band';
+      log('measure', `Part #${p.id}: L ${meas[0].toFixed(3)} · W ${meas[1].toFixed(3)} · H ${meas[2].toFixed(3)} mm → ${verdict}`);
     },
-    'GAUGE.master': function* () {
-      log('measure', 'Start-up master cube 50.000 mm: LS-61 50.001 · LS-62 49.999 · LS-63 50.000 mm → gauge OK');
-      W.gauge.zeroed = true;
+    'GAUGE.master': function* (r) {
+      yield* moveTo(r, P.nest, T.r2Master * 0.3);
+      yield* wait(T.r2Master * 0.4);
+      const read = [50.001, 49.999, 50.000];
+      if (S.inject.master) { S.inject.master = false; read[0] = 50.023; }
+      const pass = read.every((v) => Math.abs(v - RU.nominal) <= RU.masterTol + 1e-9);
+      W.gauge.zeroed = pass;
+      if (pass) { W.gauge.due = false; W.gauge.dMaster = [RU.masterDist, RU.masterDist, RU.masterDist]; W.gauge.masterAt = S.t; }
+      log(pass ? 'measure' : 'fault', `Master cube 50.000 mm: LS-61 ${read[0].toFixed(3)} · LS-62 ${read[1].toFixed(3)} · LS-63 ${read[2].toFixed(3)} mm → ${pass ? 'gauge OK' : 'outside ± 0.010 mm: gauge FAULT, no part is measured'}`);
+      yield* moveTo(r, P.nestOut, T.r2Master * 0.3);
     },
     'R2.repick': function* (r) {
       yield* moveTo(r, P.nest, T.r2Repick / 2);
@@ -577,10 +591,24 @@
         p.st = 'fin';
         p.dims = [0, 1, 2].map(() => 50 + (Math.random() - 0.5) * 0.04);
         if (S.inject.under > 0) { S.inject.under--; p.dims[Math.floor(Math.random() * 3)] = 47.35 + Math.random() * 0.5; }
+        else if (S.inject.band > 0) { S.inject.band--; p.dims[Math.floor(Math.random() * 3)] = 48.01 + Math.random() * 0.03; }
       }
       W.cnc.state = 'DONE'; W.cnc.doneAt = S.t; st.cycles++;
       yield* wait(T.unlock);
       W.cnc.locked = false;
+    }
+  }
+
+  // ------------------------------------------------------------------ gauge timer: master check every RULES.masterEvery
+  function* gaugeClock() {
+    for (;;) {
+      yield* until(() => W.gauge.zeroed && !W.gauge.due);
+      const at = W.gauge.masterAt;
+      yield* wait(at + RU.masterEvery - S.t);
+      if (W.gauge.zeroed && !W.gauge.due && W.gauge.masterAt === at) {
+        W.gauge.due = true;
+        log('measure', '4 h since the last master check → master check due');
+      }
     }
   }
 
@@ -784,7 +812,7 @@
     lamps = {}; $$('[data-lamp]', svgRoot).forEach((el) => { lamps[el.dataset.lamp] = el; });
     fovs = {}; $$('[data-fov]', svgRoot).forEach((el) => { fovs[el.dataset.fov] = el; });
     rois = {}; $$('rect[data-roi]', svgRoot).forEach((el) => { rois[el.dataset.roi] = el; });
-    $('#underNote').textContent = 'The gauge measures every part; any dimension below 48.00 mm goes to the NOK chute. Two NOK parts in a row trigger a quality hold.';
+    $('#underNote').textContent = 'The gauge measures every part; any dimension below 48.05 mm (limit 48.00 + guard band 0.05) goes to the NOK chute. Two NOK parts in a row trigger a quality hold.';
     const tb = $('#cpTable tbody');
     tb.innerHTML = CPS.map((c) => `<tr data-cp="${c.id}">
       <td><span class="cpid">${c.id}</span><span class="cpw">${esc(c.where)}</span></td>
@@ -959,7 +987,7 @@
     steps.push('Check brackets and the alignment LEDs of the through-beams');
     CPS.forEach((c) => steps.push(`Test ${c.id} with a test part: ${c.prox} ON and ${c.cam} part · removed: both OFF`));
     steps.push('Camera calibration target: CAM-1 and CAM-2 position error < 1 mm');
-    steps.push('Master cube 50.000 mm: LS-61 / LS-62 / LS-63 within ±0.02 mm');
+    steps.push('Master cube 50.000 mm: LS-61 / LS-62 / LS-63 within ±0.010 mm');
     S.verify = { steps, i: 0, done: false };
     log('stop', 'Sensor verification started: all equipment stopped, technician in the cell');
     if (instant) { S.verify.i = steps.length - 1; }
@@ -999,6 +1027,8 @@
     $('#btnCamFail').addEventListener('click', () => { S.inject.frames['CAM-2'] = 2; log('info', 'Test: CAM-2 will deliver two invalid images in a row'); });
     $('#btnGripMiss').addEventListener('click', () => { S.inject.gripMiss = true; log('info', 'Test: Robot 1 will miss its next pick'); });
     $('#btnUnder').addEventListener('click', () => { S.inject.under++; log('info', 'Test: the next part to finish will be undersized in one dimension'); });
+    $('#btnBand').addEventListener('click', () => { S.inject.band++; log('info', 'Test: the next part to finish will be in the guard band (48.00–48.05 mm) in one dimension'); });
+    $('#btnMaster').addEventListener('click', () => { S.inject.master = true; log('info', 'Test: the next master check will read outside ± 0.010 mm'); });
     $('#btnLoadIn').addEventListener('click', () => {
       if (activeHmi('load') || firstRaw() < 0) spawn(reloadInput());
       else { let n = 0; for (let i = 0; i < 12; i++) if (!partIn(i) && !W.parts.some((p) => p.loc.k === 'r1')) { addPart('raw', { k: 'in', slot: i }); n++; } if (n) log('operator', `Operator tops up the input pallet (+${n} raw parts)`); }

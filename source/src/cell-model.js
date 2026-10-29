@@ -21,6 +21,8 @@
     beltStart: 0.3, beltStop: 0.3, zeroSpeed: 0.2,
     r2ToExit: 1.5, r2Pick: 1.0, r2ToPallet: 1.5, r2Place: 1.0, r2Home: 1.0,
     r2ToGauge: 1.5, r2LoadGauge: 1.5, measure: 1.0, r2Repick: 1.0, r2ToNok: 1.5, r2Drop: 0.5,
+    blowOff: 0.5,                            // air blow-off of nest and part before loading (A2.2)
+    r2Master: 6.0,                           // Robot 2 puts MST-60 in the nest, 3 readings, puts it back
   };
   // Names of the time components, used in the CNC idle build-up table.
   const TLABEL = {
@@ -33,7 +35,7 @@
     beltStart: 'Belt start', beltTravel: 'Transport', beltStop: 'Belt stop', zeroSpeed: 'Zero speed',
     r2ToExit: 'To conveyor exit', r2Pick: 'Grip and lift', r2ToPallet: 'To output pallet', r2Place: 'Place',
     r2Home: 'Home', r2ToGauge: 'To gauge', r2LoadGauge: 'Load gauge', measure: 'Measure', r2Repick: 'Re-pick',
-    r2ToNok: 'To NOK chute', r2Drop: 'Drop',
+    r2ToNok: 'To NOK chute', r2Drop: 'Drop', blowOff: 'Air blow-off', r2Master: 'Master cube check',
   };
 
   // ---------------------------------------------------------------- rules
@@ -44,8 +46,14 @@
     debounce: 0.05,          // s  proximity input filter
     retrigger: 0.3,          // s  second camera image after an invalid one
     confirmTimeout: 1.0,     // s  a confirmation that does not arrive in time raises a FAULT
-    minSize: 48.0,           // mm acceptance limit (50 mm nominal - 2 mm)
+    minSize: 48.0,           // mm specified lower limit (50 mm nominal - 2 mm); no upper limit is specified
     nominal: 50.0,
+    // gauge (decided in step A2.2, 2026-10-28, verification/gauge_policy.md)
+    guardBand: 0.05,         // mm U (k = 2) of the station: accept only from minSize + guardBand (ISO 14253-1)
+    masterTol: 0.010,        // mm a master check passes if every axis reads nominal ± masterTol
+    masterEvery: 4 * 3600,   // s  master check interval (also at start-up and after a gauge FAULT)
+    validRange: [45, 52],    // mm a size outside this range is a bad reading, not a part size
+    masterDist: 80.0,        // mm distance of the lasers to the master cube face (IL-065 mid-range)
     consecutiveNokHold: 2,   // consecutive NOK parts that hold the CNC
     palletSlots: 12,         // 3 x 4 positions, input and output pallets
   };
@@ -171,7 +179,7 @@
     { tag: 'LS-61 / 62 / 63', zone: 'Gauge station', kind: 'laser',
       type: 'Laser displacement sensors (triangulation), one per axis',
       where: 'Gauge nest, facing the three free faces (length X, width Y, height Z)',
-      confirms: 'Length, width and height of every part; reject if any value < 48.00 mm',
+      confirms: 'Length, width and height of every part; accept only if all ≥ 48.05 mm (48.00 + guard band 0.05)',
       example: 'Keyence IL-065 (55-105 mm range, 2 um repeatability) + IL amplifiers' },
     { tag: 'PX-64', zone: 'Gauge station', kind: 'prox',
       type: 'IR diffuse photoelectric proximity sensor',
@@ -186,8 +194,13 @@
     { tag: 'MST-60', zone: 'Gauge station', kind: 'ctrl',
       type: 'Certified 50.000 mm master cube + holder',
       where: 'Next to the gauge, reachable by Robot 2',
-      confirms: 'Zero-setting of LS-61/62/63 at start-up and after every sensor verification',
+      confirms: 'Master check of LS-61/62/63 (50.000 ± 0.010 mm) at start-up, every 4 h, after a gauge FAULT and in every sensor verification',
       example: 'Gauge block / master cube with calibration certificate' },
+    { tag: 'YV-66', zone: 'Gauge station', kind: 'ctrl',
+      type: 'Solenoid valve + air nozzles at the nest',
+      where: 'Gauge nest, nozzles at the three datum faces',
+      confirms: 'Blows chips and coolant off the nest and the part before every loading (seating error)',
+      example: 'SMC VQ110 valve + flat nozzles' },
   ];
 
   // ================================================================ STATE MACHINES AS DATA
@@ -260,9 +273,10 @@
     'PALLET.full': { kind: 'derived', def: 'outCount>=slots', on: 'count = 12', off: 'count < 12', ask: ['Output pallet', 'full?'] },
     'PALLET.empty': { kind: 'derived', def: 'outCount=0', on: 'count = 0' },
     // gauge (Setup 2)
-    'GAUGE.zeroed': { kind: 'sensor', on: 'gauge verified', tags: ['MST-60'] },
-    'GAUGE.valid': { kind: 'sensor', on: '3 valid readings', tags: ['LS-61', 'LS-62', 'LS-63'] },
-    'GAUGE.ok': { kind: 'sensor', on: 'OK part', off: 'undersized', ask: ['L, W and H', '≥ 48.00 mm?'], tags: ['LS-61', 'LS-62', 'LS-63'] },
+    'GAUGE.zeroed': { kind: 'sensor', on: 'master check passed', off: 'no valid master check', tags: ['MST-60'] },
+    'GAUGE.due': { kind: 'sensor', on: '4 h since the last master check', off: 'master check in date', tags: ['MST-60'] },
+    'GAUGE.valid': { kind: 'sensor', on: '3 valid readings (45–52 mm)', tags: ['LS-61', 'LS-62', 'LS-63'] },
+    'GAUGE.ok': { kind: 'sensor', on: 'OK part', off: 'NOK (undersized or in the guard band)', ask: ['L, W and H', '≥ 48.05 mm?'], tags: ['LS-61', 'LS-62', 'LS-63'] },
     'PE-65': { kind: 'sensor', on: '{PE-65} part dropped' },
     // PLC variables
     // handshakes: the sender sets them only after its own check confirmed the fact
@@ -312,7 +326,8 @@
     { id: 'P8', text: 'No CYCLE START during a quality hold', start: ['CNC.start'], require: '!QH' },
     { id: 'P9', text: 'Three mismatches in the window always stop the line', never: 'mismatches>=limit & !lineStop' },
     { id: 'P10', text: 'A camera fault always stops the line', never: 'CAM_FAULT & !lineStop' },
-    { id: 'P11', text: 'Robot 2 loads the gauge only into an empty nest', start: ['R2.loadGauge'], require: '!TRUE.nestPart' },
+    { id: 'P11', text: 'Robot 2 loads the gauge nest (part or master cube) only when it is empty', start: ['R2.loadGauge', 'GAUGE.master'], require: '!TRUE.nestPart' },
+    { id: 'P12', text: 'A part is measured only after a passed master check', start: ['GAUGE.measure'], require: 'GAUGE.zeroed' },
     { id: 'L1', text: 'A new CNC cycle can always be started again', eventually: 'R1.job=CNC.start' },
     { id: 'L2', text: 'Robot 2 can always deliver a part again', eventually: 'R2.job=R2.placePallet' },
     { id: 'L3', text: 'After any stop the supervisor can return to NORMAL', eventually: 'SUP=X1' },
@@ -350,11 +365,11 @@
     'R2.park': { robot: 'R2', time: ['park'], zone: 'free', at: 'home', text: 'park at home' },
     'R2.pickConv': { robot: 'R2', time: ['r2ToExit', 'r2Pick'], zone: 'conv', move: ['exit', 'r2S'], text: 'pick from the conveyor' },
     'R2.placePallet': { robot: 'R2', time: ['r2ToPallet', 'r2Place'], zone: 'pallet', move: ['r2S', 'out'], text: 'place on the output pallet' },
-    'R2.loadGauge': { robot: 'R2', time: ['r2ToGauge', 'r2LoadGauge'], zone: 'gauge', move: ['r2S', 'nest'], text: 'load the gauge nest' },
+    'R2.loadGauge': { robot: 'R2', time: ['r2ToGauge', 'blowOff', 'r2LoadGauge'], zone: 'gauge', move: ['r2S', 'nest'], tags: ['YV-66'], text: 'blow off and load the gauge nest' },
     'R2.repick': { robot: 'R2', time: ['r2Repick'], zone: 'gauge', move: ['nest', 'r2S'], text: 're-pick from the nest' },
     'R2.dropNok': { robot: 'R2', time: ['r2ToNok', 'r2Drop'], zone: 'nok', move: ['r2S', 'nok'], text: 'drop into the NOK chute' },
     'GAUGE.measure': { robot: null, time: ['measure'], set: { measured: true }, tags: ['LS-61', 'LS-62', 'LS-63'], text: 'measure L, W, H' },
-    'GAUGE.master': { robot: null, time: [], set: { zeroed: true }, tags: ['MST-60', 'LS-61', 'LS-62', 'LS-63'], text: 'master cube check' },
+    'GAUGE.master': { robot: 'R2', time: ['r2Master'], zone: 'gauge', set: { zeroed: true, due: false }, tags: ['MST-60', 'LS-61', 'LS-62', 'LS-63'], text: 'master cube check' },
   };
 
   // Machine format
@@ -496,7 +511,7 @@
     R2S2: {
       slot: 'R2', setup: 2,
       title: 'State diagram: Robot 2 + gauge + sorting (Setup 2)',
-      sub: 'Every part is measured. Accept only if length, width and height are all ≥ 48.00 mm (50 mm nominal − 2 mm).',
+      sub: 'Every part is measured. Accept only if length, width and height are all ≥ 48.05 mm (limit 48.00 + guard band 0.05).',
       initial: { to: 'E0', when: 'HMI.auto' },
       ...ROBOT_FH('R2'),
       note: [
@@ -506,19 +521,23 @@
       ],
       view: { main: ['E0', 'E1', 'E2', 'E3', 'E4', 'Q_E4', 'E5', 'Q_E5'], side: { E6: 'Q_E4', E7: 'Q_E5' } },
       states: {
-        E0: { name: 'START-UP CHECKS', desc: ['Home · [CP-4] pallet · [CP-5] nest empty ·', 'master cube check of the 3 lasers'],
-          do: [{ job: 'R2.home', when: '!R2.home' }, { check: 'CP-4' }, { check: 'CP-5', quick: true }, { job: 'GAUGE.master' }],
+        E0: { name: 'START-UP CHECKS', desc: ['Home · [CP-4] pallet · [CP-5] nest empty ·', '{MST-60} master check 50.000 ± 0.010 mm'],
+          do: [{ job: 'R2.home', when: '!R2.home' }, { check: 'CP-4' }, { check: 'CP-5', quick: true },
+            { job: 'GAUGE.master', when: '!CP-5', confirm: 'GAUGE.zeroed' }, { job: 'R2.home', when: '!R2.home' }],
           next: [{ to: 'E1', when: 'R2.home & CP-4 & !CP-5 & GAUGE.zeroed' }] },
-        E1: { name: 'WAIT FOR PART', wait: true, desc: ['Move home, clear of the conveyor'],
-          do: [{ job: 'R2.home', when: '!R2.home' }],
-          next: [{ to: 'E2', when: 'CONV=C5 & pickAllowed & !ENC-43' }] },
+        E1: { name: 'WAIT FOR PART', wait: true,
+          desc: ['First, if 4 h have passed: [CP-5] nest empty ·', '{MST-60} master check (else gauge FAULT) ·', 'move home, clear of the conveyor'],
+          do: [{ check: 'CP-5', quick: true, when: 'GAUGE.due | !GAUGE.zeroed' },
+            { job: 'GAUGE.master', when: '(GAUGE.due | !GAUGE.zeroed) & !CP-5', confirm: 'GAUGE.zeroed' },
+            { job: 'R2.home', when: '!R2.home' }],
+          next: [{ to: 'E2', when: 'CONV=C5 & pickAllowed & !ENC-43 & GAUGE.zeroed' }] },
         E2: Object.assign({}, PICK_CONV, { next: [{ to: 'E3', when: 'GR-51 & !CP-3 & R2.clearConv' }] }),
         E3: { name: 'LOAD GAUGE', short: 'gauge',
-          desc: ['Place in the corner nest · push against the', '3 datums (force control) · release · retract'],
+          desc: ['{YV-66} blow-off · place in the tilted corner', 'nest · push against the 3 datums · release'],
           do: [{ job: 'R2.loadGauge', when: 'GR-51' }, { check: 'CP-5' }],
           next: [{ to: 'E4', when: 'CP-5 & R2.clearGauge' }] },
         E4: { name: 'MEASURE L, W, H', short: 'measure',
-          desc: ['{LS-61}/{LS-62}/{LS-63}: average of 10 samples', 'size = 50.000 + (d master − d part)'],
+          desc: ['{LS-61}/{LS-62}/{LS-63}: average of 10 samples', 'size = 50.000 + (d master − d part), 45–52 mm'],
           do: [{ job: 'GAUGE.measure' }],
           next: [{ to: 'Q_E4', when: 'GAUGE.valid' }] },
         Q_E4: { choice: 'GAUGE.ok', yes: 'E5', no: 'E6' },

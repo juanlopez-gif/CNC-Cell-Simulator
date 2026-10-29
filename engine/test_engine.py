@@ -5,6 +5,8 @@
 - a faulty CP-2 sensor: the camera keeps the line running, the 3rd mismatch stops it, the sensor
   verification and the reset bring it back
 - two undersized parts in a row cause a quality hold; no cycle start during the hold
+- gauge (A2.2): a part in the guard band is rejected; a master check out of tolerance is a FAULT and
+  no part is measured until a master check passes; the master check is repeated every 4 h
 - long runs with random disturbances: every state change is a transition of the model, no property
   is violated and every job takes its model time
 """
@@ -88,6 +90,38 @@ class EngineTest(unittest.TestCase):
         sim.advance(600)
         self.assertFalse(sim.vars["QH"])
         self.assertGreater(sim.stats["idle_n"], starts)
+        self.assertClean(sim)
+
+    def test_gauge_policy(self):
+        sim = CellSim(seed=1)
+        sim.advance(600)
+        sim.inject_guard_band()
+        n = sim.nok_parts
+        while sim.nok_parts == n and sim.t < 3600:
+            sim.advance(5)
+        self.assertEqual(sim.nok_parts, n + 1, 'the part in the guard band was not rejected')
+        self.assertTrue(any('rejected in guard band' in m for _, c, m in sim.logs if c == 'measure'))
+        # 4 h after the start-up master check the next one is made before the next part
+        sim.advance(4 * 3600 - sim.t + 300)
+        checks = [t for t, c, m in sim.logs if m.startswith('Master cube')]
+        self.assertEqual(len(checks), 2)
+        self.assertLess(checks[1] - checks[0] - sim.RU['masterEvery'], 200)
+        # a master check out of tolerance: gauge FAULT, no measurement until a master check passes
+        sim.inject_master_fault()
+        sim.gauge['due'] = True
+        while sim.state('R2') != 'F' and sim.t < 6 * 3600:
+            sim.advance(5)
+        self.assertEqual(sim.state('R2'), 'F')
+        self.assertFalse(sim.gauge['zeroed'])
+        t_fault = sim.t
+        sim.advance(120)
+        self.assertFalse([t for t, c, m in sim.logs if c == 'measure' and m.startswith('Part #') and t > t_fault])
+        sim.press('clear')
+        sim.advance(600)
+        self.assertTrue(sim.gauge['zeroed'])
+        last_pass = max(t for t, c, m in sim.logs if m.startswith('Master cube') and 'gauge OK' in m)
+        first_part = min(t for t, c, m in sim.logs if c == 'measure' and m.startswith('Part #') and t > t_fault)
+        self.assertLess(last_pass, first_part)
         self.assertClean(sim)
 
     def test_random_disturbances(self):

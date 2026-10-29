@@ -15,23 +15,23 @@ reference behind it.
 | Live simulator | https://juanlopez-gif.github.io/CNC-Cell-Simulator/ (GitHub Pages from `main`, root `index.html` redirects to `simulation/`) |
 | Scope | **Setup 2 only** (dual gripper on Robot 1, gauge and NOK sorting on Robot 2) since step A1 |
 | Branch `main` | Step A1 merged (Setup 2 only, CI, one build command, regression references) |
-| Branch `a2-design-gaps` | Step A2 in progress (A2.1 done; A2.2 policy decided, not yet implemented). On GitHub since 2026-10-28 (the cloud session had no GitHub access; its work came as a git bundle) |
+| Branch `a2-design-gaps` | Step A2 in progress (A2.1 and A2.2 done). On GitHub since 2026-10-28 (the cloud session had no GitHub access; its work came as a git bundle) |
 | Branch `legacy-setup1-setup2` | Commit `1f4b8ad`: the last version with Setup 1 and Setup 2, frozen |
 | Branch `state-machines-as-data` | Commit `6204b09`; history only, no work on it |
 | Continuous integration | GitHub Actions `checks` on every push; `full verification` (NuSMV) by hand (§11) |
 | Toolchain used | Node.js 24, Python 3.11, Google Chrome (headless via puppeteer-core), NuSMV 2.7.1; Windows 11 locally, Ubuntu in CI |
 | Built by | Claude Code (one agent, model Claude Opus 5.5) directed by the author |
 
-### Health check at the end of step A2.1 (2026-10-28, branch `a2-design-gaps`, cloud session)
+### Health check at the end of step A2.2 (2026-10-29, branch `a2-design-gaps`, local)
 
 | Check | Command | Result |
 |---|---|---|
 | Lint and generated files | `npm run check` | lint `[]`; 17 generated files identical to what the sources give |
-| Python engine tests | `python -m unittest test_engine` | 5 tests OK |
+| Python engine tests | `python -m unittest test_engine` | 6 tests OK (new: gauge policy) |
 | Browser tests | `npm test` (basic, fault, quality hold, phone width, 20 h conformance, Python parity in 3 scenarios) | all pass, no page errors, no property violation |
-| Regression | `npm run regress` | identical to `regression/setup2_reference.json` (recorded at the end of A2.1); differences to the A1 reference all intended (`regression/README.md`) |
-| Exhaustive verification | `npm run verify` | 5 runs, 14 properties hold, no deadlock (§9.3). NuSMV 2.7.1 agrees on all 47 specifications and on the reachable states of every run (run locally, 2026-10-29, §9.4) |
-| Environment of this check | — | cloud session: Node.js 22, Python 3.13, Chromium 1243 (Playwright build); PNGs of unchanged figures were not re-rendered there |
+| Regression | `npm run regress` | identical to `regression/setup2_reference.json` (recorded at the end of A2.2; the A2.1 reference kept as `regression/setup2_a21.json`); differences all intended (`regression/README.md`) |
+| Exhaustive verification | `npm run verify` | 5 runs, 15 properties (P1–P12, L1–L3) hold, no deadlock (§9.3). NuSMV not yet run on the A2.2 models (§9.4) |
+| Environment of this check | — | local: Node.js 24, Python 3.11, Google Chrome |
 | KPIs | `M.KPI` | idle 20.5 s, cycle 140.5 s, 85.4 % of the cycle machining, 25.6 parts/h; baseline `M.BASELINE` 36.5 s |
 
 ### Decided versus implemented
@@ -42,8 +42,8 @@ reference behind it.
 | Both setups frozen in `legacy-setup1-setup2` | Yes | Yes |
 | Claims limited to what the evidence shows (§1.1) | Yes | Yes (this revision) |
 | Cross-check rule tested against camera errors | Yes (A2.1, 2026-10-28): rule per checkpoint (CP-1 camera; CP-2, CP-3, CP-4 absent; CP-5 present) and four FAULT-recovery changes | **Yes, in branch `a2-design-gaps`** (not merged): camera false positive, false negative and stale image in the verifier and both simulators; evidence in `verification/camera_policy.md` |
-| Gauge specification: guard band (accept from 48.05 mm), calibration every 4 h, validity range (§5.14) | Yes (A2.2, 2026-10-28) | **No**: the model accepts at 48.00 mm and checks the master only at start-up and after a sensor verification |
-| Roadmap A1–A6, B, C (§15) | Yes | A0 and A1 done; A2 in progress (A2.1 done, A2.2 decided); progress table in §15 |
+| Gauge specification: guard band (accept from 48.05 mm), calibration every 4 h, validity range (§5.14) | Yes (A2.2, 2026-10-28) | **Yes, in branch `a2-design-gaps`** (not merged, 2026-10-29): guard band, 4-h master check and gauge FAULT, distance-to-size formula and validity range, air blow-off, in the model, the verifier and both simulators; P12 |
+| Roadmap A1–A6, B, C (§15) | Yes | A0 and A1 done; A2 in progress (A2.1 and A2.2 done); progress table in §15 |
 
 ---
 
@@ -59,7 +59,7 @@ remains as the baseline of the comparison and in the branch `legacy-setup1-setup
   (12 slots). A blue light signals a full pallet. Robots pick or place at the belt only while it is
   stopped.
 - **Setup 2 (the project).** Same cell, but every part is measured; any length, width or height below 48.00 mm (nominal 50 −
-  2 mm) goes to a locked NOK chute. CNC time is optimized with a dual gripper on Robot 1 and a gauge
+  2 mm) goes to a locked NOK chute, and so does a part within the guard band of the gauge (below 48.05 mm, §5.14). CNC time is optimized with a dual gripper on Robot 1 and a gauge
   served by Robot 2 while the CNC machines.
 - **The author's design rule.** At each checkpoint a proximity/photoelectric sensor and a camera
   must agree. On disagreement a mismatch is logged and the rule of the checkpoint gives the value
@@ -240,15 +240,16 @@ stateTime, lint`.
 | Robot 1 transfers | `doorToConv` 2.5 · `placeConv` 2.0 · `convToPallet` 2.0 · `pickPallet` 2.0 · `palletToDoor` 2.5 |
 | Checks | `check` 0.5 (settle + snapshot + compare) |
 | Belt | `beltTravel` 8.0 (2 m at 0.25 m/s) · `beltStart` 0.3 · `beltStop` 0.3 · `zeroSpeed` 0.2 |
-| Robot 2 | `r2ToExit` 1.5 · `r2Pick` 1.0 · `r2ToPallet` 1.5 · `r2Place` 1.0 · `r2Home` 1.0 · `r2ToGauge` 1.5 · `r2LoadGauge` 1.5 · `measure` 1.0 · `r2Repick` 1.0 · `r2ToNok` 1.5 · `r2Drop` 0.5 |
+| Robot 2 | `r2ToExit` 1.5 · `r2Pick` 1.0 · `r2ToPallet` 1.5 · `r2Place` 1.0 · `r2Home` 1.0 · `r2ToGauge` 1.5 · `blowOff` 0.5 · `r2LoadGauge` 1.5 · `measure` 1.0 · `r2Repick` 1.0 · `r2ToNok` 1.5 · `r2Drop` 0.5 · `r2Master` 6.0 (A2.2, estimates) |
 
 `TLABEL` gives each key a readable name for the CNC-idle build-up table.
 
 ### 5.2 Rules `RULES`
 
 `mismatchWindow` 600 s · `mismatchLimit` 3 · `settle` 0.3 s · `debounce` 0.05 s · `retrigger` 0.3 s
-(second image after an invalid one) · `confirmTimeout` 1.0 s · `minSize` 48.0 mm · `nominal` 50.0 mm
-· `consecutiveNokHold` 2 · `palletSlots` 12. `CONST` exposes `limit`, `slots`, `nokHold` to guards.
+(second image after an invalid one) · `confirmTimeout` 1.0 s · `minSize` 48.0 mm (specified limit) · `nominal` 50.0 mm
+· gauge (A2.2, §5.14): `guardBand` 0.05 mm · `masterTol` 0.010 mm · `masterEvery` 4 h · `validRange` [45, 52] mm ·
+`masterDist` 80 mm · `consecutiveNokHold` 2 · `palletSlots` 12. `CONST` exposes `limit`, `slots`, `nokHold` to guards.
 
 ### 5.3 Checkpoints `CHECKPOINTS`
 
@@ -281,7 +282,7 @@ priced list is only in the round-1 answer in `submission/`). Tags used across th
 - Robot 2 / output: GR-51, PX-52, LT-53 blue beacon.
 - Cell: LT-01 stack light, SC-01/SC-02 area scanners, PLC-01.
 - Gauge and sorting: LS-61/62/63 laser displacement sensors (Keyence IL-065), PX-64, PE-65 NOK
-  drop, MST-60 master cube.
+  drop, MST-60 master cube, YV-66 air blow-off of the nest (A2.2).
 
 ### 5.5 Signals `SIGNALS` (everything a guard can read)
 
@@ -398,8 +399,9 @@ run band), which is where the 16 s of CNC idle time are saved compared with the 
 
 **R2S2 — Robot 2 + gauge + sorting**
 
-E0 start-up (home, CP-4, CP-5 nest empty, `GAUGE.master`) → E1 wait for part → E2 pick → E3 load
-gauge (check CP-5) → E4 measure (`GAUGE.measure`, until `GAUGE.valid`) → Q_E4 `GAUGE.ok`:
+E0 start-up (home, CP-4, CP-5 nest empty, `GAUGE.master` confirmed by `GAUGE.zeroed`, home) → E1 wait for
+part (first, if `GAUGE.due | !GAUGE.zeroed`: CP-5 and `GAUGE.master`; leaves to E2 only with
+`GAUGE.zeroed`) → E2 pick → E3 load gauge (blow-off, check CP-5) → E4 measure (`GAUGE.measure`, until `GAUGE.valid`) → Q_E4 `GAUGE.ok`:
 yes → E5 place OK part (consecNok = 0, re-pick, CP-4, place) → Q_E5 `PALLET.full` → E7 swap or E1;
 no → E6 NOK chute (re-pick, drop, `inc consecNok`, `QH = true` when `consecNok >= 2`; leaves on
 `PE-65`). The rung `HMI.release & QH → QH=false, consecNok=0` releases the quality hold.
@@ -430,7 +432,8 @@ FAULT.any` · `LT-01.amber` = no red and (`mismatches>0 | QH | R1=W1`) · `LT-01
 | P8 | at start of `CNC.start` | `!QH` |
 | P9 | never | `mismatches>=limit & !lineStop` |
 | P10 | never | `CAM_FAULT & !lineStop` |
-| P11 | at start of `R2.loadGauge` | `!TRUE.nestPart` (added in A2.1: no part is loaded onto another) |
+| P11 | at start of `R2.loadGauge`, `GAUGE.master` | `!TRUE.nestPart` (added in A2.1: no part is loaded onto another; A2.2: nor the master cube) |
+| P12 | at start of `GAUGE.measure` | `GAUGE.zeroed` (added in A2.2: no part is measured without a passed master check) |
 | L1 | AG EF (goal stays reachable) | `R1.job=CNC.start` |
 | L2 | AG EF | `R2.job=R2.placePallet` |
 | L3 | AG EF | `SUP=X1` |
@@ -462,7 +465,7 @@ the initial state**; the diagram `view` places every state exactly once; every `
 mentioned in a state's text is really used by a step or guard of that machine. `verify.js` and
 `export_model.js` refuse to run if lint fails; `cell-diagrams.js` stops if a transition cannot be drawn.
 
-### 5.14 Gauge specification (decided in A2.2, 2026-10-28; not yet in the model)
+### 5.14 Gauge specification (decided in A2.2, 2026-10-28; in the model since 2026-10-29)
 
 Alternatives, consequences and the uncertainty budget: `verification/gauge_policy.md`.
 
@@ -474,6 +477,26 @@ Alternatives, consequences and the uncertainty budget: `verification/gauge_polic
 | Uncertainty | U = 0.05 mm (k = 2), estimated (combined 14.7 µm, expanded 29 µm, rounded up for aluminium and the linearity not yet taken from the datasheet) |
 | Decision rule | OK only if L, W and H ≥ 48.05 mm (limit 48.00 + guard band U, inside the tolerance, ISO 14253-1); otherwise NOK chute. A part in 48.00–48.05 is NOK, counts for the quality hold and is logged as "rejected in guard band" |
 | Upper limit | none specified by the assignment; none is applied |
+
+How the model implements it (2026-10-29):
+
+- `RULES`: `guardBand`, `masterTol`, `masterEvery`, `validRange`, `masterDist`; `minSize` stays the
+  specified limit. Times `blowOff` 0.5 s (in `R2.loadGauge`) and `r2Master` 6 s (estimates, A2.3).
+- `GAUGE.master` is a Robot 2 job (MST-60 into the nest and back). It runs in E0 and, when
+  `GAUGE.due` (4 h since the last passed check) or after a failed one, as the first steps of E1, so the
+  check is made when Robot 2 next waits for a part. It is confirmed by `GAUGE.zeroed`: a reading
+  outside 50.000 ± 0.010 mm is a gauge FAULT; after clearing it the step, and so the check, is
+  repeated. E1 leaves for a part only with `GAUGE.zeroed`. P11 covers the master cube, the new P12
+  says that no part is measured without a passed master check.
+- Simulators: size `= 50.000 + (d_master − d_part)`, invalid outside 45–52 mm; OK only if every axis
+  ≥ 48.05 mm; the log separates "NOK, undersized" from "NOK, rejected in guard band"; a timer sets
+  `GAUGE.due` 4 h after the last passed check. Test buttons "Next part in the guard band" and "Master
+  check out of tolerance" (`inject_guard_band()`, `inject_master_fault()` in Python).
+- Verifier: variable `due`; the 4-h timer expires (nondeterministically) when Robot 2 is about to
+  enter E1, the only place where it is read; fault class `master` (group `process`): a master check
+  reads out of tolerance.
+- The master check of the sensor verification (X4, the technician) is in the procedure text at
+  ± 0.010 mm but does not restart the 4-h timer (conservative: at most one extra check).
 
 ---
 
@@ -498,8 +521,9 @@ Alternatives, consequences and the uncertainty budget: `verification/gauge_polic
   are logged and counted (the tests require zero).
 - **Fault injection (UI)**: per checkpoint *Glitch* (one-off proximity error), *Fault* (stuck
   proximity sensor), *Cam wrong* (next camera answer wrong with a valid image) and *Stale* (next
-  camera answer from the previous image); *Bad frame*, *Camera failure*, *Grip miss*, *Next part undersized* (`#btnBadFrame`, `#btnCamFail`,
-  `#btnGripMiss`, `#btnUnder`). Operator: `#btnLoadIn`, `#btnSwapOut`; auto-operator option.
+  camera answer from the previous image); *Bad frame*, *Camera failure*, *Grip miss*, *Next part undersized*, *Next part in the guard band*,
+  *Master check out of tolerance* (`#btnBadFrame`, `#btnCamFail`, `#btnGripMiss`, `#btnUnder`,
+  `#btnBand`, `#btnMaster`). Operator: `#btnLoadIn`, `#btnSwapOut`; auto-operator option.
 - **HMI actions** (`data-act`): `verify`, `resume`, `clear`, `qh`, `swap`, `load`.
 - **UI**: cell mimic (layout SVG with moving parts and robots), live state diagrams with the active
   state highlighted (tabs), checkpoint table, KPIs, event log, banner, stack light. Works at phone
@@ -519,7 +543,8 @@ from cellsim import CellSim
 sim = CellSim(seed=1, auto_operator=True, instant_verify=False, verify_step_time=0.65)   # setup=2 only
 sim.advance(3600)                 # seconds of simulated time
 sim.inject_undersized()           # also inject_glitch(cp), toggle_sensor_fault(cp),
-                                  # inject_bad_frame(), inject_camera_failure(), inject_grip_miss()
+                                  # inject_bad_frame(), inject_camera_failure(), inject_grip_miss(),
+                                  # inject_guard_band(), inject_master_fault()
 sim.press("qh")                   # verify, resume, clear, qh, swap, load
 sim.state("R2"); sim.kpis(); sim.trace; sim.logs; sim.stats; sim.errors  # errors must stay empty
 ```
@@ -568,7 +593,7 @@ the port reproduces the original in those scenarios; it cannot find an error tha
   `QH`); `mismatches` 0..3; `consecNok` 0..2; per-machine check results `res_<slot>_<CP>`; plant:
   door, lock, vise, part in CNC, run, gripper contents (`r1A`/`r1B`, `r2S`), belt
   `beltEntry/beltMid/beltExit`, moving, input pallet present / has parts, output pallet present,
-  `outCount` 0..N, robots home, gauge nest, measured, zeroed, pe65. `build(2)` refuses any other setup.
+  `outCount` 0..N, robots home, gauge nest, measured, zeroed, due (A2.2), pe65. `build(2)` refuses any other setup.
 - **Plant**: no times. Jobs finish in any order relative to other machines; the CNC finishes when
   it likes (part OK, or undersized if process faults are on); the belt moves the part in three
   steps; the operator swaps pallets whenever allowed; mismatches leave the window at any time.
@@ -576,9 +601,10 @@ the port reproduces the original in those scenarios; it cannot find an error tha
 - **Fault classes** (`build(setup, {faults})`, a group name, a class or a list): `mismatch`
   (proximity wrong), `camera` (invalid images, camera fault), `camfp` / `camfn` (camera false
   positive / negative with a valid image), `stale` (camera answers from its previous image; wrong
-  only if the fact changed), `grip`, `timeout` (confirmation timeouts and timer faults), `nok`.
-  Groups: `sensor` = mismatch + camera, `camwrong` = camfp + camfn + stale, `process` = grip +
-  timeout + nok. Options `rules: {CP-n: rule}` (override §5.3) and `cps: [...]` (wrong readings
+  only if the fact changed), `grip`, `timeout` (confirmation timeouts and timer faults), `nok`,
+  `master` (a master check out of tolerance, A2.2). Groups: `sensor` = mismatch + camera, `camwrong`
+  = camfp + camfn + stale, `process` = grip + timeout + nok + master. The 4-h master timer is not a
+  fault: it is in every run. Options `rules: {CP-n: rule}` (override §5.3) and `cps: [...]` (wrong readings
   only at these checkpoints) are used by `camera_study.js`. The runs of `verify.js` are listed once
   in `RUNS` of `cell-verify.js` (§9.3).
 - **Checks.** At a check, both sources agree (result = truth), or one is wrong (proximity, or the
@@ -603,26 +629,28 @@ search, with counterexample traces. "Eventually" (AG EF) checked afterwards: ite
 implicit graph finds the bottom SCCs; the property holds if every bottom SCC contains a goal state.
 Also records deadlocks and which machine states are never reached.
 
-### 9.3 Results (`verification/results.md`, re-run at the end of A2.1, 2026-10-28)
+### 9.3 Results (`verification/results.md`, re-run at the end of A2.2, 2026-10-29)
 
 | Run | Fault classes | States | Transitions | Failed |
 |---|---|---:|---:|---|
-| none | — | 212,303 | 870,229 | none |
-| sensor | proximity wrong, invalid images, timeouts | 39,412,569 | 188,853,615 | none |
-| process | missed picks, timeouts and timers, undersized parts | 5,327,386 | 27,709,028 | none |
-| camwrong | camera false positive / negative / stale image, timeouts | 9,672,947 | 45,854,410 | none |
-| sensor_camwrong | all sensor faults together, timeouts | 45,750,459 | 229,497,426 | none |
+| none | — | 297,136 | 1,247,985 | none |
+| sensor | proximity wrong, invalid images, timeouts | 68,790,749 | 332,161,934 | none |
+| process | missed picks, timeouts and timers, undersized parts, master check out of tolerance | 8,855,602 | 47,127,181 | none |
+| camwrong | camera false positive / negative / stale image, timeouts | 17,046,483 | 81,938,512 | none |
+| sensor_camwrong | all sensor faults together, timeouts | 79,819,587 | 402,849,626 | none |
 
-0 deadlocks; all 14 properties (P1–P11, L1–L3) hold in every run. `none` and `process` have the same
-state counts as at the end of A1 (the recovery guards do not change what is reachable there). The
-`sensor` run now includes the class `timeout` (§9.1), hence 39.4 instead of 14.7 million states. The
-A1 numbers are in `regression/setup2_a1.json` and git history; the Setup 1 runs (55,600 / 3,359,887 /
+0 deadlocks; all 15 properties (P1–P12, L1–L3) hold in every run. Compared with A2.1 (212,303 /
+39,412,569 / 5,327,386 / 9,672,947 / 45,750,459 states) the gauge adds the variables `zeroed` and
+`due` and the 4-h timer, which may fire only while Robot 2 is in E5/E6 (§5.14, implementation notes):
+×1.4 to ×1.75 states. Search time on the local computer: 7 s (`none`) to 50 min
+(`sensor_camwrong`), about 1 h 40 min in total. The A2.1 numbers are in `regression/setup2_a21.json`
+and git history, the A1 ones in `regression/setup2_a1.json`; the Setup 1 runs (55,600 / 3,359,887 /
 88,132 states) in the legacy branch. Never-reached states are listed per run (e.g. `R2: E6` without
 process faults, which is expected: no undersized parts).
 
-NuSMV 2.7.1 was run on these models locally on 2026-10-29 (the cloud session of A2.1 could not
-download it): same verdict on all 47 specifications of every run and the same number of reachable
-states (§9.4). Outputs in `verification/cell_setup2_<run>.nusmv.txt`.
+NuSMV has not been run on the A2.2 models. The A2.1 models (47 specifications each) agreed in all
+five runs (§9.4); their outputs were removed from `verification/` because they no longer match the
+`.smv` files there and remain in git history (commit `7f59e55`).
 
 ### 9.4 NuSMV export (`toSmv(ir)`) and cross-check
 
@@ -639,7 +667,8 @@ states (§9.4). Outputs in `verification/cell_setup2_<run>.nusmv.txt`.
   sensor-fault model (≈ 1 h total wall clock with 8 parallel jobs). A2.1 models (2026-10-29): 47
   specs per model, all agree, states equal in all 5 runs; NuSMV time per model from 160 s (`none`)
   to 7.3 h (`sensor`, its next-state invariants alone 5.5 h), about 5.5 h of wall clock with 8
-  parallel jobs (`NUSMV_TIMEOUT` raised to 12 h; the default 4 h is too short for `sensor`).
+  parallel jobs (`NUSMV_TIMEOUT` raised to 12 h; the default 4 h is too short for `sensor`). A2.2
+  models (2026-10-29): not run yet; with 1.4–1.75 times the states of A2.1, expect more than 5.5 h.
 - Manual run of one file: `NuSMV -dynamic -dcx -r cell_setup2_none.smv`.
 
 What the agreement means: additional evidence that the explicit search and the NuSMV export are
@@ -752,10 +781,9 @@ Gotchas met before:
     measurements (pick pose, parts left, output slot) are not cross-checked; the error rate of the
     timed study is chosen, not measured; with the safe values a dead proximity sensor costs up to 3
     FAULTs before the line stop.
-11. **Gauge specified, not yet implemented** (A2.2, §5.14, `verification/gauge_policy.md`). The
-    model still accepts at 48.00 mm without guard band and checks the master cube only at start-up
-    and after a sensor verification. The uncertainty budget is an estimate; the assignment gives
-    only a lower limit.
+11. **Gauge** (resolved in A2.2, §5.14, `verification/gauge_policy.md`). Open: the uncertainty budget
+    is an estimate (no Gauge R&R); the assignment gives only a lower limit; repeated invalid
+    readings have no limit (E4 FAULT and repeat); the times `blowOff` and `r2Master` are estimates.
 12. **Times without source or tolerance.** Every value in `T` is a planning estimate. Step A2.3.
 13. **KPIs are nominal.** Idle time counts only the idle-band states of the exchange; waits for
     material, pallet changes, holds and repairs are not in it. Step A2.4.
@@ -842,7 +870,7 @@ green. Effort figures are indicative only.
 |---|---|---|---|
 | A0 Claims and assumptions stated | Done | `main` | 2026-10-23 |
 | A1 Base: Setup 2 only, CI, one build | Done | `a1-base` → `main` | 2026-10-23 |
-| A2 Design gaps: camera policy, gauge, times, KPIs, faults | In progress: A2.1 done (2026-10-28); A2.2 gauge: policy decided (2026-10-28), implementation next | `a2-design-gaps` | |
+| A2 Design gaps: camera policy, gauge, times, KPIs, faults | In progress: A2.1 done (2026-10-28); A2.2 done (2026-10-29); A2.3 times next | `a2-design-gaps` | |
 | A3 PLC demonstration | Not started | | |
 | A4 Timed verification (UPPAAL) | Not started | | |
 | A5 Studies with the Python engine | Not started | | |
@@ -1190,3 +1218,4 @@ Newest last. Every change to the plan or to a design rule is written here first 
 | 2026-10-28 | Branch `a2-design-gaps` brought from the cloud session (git bundle) and pushed to GitHub; the checks pass locally with Google Chrome; figures 3, 4 and 7 re-rendered with Chrome. NuSMV cross-check of the five A2.1 models started locally | Infrastructure only, no change to the steps of the plan |
 | 2026-10-28 | **A2.2 gauge policy decided by the author**, the recommended set as a whole (`verification/gauge_policy.md`, §5.14): 3-2-1 nest tilted to the datum corner with air blow-off, one laser per axis; `size = 50.000 + (d_master − d_part)`, readings outside 45–52 mm invalid; master cube at start-up, after every sensor verification, every 4 h and after a gauge FAULT, accepted at 50.000 ± 0.010 mm; U = 0.05 mm (k = 2, estimated); OK only if L, W, H ≥ 48.05 mm (guard band inside the tolerance, ISO 14253-1), a part in the band is NOK and counts for the quality hold; no upper limit. To be implemented in the model next. An early tool-wear warning is placed in A6 | The tolerance (2 mm) is about forty times the estimated uncertainty, so the conservative rule rejects practically no good part; rejecting in the band adds no state to the machines; recalibration every 4 h bounds drift at < 0.1 % of production |
 | 2026-10-29 | **Phases B and C rewritten** (§15). B becomes the element framework: a generic core, a catalogue of element types described by data, three levels of detail (N1 control, N2 station, N3 flow) with N2 derived from N1 where it exists, ports and interface contracts; steps B1–B8. The equivalence with Setup 2 is kept (B3) and comes before anything new; a structurally different second process cell (bar cutting as the working example, the type chosen by the author at B5), a parametric variant with other times, N2 derivation and a mini line. C becomes the factory for **optimization and scheduling**: a reference factory from inbound trucks through processes and packaging to outbound trucks, built in layers (N2/N3 skeleton first), the planner separated from cell safety, steps C1–C7. Order A → B → C unchanged. Consequences for A noted under B (generic PLC generator in A3, KPI definitions in A2.4 that extend to lines) | The author's goal for C is to optimize and schedule a whole factory with many kinds of elements (trucks, packaging, transport), not copies of one cell; a parametric cell template alone would not support it. Three levels of detail keep the factory tractable, and deriving the upper levels from verified lower ones keeps its numbers traceable. The project is a personal one without a deadline, so the larger B is accepted |
+| 2026-10-29 | **A2.2 gauge policy implemented** in the model, the verifier and both simulators. Choices made in the implementation, within the decided policy: the master check is done by Robot 2 as conditional first steps of E1 (start-up: in E0) and not as a new state; E1→E2 requires `GAUGE.zeroed`; a failed master check is a gauge FAULT and only a passed one clears the 4-h due flag; the technician's sensor verification does not restart the 4-h timer; new property P12 (a part is measured only after a passed master check) and P11 extended to the master cube; air blow-off valve YV-66; estimated times 0.5 s blow-off and 6 s master check (to be confirmed with hardware); in the verifier the 4-h timer may fire only while Robot 2 is in E5/E6 | A new state for the check did not fit the layout of figure 13 (two rails) and multiplied the state space; E1 is the only place where the check can be done with the nest empty and Robot 2 free. Firing the timer only before E1, its only reader, gives E1 every value of the flag it could see with a timer that fires at any time at ×1.4–1.75 instead of ×2.4–2.9 states. All 15 properties hold in the 5 runs; NuSMV not yet run on these models |

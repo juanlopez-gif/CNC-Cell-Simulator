@@ -33,10 +33,11 @@
     opts = Object.assign({ faults: 'all', slots: 2, rules: {} }, opts || {});
     if (opts.faults === true) opts.faults = 'all';
     // fault classes: sensor = proximity sensor wrong (mismatch) and camera faults (invalid images);
-    // process = missed picks, confirmation timeouts and timer faults, undersized parts (Setup 2);
+    // process = missed picks, confirmation timeouts and timer faults, undersized parts (Setup 2),
+    //   a master check out of tolerance (gauge FAULT, A2.2);
     // camwrong = camera wrong with a valid image: false positive, false negative, stale image.
     // opts.faults is a group name, a class name or a list of them.
-    const FL = { mismatch: ['sensor', 'all'], camera: ['sensor', 'all'], grip: ['process', 'all'], timeout: ['process', 'all'], nok: ['process', 'all'],
+    const FL = { mismatch: ['sensor', 'all'], camera: ['sensor', 'all'], grip: ['process', 'all'], timeout: ['process', 'all'], nok: ['process', 'all'], master: ['process', 'all'],
       camfp: ['camwrong'], camfn: ['camwrong'], stale: ['camwrong'] };
     const want = [].concat(opts.faults || []);
     const F = Object.fromEntries(Object.keys(FL).map((k) => [k, want.includes(k) || FL[k].some((g) => want.includes(g))]));
@@ -119,6 +120,7 @@
     addVar('nest', PART, 'none', 'part in the gauge nest');
     addVar('measured', B, false, 'gauge reading valid');
     addVar('zeroed', B, false, 'gauge zeroed with the master cube');
+    addVar('due', B, false, 'master check due (4 h since the last one)');
     addVar('pe65', B, false, 'PE-65 saw a part fall');
     const has = (v) => v in VI;
 
@@ -137,7 +139,7 @@
       'GR-51': () => not(eq('r2S', 'none')),
       'ENC-43': () => bv('moving'), 'PE-42': () => not(eq('beltExit', 'none')), 'ROI-C': () => not(eq('beltExit', 'none')),
       'PX-52': () => bv('outPresent'), 'CAM-2.slot': () => TT,
-      'GAUGE.zeroed': () => bv('zeroed'), 'GAUGE.valid': () => bv('measured'), 'GAUGE.ok': () => eq('nest', 'ok'), 'PE-65': () => bv('pe65'),
+      'GAUGE.zeroed': () => bv('zeroed'), 'GAUGE.due': () => bv('due'), 'GAUGE.valid': () => bv('measured'), 'GAUGE.ok': () => eq('nest', 'ok'), 'PE-65': () => bv('pe65'),
       'TRUE.entryPart': () => not(eq('beltEntry', 'none')), 'TRUE.outPallet': () => bv('outPresent'), 'TRUE.r2Nok': () => eq('r2S', 'nok'),
       'TRUE.nestPart': () => not(eq('nest', 'none')),
     };
@@ -326,6 +328,7 @@
           if (st.job) {
             const variants = [{ name: 'done', upd: jobUpd(st.job) }];
             if (F.grip && M.JOBS[st.job].canFail) variants.push({ name: 'missed', upd: {} });
+            if (F.master && st.job === 'GAUGE.master') variants.push({ name: 'out of tolerance', upd: { zeroed: VAL(false) } });
             variants.forEach((v) => {
               const after = st.confirm ? subst(SIG(st.confirm), v.upd) : TT;
               emit(slot, at, after, advance(slot, sid, i + 1, TT, v.upd), `${sid}: ${st.job} ${v.name}`);
@@ -444,6 +447,10 @@
     plant('OP', 'operator places a full input pallet', not(bv('inPresent')), { inPresent: VAL(true), inParts: VAL(true) });
     plant('OP', 'operator takes the full output pallet away', and(LT53, bv('outPresent')), { outPresent: VAL(false), outCount: VAL(0) });
     plant('OP', 'operator places an empty output pallet', not(bv('outPresent')), { outPresent: VAL(true) });
+    // the 4-h master timer is read only when R2 enters E1 (from E5 or E6, the states that end a part), so
+    // it expires only just before: the machines behave as with a timer that expires anywhere, with far
+    // fewer states
+    plant('ENV', '4 h pass since the last master check', and(bv('zeroed'), not(bv('due')), inn('R2', ['E5_x', 'E6_x'])), { due: VAL(true) });
     if (F.mismatch) plant('ENV', 'a mismatch leaves the 10-min window', cmp('mismatches', '>', 0), { mismatches: ADD('mismatches', -1, 0, M.RULES.mismatchLimit) });
     M.RUNGS.forEach((r) => {
       const g = SIG(r.when, { 'HMI.release': true });

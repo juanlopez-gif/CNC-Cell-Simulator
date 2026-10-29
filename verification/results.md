@@ -5,25 +5,11 @@ The abstract model contains the four state machines exactly as written in the mo
 
 | Run | Faults | States | Transitions | Time | Deadlocks | Failed properties |
 |---|---|---:|---:|---:|---:|---|
-| Setup 2 | nominal operation | 212,303 | 870,229 | 2.7 s | 0 | none |
-| Setup 2 | proximity sensor wrong and invalid camera images, with confirmation timeouts | 39,412,569 | 188,853,615 | 822.3 s | 0 | none |
-| Setup 2 | missed picks, confirmation timeouts, transport timers, undersized parts | 5,327,386 | 27,709,028 | 97.9 s | 0 | none |
-| Setup 2 | camera wrong with a valid image (false positive, false negative, stale image), with confirmation timeouts | 9,672,947 | 45,854,410 | 197.0 s | 0 | none |
-| Setup 2 | all sensor faults together (proximity wrong, camera wrong, invalid images), with confirmation timeouts | 45,750,459 | 229,497,426 | 1051.9 s | 0 | none |
-
-## NuSMV
-
-The `.smv` files were also checked with NuSMV 2.7.1, a symbolic (BDD-based) model checker that reads only the `.smv` file. It checks every property, the absence of deadlocks (`no_deadlock`) and, for every state of every machine, whether it is never reached (`unreachable_*`); its number of reachable states (printed with 6 significant digits) is compared with the search. Each model is checked by two NuSMV runs at the same time, one for the invariants and one for the CTL specifications L1-L3, with every specification as its own command (`NuSMV -dynamic -dcx -r <file>` runs the same checks in one go). Both checkers read the same abstract model, generated from `cell-model.js`: the agreement checks the search and the export, not the abstraction.
-
-| Run | Specifications | Same verdict as the search | Reachable states (NuSMV) | States (search) | NuSMV time |
-|---|---:|---|---:|---:|---:|
-| Setup 2, none | 47 | all 47 | 212,303 | 212,303 | 160 s |
-| Setup 2, sensor | 47 | all 47 | 3.94126e+07 | 39,412,569 | 26411 s |
-| Setup 2, process | 47 | all 47 | 5.32739e+06 | 5,327,386 | 398 s |
-| Setup 2, camwrong | 47 | all 47 | 9.67295e+06 | 9,672,947 | 10909 s |
-| Setup 2, sensor_camwrong | 47 | all 47 | 4.57505e+07 | 45,750,459 | 23166 s |
-
-NuSMV time is the sum of the wall-clock times of the runs of a model, with up to 8 runs at a time on one PC.
+| Setup 2 | nominal operation | 297,136 | 1,247,985 | 7.3 s | 0 | none |
+| Setup 2 | proximity sensor wrong and invalid camera images, with confirmation timeouts | 68,790,749 | 332,161,934 | 2181.8 s | 0 | none |
+| Setup 2 | missed picks, confirmation timeouts, transport timers, undersized parts | 8,855,602 | 47,127,181 | 286.0 s | 0 | none |
+| Setup 2 | camera wrong with a valid image (false positive, false negative, stale image), with confirmation timeouts | 17,046,483 | 81,938,512 | 567.6 s | 0 | none |
+| Setup 2 | all sensor faults together (proximity wrong, camera wrong, invalid images), with confirmation timeouts | 79,819,587 | 402,849,626 | 2972.9 s | 0 | none |
 
 ## Properties
 
@@ -39,12 +25,11 @@ NuSMV time is the sum of the wall-clock times of the runs of a model, with up to
 | P8 | No CYCLE START during a quality hold | pass | pass | pass | pass | pass |
 | P9 | Three mismatches in the window always stop the line | pass | pass | pass | pass | pass |
 | P10 | A camera fault always stops the line | pass | pass | pass | pass | pass |
-| P11 | Robot 2 loads the gauge only into an empty nest | pass | pass | pass | pass | pass |
+| P11 | Robot 2 loads the gauge nest (part or master cube) only when it is empty | pass | pass | pass | pass | pass |
+| P12 | A part is measured only after a passed master check | pass | pass | pass | pass | pass |
 | L1 | A new CNC cycle can always be started again | pass | pass | pass | pass | pass |
 | L2 | Robot 2 can always deliver a part again | pass | pass | pass | pass | pass |
 | L3 | After any stop the supervisor can return to NORMAL | pass | pass | pass | pass | pass |
-
-NuSMV gives the same verdict for every entry.
 
 ## States that were never reached
 
@@ -56,8 +41,10 @@ NuSMV gives the same verdict for every entry.
 
 ## Files
 
-- `cell_setup2_none.smv`: NuSMV model, 44 variables, 281 commands (NuSMV output in `cell_setup2_none.nusmv.txt`)
-- `cell_setup2_sensor.smv`: NuSMV model, 44 variables, 327 commands (NuSMV output in `cell_setup2_sensor.nusmv.txt`)
-- `cell_setup2_process.smv`: NuSMV model, 44 variables, 299 commands (NuSMV output in `cell_setup2_process.nusmv.txt`)
-- `cell_setup2_camwrong.smv`: NuSMV model, 44 variables, 341 commands (NuSMV output in `cell_setup2_camwrong.nusmv.txt`)
-- `cell_setup2_sensor_camwrong.smv`: NuSMV model, 44 variables, 366 commands (NuSMV output in `cell_setup2_sensor_camwrong.nusmv.txt`)
+- `cell_setup2_none.smv`: NuSMV model, 45 variables, 307 commands
+- `cell_setup2_sensor.smv`: NuSMV model, 45 variables, 357 commands
+- `cell_setup2_process.smv`: NuSMV model, 45 variables, 327 commands
+- `cell_setup2_camwrong.smv`: NuSMV model, 45 variables, 376 commands
+- `cell_setup2_sensor_camwrong.smv`: NuSMV model, 45 variables, 405 commands
+
+NuSMV was not installed when this report was generated; the `.smv` files can be checked with `NuSMV -dynamic -dcx -r <file>`.

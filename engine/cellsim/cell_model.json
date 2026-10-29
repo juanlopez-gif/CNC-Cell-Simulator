@@ -39,7 +39,9 @@
   "measure": 1,
   "r2Repick": 1,
   "r2ToNok": 1.5,
-  "r2Drop": 0.5
+  "r2Drop": 0.5,
+  "blowOff": 0.5,
+  "r2Master": 6
  },
  "RULES": {
   "mismatchWindow": 600,
@@ -50,6 +52,14 @@
   "confirmTimeout": 1,
   "minSize": 48,
   "nominal": 50,
+  "guardBand": 0.05,
+  "masterTol": 0.01,
+  "masterEvery": 14400,
+  "validRange": [
+   45,
+   52
+  ],
+  "masterDist": 80,
   "consecutiveNokHold": 2,
   "palletSlots": 12
  },
@@ -342,14 +352,23 @@
   },
   "GAUGE.zeroed": {
    "kind": "sensor",
-   "on": "gauge verified",
+   "on": "master check passed",
+   "off": "no valid master check",
+   "tags": [
+    "MST-60"
+   ]
+  },
+  "GAUGE.due": {
+   "kind": "sensor",
+   "on": "4 h since the last master check",
+   "off": "master check in date",
    "tags": [
     "MST-60"
    ]
   },
   "GAUGE.valid": {
    "kind": "sensor",
-   "on": "3 valid readings",
+   "on": "3 valid readings (45–52 mm)",
    "tags": [
     "LS-61",
     "LS-62",
@@ -359,10 +378,10 @@
   "GAUGE.ok": {
    "kind": "sensor",
    "on": "OK part",
-   "off": "undersized",
+   "off": "NOK (undersized or in the guard band)",
    "ask": [
     "L, W and H",
-    "≥ 48.00 mm?"
+    "≥ 48.05 mm?"
    ],
    "tags": [
     "LS-61",
@@ -546,11 +565,20 @@
   },
   {
    "id": "P11",
-   "text": "Robot 2 loads the gauge only into an empty nest",
+   "text": "Robot 2 loads the gauge nest (part or master cube) only when it is empty",
    "start": [
-    "R2.loadGauge"
+    "R2.loadGauge",
+    "GAUGE.master"
    ],
    "require": "!TRUE.nestPart"
+  },
+  {
+   "id": "P12",
+   "text": "A part is measured only after a passed master check",
+   "start": [
+    "GAUGE.measure"
+   ],
+   "require": "GAUGE.zeroed"
   },
   {
    "id": "L1",
@@ -795,6 +823,7 @@
    "robot": "R2",
    "time": [
     "r2ToGauge",
+    "blowOff",
     "r2LoadGauge"
    ],
    "zone": "gauge",
@@ -802,7 +831,10 @@
     "r2S",
     "nest"
    ],
-   "text": "load the gauge nest"
+   "tags": [
+    "YV-66"
+   ],
+   "text": "blow off and load the gauge nest"
   },
   "R2.repick": {
    "robot": "R2",
@@ -845,10 +877,14 @@
    "text": "measure L, W, H"
   },
   "GAUGE.master": {
-   "robot": null,
-   "time": [],
+   "robot": "R2",
+   "time": [
+    "r2Master"
+   ],
+   "zone": "gauge",
    "set": {
-    "zeroed": true
+    "zeroed": true,
+    "due": false
    },
    "tags": [
     "MST-60",
@@ -1345,7 +1381,7 @@
    "slot": "R2",
    "setup": 2,
    "title": "State diagram: Robot 2 + gauge + sorting (Setup 2)",
-   "sub": "Every part is measured. Accept only if length, width and height are all ≥ 48.00 mm (50 mm nominal − 2 mm).",
+   "sub": "Every part is measured. Accept only if length, width and height are all ≥ 48.05 mm (limit 48.00 + guard band 0.05).",
    "initial": {
     "to": "E0",
     "when": "HMI.auto"
@@ -1395,7 +1431,7 @@
      "name": "START-UP CHECKS",
      "desc": [
       "Home · [CP-4] pallet · [CP-5] nest empty ·",
-      "master cube check of the 3 lasers"
+      "{MST-60} master check 50.000 ± 0.010 mm"
      ],
      "do": [
       {
@@ -1410,7 +1446,13 @@
        "quick": true
       },
       {
-       "job": "GAUGE.master"
+       "job": "GAUGE.master",
+       "when": "!CP-5",
+       "confirm": "GAUGE.zeroed"
+      },
+      {
+       "job": "R2.home",
+       "when": "!R2.home"
       }
      ],
      "next": [
@@ -1424,9 +1466,21 @@
      "name": "WAIT FOR PART",
      "wait": true,
      "desc": [
-      "Move home, clear of the conveyor"
+      "First, if 4 h have passed: [CP-5] nest empty ·",
+      "{MST-60} master check (else gauge FAULT) ·",
+      "move home, clear of the conveyor"
      ],
      "do": [
+      {
+       "check": "CP-5",
+       "quick": true,
+       "when": "GAUGE.due | !GAUGE.zeroed"
+      },
+      {
+       "job": "GAUGE.master",
+       "when": "(GAUGE.due | !GAUGE.zeroed) & !CP-5",
+       "confirm": "GAUGE.zeroed"
+      },
       {
        "job": "R2.home",
        "when": "!R2.home"
@@ -1435,7 +1489,7 @@
      "next": [
       {
        "to": "E2",
-       "when": "CONV=C5 & pickAllowed & !ENC-43"
+       "when": "CONV=C5 & pickAllowed & !ENC-43 & GAUGE.zeroed"
       }
      ]
     },
@@ -1474,8 +1528,8 @@
      "name": "LOAD GAUGE",
      "short": "gauge",
      "desc": [
-      "Place in the corner nest · push against the",
-      "3 datums (force control) · release · retract"
+      "{YV-66} blow-off · place in the tilted corner",
+      "nest · push against the 3 datums · release"
      ],
      "do": [
       {
@@ -1498,7 +1552,7 @@
      "short": "measure",
      "desc": [
       "{LS-61}/{LS-62}/{LS-63}: average of 10 samples",
-      "size = 50.000 + (d master − d part)"
+      "size = 50.000 + (d master − d part), 45–52 mm"
      ],
      "do": [
       {

@@ -103,7 +103,7 @@ class CellSim:
                      if s["kind"] == "var" and k != "mismatches"}
         self.cp_result = {}                  # slot -> {CP-n: fused result of its last check}
         self.inputs = {"verify": False, "reset": False, "release": False, "clear_at": -1.0}
-        self.inject = {"under": 0, "grip_miss": False, "frames": {"CAM-1": 0, "CAM-2": 0}}
+        self.inject = {"under": 0, "band": 0, "master": False, "grip_miss": False, "frames": {"CAM-1": 0, "CAM-2": 0}}
         self.faults = {}                     # slot -> fault message
         self.cam_fault = None
         self.ask_at = None                   # checkpoint whose disagreement stopped the line (rule ask)
@@ -127,7 +127,7 @@ class CellSim:
         self.v_max = BELT_LENGTH / self.T["beltTravel"]
         self.acc = self.v_max / self.T["beltStart"]
         self.r1, self.r2 = Robot("R1", True), Robot("R2", False)
-        self.gauge = {"zeroed": False, "valid": False, "ok": False}
+        self.gauge = {"zeroed": False, "due": False, "valid": False, "ok": False, "d_master": None, "master_at": None}
         self.last_slot = None
         self.pe65 = -9.0
         self.ok_parts = 0
@@ -153,6 +153,7 @@ class CellSim:
         self.spawn(self._run_machine("R2"), "R2")
         self.spawn(self._run_machine("SUP"), "SUP")
         self.spawn(self._operator_proc(), "operator")
+        self.spawn(self._gauge_clock(), "gauge clock")
         self.log("info", f"Setup {setup} started · input pallet 9 raw parts · output pallet 8 of 12 · CNC empty")
 
     # ================================================================== public API
@@ -231,6 +232,14 @@ class CellSim:
     def inject_undersized(self):
         self.inject["under"] += 1
         self.log("info", "Test: the next part to finish will be undersized in one dimension")
+
+    def inject_guard_band(self):
+        self.inject["band"] += 1
+        self.log("info", "Test: the next part to finish will be in the guard band (48.00–48.05 mm) in one dimension")
+
+    def inject_master_fault(self):
+        self.inject["master"] = True
+        self.log("info", "Test: the next master check will read outside ± 0.010 mm")
 
     def kpis(self):
         st = self.stats
@@ -350,6 +359,8 @@ class CellSim:
             return self._out_count()
         if name == "GAUGE.zeroed":
             return self.gauge["zeroed"]
+        if name == "GAUGE.due":
+            return self.gauge["due"]
         if name == "GAUGE.valid":
             return self.gauge["valid"]
         if name == "GAUGE.ok":
@@ -804,7 +815,7 @@ class CellSim:
         for c in self.cps.values():
             steps.append(f"Test {c['id']} with a test part: {c['prox']} ON and {c['cam']} part · removed: both OFF")
         steps.append("Camera calibration target: CAM-1 and CAM-2 position error < 1 mm")
-        steps.append("Master cube 50.000 mm: LS-61 / LS-62 / LS-63 within ±0.02 mm")
+        steps.append("Master cube 50.000 mm: LS-61 / LS-62 / LS-63 within ±0.010 mm")
         self.verify = {"steps": steps, "i": 0, "done": False}
         self.log("stop", "Sensor verification started: all equipment stopped, technician in the cell")
         if self.instant_verify:
@@ -946,6 +957,7 @@ class CellSim:
 
         def load_gauge(r):
             yield from self._move(r, "nest", T["r2ToGauge"])
+            yield from self._wait(T["blowOff"])            # YV-66: chips and coolant off the nest and the part
             yield from self._wait(T["r2LoadGauge"] * 0.6)
             p = r.hold["S"]
             r.hold["S"] = None
@@ -959,17 +971,40 @@ class CellSim:
             if not p:
                 self.gauge["valid"] = False
                 return
-            p.meas = [v + (self.rnd.random() - 0.5) * 0.004 for v in p.dims]
-            self.gauge["valid"] = True
-            self.gauge["ok"] = all(v >= self.RU["minSize"] for v in p.meas)
+            # each laser reads the distance to the free face; size = 50.000 + (d master - d part)
+            RU = self.RU
+            d_part = [RU["masterDist"] - (v - RU["nominal"]) - (self.rnd.random() - 0.5) * 0.004 for v in p.dims]
+            p.meas = [RU["nominal"] + (self.gauge["d_master"][i] - d) for i, d in enumerate(d_part)]
             m = p.meas
-            self.log("measure", f"Part #{p.id}: L {m[0]:.3f} · W {m[1]:.3f} · H {m[2]:.3f} mm → {'OK, all ≥ 48.00' if self.gauge['ok'] else 'NOK, undersized'}")
+            lo, hi = RU["validRange"]
+            self.gauge["valid"] = all(lo <= v <= hi for v in m)
+            if not self.gauge["valid"]:
+                self.log("measure", f"Part #{p.id}: reading outside {lo}–{hi} mm → invalid, not a part size")
+                return
+            accept = RU["minSize"] + RU["guardBand"]
+            self.gauge["ok"] = all(v >= accept for v in m)
+            verdict = (f"OK, all ≥ {accept:.2f}" if self.gauge["ok"]
+                       else "NOK, undersized" if any(v < RU["minSize"] for v in m) else "NOK, rejected in guard band")
+            self.log("measure", f"Part #{p.id}: L {m[0]:.3f} · W {m[1]:.3f} · H {m[2]:.3f} mm → {verdict}")
 
-        def master(_):
-            self.log("measure", "Start-up master cube 50.000 mm: LS-61 50.001 · LS-62 49.999 · LS-63 50.000 mm → gauge OK")
-            self.gauge["zeroed"] = True
-            return
-            yield  # pragma: no cover  (makes this function a generator)
+        def master(r):
+            RU = self.RU
+            yield from self._move(r, "nest", T["r2Master"] * 0.3)
+            yield from self._wait(T["r2Master"] * 0.4)
+            read = [50.001, 49.999, 50.000]
+            if self.inject["master"]:
+                self.inject["master"] = False
+                read[0] = 50.023
+            ok = all(abs(v - RU["nominal"]) <= RU["masterTol"] + 1e-9 for v in read)
+            self.gauge["zeroed"] = ok
+            if ok:
+                self.gauge["due"] = False
+                self.gauge["d_master"] = [RU["masterDist"]] * 3
+                self.gauge["master_at"] = self.t
+            self.log("measure" if ok else "fault",
+                     f"Master cube 50.000 mm: LS-61 {read[0]:.3f} · LS-62 {read[1]:.3f} · LS-63 {read[2]:.3f} mm → "
+                     + ("gauge OK" if ok else "outside ± 0.010 mm: gauge FAULT, no part is measured"))
+            yield from self._move(r, "nest_out", T["r2Master"] * 0.3)
 
         def repick(r):
             yield from self._move(r, "nest", T["r2Repick"] / 2)
@@ -1072,6 +1107,9 @@ class CellSim:
                 if self.inject["under"] > 0:
                     self.inject["under"] -= 1
                     p.dims[int(self.rnd.random() * 3)] = 47.35 + self.rnd.random() * 0.5
+                elif self.inject["band"] > 0:
+                    self.inject["band"] -= 1
+                    p.dims[int(self.rnd.random() * 3)] = 48.01 + self.rnd.random() * 0.03
             c["state"], c["done_at"] = "DONE", self.t
             st["cycles"] += 1
             yield from self._wait(self.T["unlock"])
@@ -1103,6 +1141,17 @@ class CellSim:
         yield from self._wait(8)
         self.pallet_out["present"], self.pallet_out["busy"] = True, False
         self.log("operator", "Operator places an empty output pallet")
+
+    def _gauge_clock(self):
+        """The master check is due RULES.masterEvery after the last passed one."""
+        g = self.gauge
+        while True:
+            yield from self._until(lambda: g["zeroed"] and not g["due"])
+            at = g["master_at"]
+            yield from self._wait(at + self.RU["masterEvery"] - self.t)
+            if g["zeroed"] and not g["due"] and g["master_at"] == at:
+                g["due"] = True
+                self.log("measure", "4 h since the last master check → master check due")
 
     def _operator_proc(self):
         while True:

@@ -125,7 +125,7 @@ This rule has not yet been tested against camera errors; that is the next step o
 | Output | 23.0 parts/h | 25.6 parts/h |
 
 Nominal values from planning times, without material shortages, pallet changes, holds or repairs.
-Every part with a length, width or height below 48.00 mm goes to a locked NOK chute.
+Every part with a length, width or height below 48.00 mm goes to a locked NOK chute; so does a part within the gauge's guard band (accepted only from 48.05 mm).
 
 ## Using the simulation
 

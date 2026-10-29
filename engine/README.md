@@ -22,7 +22,8 @@ from cellsim import CellSim
 sim = CellSim(seed=1)              # Setup 2, the only setup
 sim.advance(3600)                  # one hour of simulated time
 sim.inject_undersized()            # disturbances: also inject_glitch(cp), toggle_sensor_fault(cp),
-                                   # inject_bad_frame(), inject_camera_failure(), inject_grip_miss()
+                                   # inject_bad_frame(), inject_camera_failure(), inject_grip_miss(),
+                                   # inject_guard_band(), inject_master_fault()
 sim.advance(600)
 print(sim.state("R2"), sim.kpis())
 sim.press("qh")                    # HMI buttons: verify, resume, clear, qh, swap, load

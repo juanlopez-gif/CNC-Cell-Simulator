@@ -183,7 +183,8 @@ function conformance(trace, setup) {
               else if (k < 0.6) { document.querySelector('#btnBadFrame').click(); inj('bad frame'); }
               else if (k < 0.7) { document.querySelector('#btnCamFail').click(); inj('camera failure'); }
               else if (k < 0.85) { document.querySelector('#btnGripMiss').click(); inj('grip miss'); }
-              else { document.querySelector('#btnUnder').click(); inj('undersized part'); }
+              else if (k < 0.95) { document.querySelector('#btnUnder').click(); inj('undersized part'); }
+              else { document.querySelector('#btnMaster').click(); inj('master check out of tolerance'); }
             }
             // the operator is sometimes away: the input pallet runs empty (Robot 1 waits in W1)
             if (run.faults && rnd() < 0.003) { S.autoOp = !S.autoOp; inj(S.autoOp ? 'operator back' : 'operator away'); }

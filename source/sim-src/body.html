@@ -90,8 +90,10 @@
           <div class="bs">
             <button type="button" class="btn" id="btnGripMiss">Robot 1 misses a pick</button>
             <button type="button" class="btn" id="btnUnder">Next part undersized</button>
+            <button type="button" class="btn" id="btnBand">Next part in the guard band</button>
+            <button type="button" class="btn" id="btnMaster">Master check out of tolerance</button>
           </div>
-          <p id="underNote">The gauge measures every part; any dimension below 48.00 mm goes to the NOK chute. Two NOK parts in a row trigger a quality hold.</p>
+          <p id="underNote">The gauge measures every part; any dimension below 48.05 mm (limit 48.00 + guard band 0.05) goes to the NOK chute. Two NOK parts in a row trigger a quality hold.</p>
         </div>
         <div class="grp">
           <h3>Operator</h3>

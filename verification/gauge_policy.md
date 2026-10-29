@@ -2,7 +2,7 @@
 
 Prepared on 2026-10-28 (PROJECT_STATUS.md §15, A2.2). The alternatives of each point were presented to
 the author with their consequences; the author chose the recommended set as a whole. The specification
-is summarized in PROJECT_STATUS.md §5.14 and logged in §17. **Not yet implemented in the model** (§5).
+is summarized in PROJECT_STATUS.md §5.14 and logged in §17. **Implemented in the model on 2026-10-29** (§5; how: PROJECT_STATUS.md §5.14).
 
 ## 0. Decision (2026-10-28)
 
@@ -92,7 +92,7 @@ and the linearity not yet confirmed.
 A part this close to the limit points to tool wear, so it counts for the quality hold. An early
 tool-wear warning (for example below 49.5 mm) belongs to A6 (tool wear) and is noted there.
 
-## 5. What changes in the model (to implement)
+## 5. What changes in the model (implemented 2026-10-29)
 
 1. `RULES`: `minSize` 48.0 stays the specified limit; new `guardBand` 0.05 (accept from
    `minSize + guardBand`), `masterTol` 0.010, `masterEveryH` 4, `validRange` [45, 52].
