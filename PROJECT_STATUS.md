@@ -812,10 +812,11 @@ The planned order of the next steps is in §15.
 
 ## 15. Roadmap
 
-Decided on 2026-10-23, revised the same day after an external review (see §17). Three phases, in
-this order: a solid, demonstrable and honestly scoped base (A), the generalization (B), the factory
-(C). Every step keeps the rule of §4.1 (the model is the only source), has a "done when" criterion,
-and ends with every check of §11 green. Effort figures are indicative only.
+Decided on 2026-10-23, revised the same day after an external review; phases B and C rewritten on
+2026-10-29 (see §17). Three phases, in this order: a solid, demonstrable and honestly scoped base
+(A), the element framework (B), the factory and its scheduling (C). Every step keeps the rule of
+§4.1 (the model is the only source), has a "done when" criterion, and ends with every check of §11
+green. Effort figures are indicative only.
 
 ### How we keep to the plan
 
@@ -845,8 +846,8 @@ and ends with every check of §11 green. Effort figures are indicative only.
 | A4 Timed verification (UPPAAL) | Not started | | |
 | A5 Studies with the Python engine | Not started | | |
 | A6 More realistic plant | Not started | | |
-| B Generalization (cell template) | Not started | | |
-| C Factory | Not started | | |
+| B Element framework (types, three levels of detail) | Not started | | |
+| C Factory and scheduling | Not started | | |
 
 Numbering note: the first version of this roadmap (commit `31bff5e`) called the base tasks (remove
 Setup 1, CI, one build command, `submission/`) "A0". On 2026-10-23 they became **A1**, and A0 became
@@ -985,24 +986,159 @@ CNC alarms and `CNC.ready` going false; the `VERIFY.fail` path; an explicit safe
 more likely over time. Each item adds signals, plant readers in both simulators, a fault class in
 the verifier, properties, and regenerated PLC code.
 
-### Phase B — Generalization
+### Phase B — Element framework (rewritten 2026-10-29, see §17)
 
-- The Setup 2 cell becomes a **template with parameters**, instantiated N times with its own tags.
-- The configuration is data: instances, connections (buffers, conveyors), layout, and **part
-  types** (dimensions, tolerances, process time per station, route).
-- No fixed setup branches remain in the simulator, the verifier, the Python engine or the PLC
-  generator.
+**Goal.** Turn the project from one modelled cell into a framework that describes, simulates,
+verifies and programs **different kinds of factory elements** from data. A cutting cell, a truck
+dock or a packaging station are examples of element types, not fixed choices: adding a new kind of
+element must need only a new type module and configuration, never changes to the generators.
 
-Done when: one instance of the template gives exactly the same traces, state counts, verdicts and
-PLC code as the Setup 2 cell before the change.
+**Three levels of detail.** Not every element is modelled like today's cell:
 
-### Phase C — Factory (future)
+| Level | What it models | What it is for | Examples |
+|---|---|---|---|
+| **N1 Control** | State machines, sensors, faults, PLC code (today's cell) | Safety, formal verification, PLC generation | Machining cell, a second process cell |
+| **N2 Station** | Black box: process-time distribution, capacity, setups, failures and repair times, quality rate | Fast performance simulation | The same cells seen from outside; washing, packaging |
+| **N3 Flow** | Sources, sinks, queues, transport, orders | Logistics and scheduling | Truck arrivals, docks, stores, AGVs, customer orders |
 
-A second CNC served by the same robot; a process before and after, with buffers; several part
-types with their routes; three more lines in parallel; a factory overview with zoom into each cell;
-verification per cell template with its buffer interface and of the factory as an abstract model of
-black-box cells, plus long simulation; factory studies; one generated PLC program per cell plus a
-coordinator.
+**Derivation rule.** Where an element has a lower level, the upper level is derived from it, not
+invented: N2 times, failure and repair distributions come from runs of the N1 model (A2.3, A5), and
+N2 guarantees come from its verification. Values that are not derived are marked as estimates.
+
+**What an element type declares** (one catalogue entry):
+
+- parameters (times, capacities, rules, part types it accepts);
+- ports: material in and out (with the item type) and signals to the coordinator (running,
+  stopped, faulted, counts, job requests it accepts);
+- the levels it offers, and for each level: N1 — machines, signals, sensors, jobs, properties,
+  fault classes, the plant behaviour of each job in both simulators, figures; N2 — timing, failure,
+  setup and quality model; N3 — arrival, schedule or queue behaviour;
+- KPIs it reports;
+- an **interface contract**: what it guarantees at its outputs and what it assumes at its inputs.
+
+**Configuration as data.** Element instances (type, level, parameters, tag prefix such as
+`C1.PE-41`), connections (a graph), item and part types (dimensions, tolerances, routes, process
+times per element type) and layout.
+
+**Steps**
+
+1. **B1 Core and schema** (written in this file before any code). Separate the generic core (guard
+   language, machine format, jobs, `lint()` with the list of valid signals supplied by each type,
+   explicit search, NuSMV export, diagram generator, PLC generator) from what is specific to the
+   machining cell. Define the element-type format, ports and contracts, the three levels and the
+   configuration format. Check the design on paper against at least three other types (for example
+   a washing station, a truck dock and an AGV) without implementing them.
+   Done when: written here and approved by the author.
+2. **B2 Refactor.** The machining cell becomes the first type on the core, with
+   `config/setup2.json`. No behaviour change.
+3. **B3 Equivalence.** Done when traces, state counts, verdicts, `.smv` files and generated PLC code
+   are byte-identical to before B and the regression reference is unchanged. **Nothing new is added
+   before B3 passes**, so that a difference can only come from the refactoring.
+4. **B4 Parametric variant.** The machining cell with other process times (for example CNC 90 s
+   and 180 s) and a second part type, by configuration only.
+   Done when: every check passes, each variant has its own verification and regression reference,
+   and no code changed.
+5. **B5 A second, structurally different N1 type.** A process cell with other machines, fewer
+   sensors (for example no camera, so no cross-check supervisor) and its own faults and properties.
+   The bar-cutting cell (bar feeder, saw, chute to a buffer) is the working example; the author
+   chooses the type and its equipment at the start of B5 from alternatives with their consequences.
+   Done when: verified (every property, no deadlock), simulated in both simulators with parity, PLC
+   code generated, figures drawn, and a comparison of which faults its sensors no longer detect.
+6. **B6 N2 derivation.** An N2 station model of the machining cell derived from its N1 model
+   (process time, failure and repair distributions from Python engine runs; guarantees from the
+   verification).
+   Done when: the N2 and N1 runs of the same scenarios agree on throughput and lost time within a
+   stated tolerance.
+7. **B7 N3 elements and a mini line.** A source (arrivals), a buffer and a sink; a mini line
+   connecting the B5 cell → buffer → machining cell (or one B5 cell feeding two machining variants),
+   with tags per instance. Interface verification: each type verified once per parameter set; the
+   contract checked at every connection; a small abstract model of a buffer and its two neighbours
+   verified for deadlock (blocking and starving). Line KPIs: throughput, buffer occupancy, blocking
+   and starving per cell.
+   Done when: a long simulation runs without violations and the interface checks pass.
+8. **B8 Line view.** The browser simulator shows the line and zooms into each element.
+   Done when: the browser tests pass.
+
+Done when (phase B): B1–B8 meet their criteria, the documents describe the framework, and a new
+element type needs only a type module and configuration.
+
+Consequences for phase A: the A3 PLC generator is written from the structure of the machines, not
+from the names `R1`, `CONV`, `R2`, `SUP`; the A2.4 KPI definitions are written so that they extend to
+lines and factories.
+
+### Phase C — Factory and scheduling (rewritten 2026-10-29, see §17)
+
+**Goal.** A simulated factory, built from the catalogue of phase B, as a playground for
+**optimization and scheduling**. The planner can be aggressive because each cell protects itself:
+it only accepts commands that its verified logic allows.
+
+**Reference factory** (illustrative; the concrete elements are chosen when each step starts):
+
+```
+customer orders (part type, quantity, due date) ──► PLANNER (optimization)
+inbound trucks ─► docks ─► receiving ─► raw-material store ─► preparation (e.g. cutting)
+  ─► buffer ─► machining cells (several part types and times) ─► washing / deburring (optional)
+  ─► packaging (boxes per order, labelling, palletizing) ─► finished-goods store
+  ─► shipping docks ─► outbound trucks (with a timetable)
+internal transport (AGVs, forklifts) and operators as shared resources
+```
+
+**Element families**
+
+| Family | Types | Typical level | Key behaviour |
+|---|---|---|---|
+| Sources | inbound trucks, customer orders | N3 | random or scheduled arrivals, variable content |
+| Docks | receiving, shipping | N3 | n doors, loading and unloading times, truck queue |
+| Stores | raw material, finished goods | N3 | capacity, locations, FIFO/FEFO |
+| Processes | cutting, machining, washing, inspection, assembly | N1 or N2 | times, setups, faults, quality |
+| Buffers | queues, pallets, chutes | N2/N3 | capacity; blocking and starving |
+| Transport | conveyors, AGVs, forklifts | N2/N3 | routes, speed, shared fleet, traffic |
+| Packaging | boxing, labelling, palletizing | N2 | batches per order; waits for all parts of an order |
+| Shared resources | operators, technicians, AGVs | N3 | shifts, assignment, travel times |
+| Sinks | outbound trucks, scrap / NOK | N3 | departure times; penalty for a late order |
+
+**Principles**
+
+1. **Built in layers.** First a complete flow skeleton at N2/N3, so that scheduling can start early;
+   then N1 detail only where the studies show that it changes decisions. Derived numbers replace
+   estimates as they become available.
+2. **Safety and performance separated.** The planner talks to cells only through their ports (job
+   requests the cell accepts). No planner can cause a collision or a deadlock inside a cell.
+3. **What is verified formally:** the cell types (N1), the coordination protocols (AGV traffic, dock
+   allocation, pallet exchange between areas) and the interface contracts. Performance and plan
+   quality are measured by simulation (many seeds, confidence intervals), not proved.
+4. **Fair comparison.** Every optimization method is compared with dispatching-rule baselines on
+   the same scenarios, seeds and fault patterns.
+
+**Steps**
+
+1. **C1 Flow skeleton.** Every area of the reference factory as N2/N3 elements in the Python engine;
+   orders with part type, quantity and due date; factory KPIs: on-time delivery, tardiness, lead
+   time, WIP, throughput, utilization, OEE per cell, cost (overtime, trucks leaving partly empty).
+   Done when: a multi-day simulation runs with baseline rules and reports the KPIs.
+2. **C2 Planner interface.** An interface in the engine through which a planner sees the state
+   (queues, orders, element states) and issues decisions (order release, assignment, sequence, dock,
+   transport, staffing), usable as a Gym-style environment. Baseline rules: FIFO, SPT, EDD, shortest
+   queue, CONWIP.
+   Done when: the baselines run through the interface and give reproducible KPIs.
+3. **C3 Scheduling problems**, one at a time, each as baseline versus optimized: order release and
+   sequencing on parallel non-identical cells with setups (CP-SAT / MILP, metaheuristics); dock
+   scheduling; AGV dispatching and routing; packaging batches against truck departures; operator
+   assignment; maintenance timing (tool wear, A6); reactive rescheduling after faults.
+   Done when (each problem): a study with scenarios, seeds, confidence intervals and a written
+   conclusion.
+4. **C4 Learning-based control** (optional). Reinforcement learning in the C2 environment, with the
+   cells' safety as a shield; compared with C3.
+5. **C5 Coordination verification.** Abstract models of the coordination protocols verified for
+   safety and deadlock; contracts checked at every connection.
+6. **C6 Detail where it matters.** Replace N2 elements by N1 types where C3 shows that it changes
+   decisions; one generated PLC program per cell plus a coordinator that turns the planner's
+   decisions into commands to the cell PLCs.
+7. **C7 Factory view.** Overview with zoom: factory → area → element → state machine.
+
+Phase C is open-ended: each step has its own "done when", and every result states its assumptions
+and the level of detail of each element. Out of scope unless decided later: real ERP/MES integration
+and real hardware.
 
 ### How to run each step with the agent
 
@@ -1052,3 +1188,4 @@ Newest last. Every change to the plan or to a design rule is written here first 
 | 2026-10-28 | **A2.1 camera policy decided by the author** on the evidence of `verification/camera_policy.md`: CP-1 camera, CP-2 absent, CP-3 absent, CP-4 absent, CP-5 present (§5.3). Four FAULT-recovery changes applied with it (CP-2 absent is safe only with them; confirmed explicitly by the author on 2026-10-28, after the decision): B7 pre-check and place only `when: 'GR-21B'`, E2 pick only `when: '!GR-51'`, E3 gauge load only `when: 'GR-51'`, conveyor start-up checks repeated `until` clear. New property P11. Every verification run with sensor faults includes the PLC confirmation timeouts. The HMI offers "clear fault" during a line stop (a robot in FAULT parks only after it is cleared) | With camera errors modelled, "the camera decides" failed P6 at CP-4, and the repetition of a state after a FAULT repeated a place, pick or load already done (P5, P11, a livelock). With the decided rules and the changes every property holds with one wrong source at every checkpoint (§9.3). Cost, reported to the author after the decision: with a dead proximity sensor up to 3 FAULTs before the line stop; 12.4 instead of 4.0 FAULTs cleared and 1.1 % fewer good parts per 8 h in random runs |
 | 2026-10-28 | Branch `a2-design-gaps` brought from the cloud session (git bundle) and pushed to GitHub; the checks pass locally with Google Chrome; figures 3, 4 and 7 re-rendered with Chrome. NuSMV cross-check of the five A2.1 models started locally | Infrastructure only, no change to the steps of the plan |
 | 2026-10-28 | **A2.2 gauge policy decided by the author**, the recommended set as a whole (`verification/gauge_policy.md`, §5.14): 3-2-1 nest tilted to the datum corner with air blow-off, one laser per axis; `size = 50.000 + (d_master − d_part)`, readings outside 45–52 mm invalid; master cube at start-up, after every sensor verification, every 4 h and after a gauge FAULT, accepted at 50.000 ± 0.010 mm; U = 0.05 mm (k = 2, estimated); OK only if L, W, H ≥ 48.05 mm (guard band inside the tolerance, ISO 14253-1), a part in the band is NOK and counts for the quality hold; no upper limit. To be implemented in the model next. An early tool-wear warning is placed in A6 | The tolerance (2 mm) is about forty times the estimated uncertainty, so the conservative rule rejects practically no good part; rejecting in the band adds no state to the machines; recalibration every 4 h bounds drift at < 0.1 % of production |
+| 2026-10-29 | **Phases B and C rewritten** (§15). B becomes the element framework: a generic core, a catalogue of element types described by data, three levels of detail (N1 control, N2 station, N3 flow) with N2 derived from N1 where it exists, ports and interface contracts; steps B1–B8. The equivalence with Setup 2 is kept (B3) and comes before anything new; a structurally different second process cell (bar cutting as the working example, the type chosen by the author at B5), a parametric variant with other times, N2 derivation and a mini line. C becomes the factory for **optimization and scheduling**: a reference factory from inbound trucks through processes and packaging to outbound trucks, built in layers (N2/N3 skeleton first), the planner separated from cell safety, steps C1–C7. Order A → B → C unchanged. Consequences for A noted under B (generic PLC generator in A3, KPI definitions in A2.4 that extend to lines) | The author's goal for C is to optimize and schedule a whole factory with many kinds of elements (trucks, packaging, transport), not copies of one cell; a parametric cell template alone would not support it. Three levels of detail keep the factory tractable, and deriving the upper levels from verified lower ones keeps its numbers traceable. The project is a personal one without a deadline, so the larger B is accepted |
