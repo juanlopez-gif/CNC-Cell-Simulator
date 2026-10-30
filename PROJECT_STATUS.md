@@ -47,7 +47,8 @@ reference behind it.
 | Time sources and intervals (§5.1.1) | Yes (A2.3, approved by the author 2026-10-30) | Yes (merged into `main` 2026-10-30): `TKIND`, `TSRC`, `TRANGE` in the model, checked by `lint()`; nominal values unchanged |
 | KPI definitions: five measures, time lost by cause (§5.15) | Yes (A2.4, 2026-10-30) | Yes (merged into `main` 2026-10-30): `CellSim.measures()` and `engine/kpi_report.py` |
 | Pallet capacity and combined faults (§9.1, `verification/pallet_capacity.md`) | Yes (A2.5, 2026-10-30) | Yes (merged into `main` 2026-10-30): `slots: 'any'` and the counter game in `cell-verify.js`, `verify_pallet.js`; `verify.js` still runs capacity 2 |
-| Roadmap A1–A6, B, C (§15) | Yes | A0 and A1 done; A2 done and merged into `main` (2026-10-30); progress table in §15 |
+| PLC execution semantics (§5.16) | Proposed (A3.1, 2026-10-30), pending the author's review | No: no code until it is approved |
+| Roadmap A1–A6, B, C (§15) | Yes | A0 and A1 done; A2 done and merged into `main` (2026-10-30); A3 in progress in branch `a3-plc`; progress table in §15 |
 
 ---
 
@@ -618,6 +619,111 @@ quality hold cost no CNC time in these runs (single undersized parts, released w
 test `test_kpi_measures` shows that it is charged when it does. The disturbance rates are chosen to
 exercise the logic, not measured: these ranges are not a forecast of a real cell.
 
+### 5.16 PLC execution semantics (A3.1, proposed 2026-10-30, pending the author's review)
+
+How the generated Structured Text (A3.2) runs the machines of §5.8 on a scanning PLC. The
+simulators run every machine until nothing moves at an instant (zero time per state change); the
+verifier interleaves single steps, with the supervisor `urgent`. The PLC must behave as **one of the
+interleavings the verifier explored**, so that the verified properties still apply to it. Every
+point below says how it keeps that.
+
+**1. Scan cycle.** One cyclic task, interval **10 ms** (`TASK MAIN (INTERVAL := T#10ms)`):
+
+1. Read the inputs into the process image: sensors, robot and device handshakes, camera results,
+   HMI buttons (from the Modbus bridge, A3.3). They do not change during the scan.
+2. Input processing: debounce (`RULES.debounce`, 0.05 s, as a `TON` per sensor), latch the HMI
+   buttons and the pulse inputs (point 6), mismatch window and timers (point 5).
+3. Execute, in this fixed order: `SUP`, `R1S2`, `SUP`, `CONV`, `SUP`, `R2S2`, rungs (`RUNGS`), `SUP`.
+4. Write the outputs: job commands, belt motor, camera triggers, lights (`OUTPUTS`).
+
+**2. The supervisor runs after every machine.** `SUP` is `urgent` in the model: once a check
+raises `mismatches` or `CAM_FAULT`, no other machine may take a step before the supervisor has
+reacted. Calling it once at the end of the scan would let `CONV` and `R2S2` act in between, a run
+the verifier never explored. Calling it after each machine (it costs microseconds) gives exactly
+the verifier's rule. The "never" properties (§5.11) are evaluated at the end of the scan, which is
+a stable state.
+
+**3. One state change per machine per scan.** Each machine is a function block with a `CASE` on
+its state. In one call it may: run the steps of its state that do not wait (`set`, `inc`, a step
+whose `when` is false) in order; stop at the first step that waits (`job`, `check`, `await`); or,
+once all steps are done, take the first transition of `next` whose guard holds and enter the new
+state. Choice states (§5.8) are passed in the same call. The steps of the new state start in the
+next call. A state change thus costs at most one scan (10 ms), against zero in the simulators.
+
+**4. What a guard sees.** Sensors and inputs: the process image of this scan. PLC variables
+(`partPlaced`, `pickAllowed`, `QH`, …) and machine states: the current value, including a value
+written earlier in the same scan by a machine called before (the order of point 1.3; each such
+write is one step of the interleaving). A machine reads its own check results only (§5.5).
+
+**5. Timers** (`TON`, resolution one scan):
+
+| Model element | PLC |
+|---|---|
+| Confirmation timeout of a non-`wait` state (`RULES.confirmTimeout`) | `TON` started when the steps of the state are done, reset on every state change; expired → F naming the missing signal |
+| `for: <T key>` on a transition | `TON` on the guard; resets when the guard goes false |
+| State `faults: [{ after, when }]` (belt: no ENC-43 pulses, no PE-42) | `TON` from state entry, gated by `when` |
+| Check settle (`T.check`) and re-trigger (`RULES.retrigger`) | `TON` inside the check step |
+| Mismatch window (600 s, limit 3) | Ring of the last 3 event times on the PLC clock; events older than 600 s dropped in input processing; `mismatches` = number left |
+| `GAUGE.due` (4 h since the last passed master check) | A sensor in the model and a plant process in the simulators; **a PLC timer** here (`TON` 4 h, restarted by a passed master check). Same behaviour; the bridge does not send it |
+
+A timeout fires up to one scan late; with the smallest model time at 0.05 s this is acceptable.
+
+**6. Job handshake and latched inputs.** Every job of `JOBS` (robot programs and device commands:
+`DOOR.lock`, `CNC.start`, `GAUGE.measure`, `GAUGE.master`) uses the same four-phase handshake with
+the plant: the PLC sets `JobNo` and `Start`; the plant answers `Busy`, then `Done`; the PLC sees
+`Done`, evaluates the step's `confirm` on the same process image and drops `Start`; the plant drops
+`Done` when `Start` is low. `Done` is held by the plant until acknowledged, so it is never missed
+between scans. The "at start of job" properties (P2, P4–P8, P11, P12) are evaluated in the scan
+that sets `Start`. Pulse inputs that may be shorter than a scan (`PE-65`, the NOK part falling
+through the beam) are latched on the rising edge and cleared when a transition reads them; HMI
+buttons are latched as in the simulators (`HMI.verify`, `HMI.reset`, `HMI.release` until consumed).
+`ENC-43` comes from the bridge as a Boolean (a real cell would use a high-speed counter and a speed
+limit).
+
+**7. Check step** (`check: CP-n`): wait `T.check` to settle (not when `quick`); latch the proximity
+value and set the camera trigger in the same scan; when the camera answers, compare: agree → the
+fact; disagree → the rule of §5.3 and a mismatch event; invalid image → one re-trigger after
+`RULES.retrigger`, a second invalid image → `CAM_FAULT`, and the check is repeated after the line
+stop (§5.8). The result goes to the machine's own `res_<machine>_<CP>`.
+
+**8. Hold and fault.** As §5.8, with the resume point stored in the function block: H stores the
+pending target (hold at a transition), or the state (hold while waiting: entered again), or the
+step index (camera fault: the check is repeated); robots run their `park` job in H. F drops
+`Start`, keeps every output that holds a part or a door as it is, and turns the belt motor off;
+after `HMI.clear` the state is entered again from its first step (§5.8, made safe by the A2.1
+changes). No automatic retries.
+
+**9. Restart and loss of communication.**
+
+- **Heartbeat**: the bridge toggles a bit every cycle of its own (10 ms); no toggle for 0.5 s =
+  communication lost: no new job starts, belt motor off, every machine with a job running goes to
+  F ("communication lost"), red light on. When the heartbeat returns, the operator clears the
+  faults as usual.
+- **Cold restart** (PLC power-up or program download): every machine to its initial state
+  (start-up checks B0, E0, the conveyor's initial checks), every variable to its initial value,
+  except **`QH` and `consecNok`, which are `RETAIN`**: a power cycle must not release a quality
+  hold. `GAUGE.zeroed` starts false, so the master check is repeated at start-up (E0 does it
+  anyway).
+
+**10. Why the verified properties still apply.** Inputs are frozen during a scan, so a scan is a
+sequence of single steps of the machines in a fixed order, with the supervisor reacting after each
+(points 2–4): a path of the verifier's model in which the plant does not move between two of these
+steps. Hence the safety properties and deadlock freedom shown by the search hold for the PLC logic
+as far as the abstraction holds. What the abstraction does not cover: the scan and communication
+delay between a reading and the command it causes (P5, for example, is checked on the image of the
+scan that starts the job), the handshake itself, and every timer (the verifier is untimed: A4).
+This is standard PLC logic, not a safety PLC: the door guard lock and the area scanners belong to a
+safety controller, which is not modelled.
+
+**11. Consequence for the comparison of A3.4.** Each state change can come later than in the
+simulators by one scan plus the handshake latency (point 6: about two scans and two bridge cycles
+per job). The comparison therefore checks the sequence of state changes and the delay of each
+change relative to the previous one, not absolute instants (the lag accumulates over a cycle).
+
+Decisions for the author: scan interval (10 ms), the supervisor after every machine (point 2), one
+state change per machine per scan (point 3), `GAUGE.due` as a PLC timer (point 5), the behaviour on
+loss of communication and the `RETAIN` set (point 9).
+
 ---
 
 ## 6. Browser simulator (`source/sim-src/app.js`)
@@ -1009,7 +1115,7 @@ green. Effort figures are indicative only.
 | A0 Claims and assumptions stated | Done | `main` | 2026-10-23 |
 | A1 Base: Setup 2 only, CI, one build | Done | `a1-base` → `main` | 2026-10-23 |
 | A2 Design gaps: camera policy, gauge, times, KPIs, faults | Done: A2.1 (2026-10-28); A2.2 (2026-10-29); A2.3 times, A2.4 KPIs, A2.5 faults (2026-10-30). Merged into `main` 2026-10-30 | `a2-design-gaps` → `main` | 2026-10-30 |
-| A3 PLC demonstration | Not started | | |
+| A3 PLC demonstration | In progress: A3.1 execution semantics proposed (2026-10-30), pending review | `a3-plc` | |
 | A4 Timed verification (UPPAAL) | Not started | | |
 | A5 Studies with the Python engine | Not started | | |
 | A6 More realistic plant | Not started | | |
@@ -1367,3 +1473,4 @@ Newest last. Every change to the plan or to a design rule is written here first 
 | 2026-10-30 | **A2.4 KPI definitions** (§5.15), chosen by Claude within the plan: the five measures over a whole run in the Python engine (`CellSim.measures()`, `engine/kpi_report.py`); time not machining charged to one cause per instant in the order start-up > fault > line stop > quality hold > material shortage > pallet change > exchange, each read from the model (machine in FAULT, `HOLD.req`, `QH`, R1 in W1, R2 in E7); `kpis()` left unchanged so that the regression stays comparable; report for nominal and five seeded runs with faults | One cause per instant makes the causes add up to the time not machining with no double counting; reading the causes from the model's states keeps them the same in every simulator. Finding: with the disturbances of `run_random` the losses come mostly from the absent operator (pallets), not from the cross-check or the gauge |
 | 2026-10-30 | **A2.5 fault coverage**, done by Claude within the plan: output pallet of any capacity as an abstract count (`slots: 'any'`) and a counter game for L1–L3 in the verifier; capacity 3 run in three of the five runs; `faults: 'all'` documented as out of reach (about 1.4 × 10⁹ states) and the largest combined run reached instead (every class except undersized parts, all 15 properties hold). `verify.js` and the published NuSMV models stay at capacity 2. **Step A2 done** (`verification/pallet_capacity.md`) | The plan asks for the argument to carry the case of 12, not a capacity-3 run; the abstraction proves it for safety with no extra states. `all` needs about 140 GB with the explicit search. Changing the default to `'any'` would change the published models and need a new NuSMV cross-check of more than 12 h: left to the author |
 | 2026-10-30 | **A2.5 accepted by the author** with Claude's three recommendations: (1) `faults: 'all'` stays out of reach and is not planned (sensor faults with undersized parts alone are about 1.2 × 10⁹ states; reaching it needs another technique, such as partial-order reduction or disk-based search); (2) `verify.js` keeps capacity 2 for now and moves to `slots: 'any'` at the next NuSMV re-run that a model change requires anyway (expected in A3), with a longer `NUSMV_TIMEOUT` to close P11 and P12 of `sensor_camwrong`; (3) `a2-design-gaps` merged into `main` after the full checks (`npm run check`, `npm test`, `npm run regress`, Python tests, all green) | The proof for any capacity is already in `verification/pallet_capacity.json`; changing the published models now costs a NuSMV cross-check of more than 12 h for no new result. The merge publishes the A2 simulator on GitHub Pages |
+| 2026-10-30 | **A3 started; A3.1 execution semantics proposed** (§5.16), pending the author's review. Proposed by Claude: one 10-ms cyclic task (read inputs, fixed order `SUP`, `R1S2`, `SUP`, `CONV`, `SUP`, `R2S2`, rungs, `SUP`, write outputs); the supervisor after every machine; one state change per machine per scan; a four-phase handshake for every job; `TON` timers, the mismatch window as a ring of event times, `GAUGE.due` as a PLC timer; latched pulse inputs; heartbeat with the bridge (0.5 s) and F on loss; cold restart to the initial states with `QH` and `consecNok` retained | A scan must be one of the interleavings the verifier explored for the verified properties to carry over to the PLC; calling the supervisor only at the end of the scan would break its `urgent` rule. A power cycle must not release a quality hold |
