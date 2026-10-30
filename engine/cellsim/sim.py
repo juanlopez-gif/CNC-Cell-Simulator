@@ -18,6 +18,8 @@ from .model import load, plain
 
 INF = float("inf")
 EPS = 1e-9
+# causes of CNC time not machining, in the order of priority used by CellSim._loss_cause (A2.4)
+LOSS_CAUSES = ("start-up", "fault", "line stop", "quality hold", "material shortage", "pallet change", "exchange")
 
 # Belt geometry. The browser simulator draws the belt 361 px long; the PLC sees a part at the entry
 # (CP-2) in the first 30 px and at the end stop (CP-3) in the last 12 px. Here the same zones in metres.
@@ -133,7 +135,8 @@ class CellSim:
         self.ok_parts = 0
         self.nok_parts = 0
         self.stats = {"run_time": 0.0, "first_start": None, "last_idle": None, "idle_sum": 0.0, "idle_n": 0,
-                      "idles": [], "cycles": 0, "mismatches": 0, "stops": 0, "jobs": 0, "violations": 0}
+                      "idles": [], "cycles": 0, "mismatches": 0, "stops": 0, "jobs": 0, "violations": 0,
+                      "lost": {c: 0.0 for c in LOSS_CAUSES}}
         for i in range(3, 12):
             self._add_part("raw", {"k": "in", "slot": i})
         for i in range(0, 8):
@@ -254,6 +257,43 @@ class CellSim:
             "mismatches": st["mismatches"], "line_stops": st["stops"], "jobs": st["jobs"],
             "property_violations": st["violations"],
         }
+
+    def measures(self):
+        """The KPI measures of step A2.4 over the whole run (PROJECT_STATUS §5.15).
+
+        Every instant in which the CNC is not machining is charged to one cause, the first of
+        LOSS_CAUSES that applies at that instant (see _loss_cause)."""
+        st, h = self.stats, self.t / 3600
+        lost = dict(st["lost"])
+        nominal = self.M.KPI["idle2"]
+        return {
+            "sim_time_h": h,
+            "nominal_exchange_idle_s": nominal, "baseline_exchange_idle_s": self.M.BASELINE["idle"],
+            "mean_cnc_idle_s": st["idle_sum"] / st["idle_n"] if st["idle_n"] else None,
+            "machining_s": st["run_time"], "not_machining_s": self.t - st["run_time"],
+            "machining_share": st["run_time"] / self.t if self.t else None,
+            "parts_out": self.ok_parts + self.nok_parts, "good_parts": self.ok_parts,
+            "parts_per_hour": (self.ok_parts + self.nok_parts) / h if h else None,
+            "good_parts_per_hour": self.ok_parts / h if h else None,
+            "lost_s": lost,
+            "exchange_beyond_nominal_s": lost["exchange"] - st["idle_n"] * nominal,
+        }
+
+    def _loss_cause(self):
+        """Why the CNC is not machining now: the first cause that applies."""
+        if self.stats["first_start"] is None:
+            return "start-up"
+        if any(self.faults.values()):
+            return "fault"
+        if self.ev("HOLD.req"):
+            return "line stop"
+        if self.vars["QH"]:
+            return "quality hold"
+        if self.mch["R1"]["state"] == "W1":
+            return "material shortage"
+        if self.mch["R2"]["state"] == "E7":
+            return "pallet change"
+        return "exchange"
 
     # ================================================================== scheduler
     def spawn(self, gen, name=""):
@@ -1176,6 +1216,8 @@ class CellSim:
                     p.loc["x"] = min(BELT_LENGTH, p.loc["x"] + b["v"] * h)
         if self.cnc["state"] == "RUN":
             self.stats["run_time"] += h
+        else:
+            self.stats["lost"][self._loss_cause()] += h
         self._prune_window()
 
     # ================================================================== log

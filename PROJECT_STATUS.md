@@ -15,21 +15,21 @@ reference behind it.
 | Live simulator | https://juanlopez-gif.github.io/CNC-Cell-Simulator/ (GitHub Pages from `main`, root `index.html` redirects to `simulation/`) |
 | Scope | **Setup 2 only** (dual gripper on Robot 1, gauge and NOK sorting on Robot 2) since step A1 |
 | Branch `main` | Step A1 merged (Setup 2 only, CI, one build command, regression references) |
-| Branch `a2-design-gaps` | Step A2 in progress (A2.1 and A2.2 done; A2.3 proposed, pending the author's review). On GitHub since 2026-10-28 (the cloud session had no GitHub access; its work came as a git bundle) |
+| Branch `a2-design-gaps` | Step A2 in progress (A2.1, A2.2, A2.3 and A2.4 done; A2.5 next). On GitHub since 2026-10-28 (the cloud session had no GitHub access; its work came as a git bundle) |
 | Branch `legacy-setup1-setup2` | Commit `1f4b8ad`: the last version with Setup 1 and Setup 2, frozen |
 | Branch `state-machines-as-data` | Commit `6204b09`; history only, no work on it |
 | Continuous integration | GitHub Actions `checks` on every push; `full verification` (NuSMV) by hand (§11) |
 | Toolchain used | Node.js 24, Python 3.11, Google Chrome (headless via puppeteer-core), NuSMV 2.7.1; Windows 11 locally, Ubuntu in CI |
 | Built by | Claude Code (one agent, model Claude Opus 5.5) directed by the author |
 
-### Health check at the end of step A2.2 (2026-10-29, branch `a2-design-gaps`, local)
+### Health check at the end of step A2.4 (2026-10-30, branch `a2-design-gaps`, local)
 
 | Check | Command | Result |
 |---|---|---|
 | Lint and generated files | `npm run check` | lint `[]`; 17 generated files identical to what the sources give |
-| Python engine tests | `python -m unittest test_engine` | 6 tests OK (new: gauge policy) |
+| Python engine tests | `python -m unittest test_engine` | 7 tests OK (new in A2.2: gauge policy; in A2.4: KPI measures) |
 | Browser tests | `npm test` (basic, fault, quality hold, phone width, 20 h conformance, Python parity in 3 scenarios) | all pass, no page errors, no property violation |
-| Regression | `npm run regress` | identical to `regression/setup2_reference.json` (recorded at the end of A2.2; the A2.1 reference kept as `regression/setup2_a21.json`); differences all intended (`regression/README.md`) |
+| Regression | `npm run regress` | identical to `regression/setup2_reference.json` (recorded at the end of A2.2, unchanged by A2.3 and A2.4; the A2.1 reference kept as `regression/setup2_a21.json`); differences all intended (`regression/README.md`) |
 | Exhaustive verification | `npm run verify` | 5 runs, 15 properties (P1–P12, L1–L3) hold, no deadlock (§9.3). NuSMV 2.7.1 agrees on every specification it decided (48 per model) and on the reachable states of all 5 runs; in `sensor_camwrong` P11 and P12 got no NuSMV result within 12 h (run locally, 2026-10-30, §9.4) |
 | Environment of this check | — | local: Node.js 24, Python 3.11, Google Chrome |
 | KPIs | `M.KPI` | idle 20.5 s, cycle 140.5 s, 85.4 % of the cycle machining, 25.6 parts/h; baseline `M.BASELINE` 36.5 s |
@@ -43,8 +43,9 @@ reference behind it.
 | Claims limited to what the evidence shows (§1.1) | Yes | Yes (this revision) |
 | Cross-check rule tested against camera errors | Yes (A2.1, 2026-10-28): rule per checkpoint (CP-1 camera; CP-2, CP-3, CP-4 absent; CP-5 present) and four FAULT-recovery changes | **Yes, in branch `a2-design-gaps`** (not merged): camera false positive, false negative and stale image in the verifier and both simulators; evidence in `verification/camera_policy.md` |
 | Gauge specification: guard band (accept from 48.05 mm), calibration every 4 h, validity range (§5.14) | Yes (A2.2, 2026-10-28) | **Yes, in branch `a2-design-gaps`** (not merged, 2026-10-29): guard band, 4-h master check and gauge FAULT, distance-to-size formula and validity range, air blow-off, in the model, the verifier and both simulators; P12 |
-| Time sources and intervals (§5.1.1) | Proposed (A2.3, 2026-10-30), **pending the author's review** | In branch `a2-design-gaps` (not merged): `TKIND`, `TSRC`, `TRANGE` in the model, checked by `lint()`; nominal values unchanged |
-| Roadmap A1–A6, B, C (§15) | Yes | A0 and A1 done; A2 in progress (A2.1 and A2.2 done, A2.3 proposed); progress table in §15 |
+| Time sources and intervals (§5.1.1) | Yes (A2.3, approved by the author 2026-10-30) | In branch `a2-design-gaps` (not merged): `TKIND`, `TSRC`, `TRANGE` in the model, checked by `lint()`; nominal values unchanged |
+| KPI definitions: five measures, time lost by cause (§5.15) | Yes (A2.4, 2026-10-30) | In branch `a2-design-gaps` (not merged): `CellSim.measures()` and `engine/kpi_report.py` |
+| Roadmap A1–A6, B, C (§15) | Yes | A0 and A1 done; A2 in progress (A2.1 to A2.4 done); progress table in §15 |
 
 ---
 
@@ -81,7 +82,7 @@ formal verification are all generated from or interpret that file.
 | Both simulators follow the model | Conformance runs, 20 h with random faults | Only with the simulated plant and the faults it can inject |
 | 15 properties hold and there is no deadlock | Exhaustive search of the abstract model, 5 runs (nominal, sensor faults, process faults, camera wrong, all sensor faults together; §9.3) | Untimed plant; one source wrong at a time (common mode not modelled); output pallet of 2 slots; sensor and process faults never combined in one run; L1–L3 are AG EF: the goal can always still be reached, not that it will be reached |
 | The search and the NuSMV export agree | Same verdicts on every specification NuSMV decided and same state counts in all 5 runs (48 specifications each; P11 and P12 of `sensor_camwrong` undecided after 12 h, §9.3) | Additional evidence of consistency. Both start from the same intermediate representation (`build()`), so an error made there would be shared |
-| CNC idle 36.5 s → 20.5 s; 23.0 → 25.6 parts/h | Setup 2: sum of nominal step times of the states in the idle band, reproduced by the simulators without faults. Setup 1: fixed baseline numbers (`M.BASELINE`) computed before A1 | Planning estimates, not measurements. Nominal exchange only: excludes material shortage, pallet changes, holds and repairs. Idle time falls 43.8 %, output rises 11.4 %. The 85.4 % is the share of the nominal cycle spent machining, not availability or OEE. With every time at its minimum / maximum at once (§5.1.1): 17 – 27.5 s idle per part |
+| CNC idle 36.5 s → 20.5 s; 23.0 → 25.6 parts/h | Setup 2: sum of nominal step times of the states in the idle band, reproduced by the simulators without faults. Setup 1: fixed baseline numbers (`M.BASELINE`) computed before A1 | Planning estimates, not measurements. Nominal exchange only: excludes material shortage, pallet changes, holds and repairs. Idle time falls 43.8 %, output rises 11.4 %. The 85.4 % is the share of the nominal cycle spent machining, not availability or OEE. Measured over 8 h in the Python engine (§5.15): 25.5 parts/h nominal, 10.9–20.5 good parts/h in five runs with random disturbances, losses mostly from the absent operator. With every time at its minimum / maximum at once (§5.1.1): 17 – 27.5 s idle per part |
 | Removing Setup 1 (A1) did not change Setup 2 | `regression/`: identical KPIs, NuSMV models, browser and Python traces (deterministic and seeded random runs) | Covers the recorded scenarios and the three abstract models, not every possible run |
 | The cross-check rules of §5.3 keep the properties with one wrong source | Exhaustive search with proximity wrong, camera false positive / false negative / stale image at every checkpoint, PLC timeouts included (§9.3); timed study, `verification/camera_policy.md` | One source wrong at a time: both wrong the same way (common mode) is not modelled and no rule detects it. The original rule "the camera decides" was **not** safe: it failed P6 at CP-4, and FAULT recovery failed P5 and P11 (`camera_policy.md` §2–3) |
 | The design is validated for a real cell | — | **Not claimed.** No hardware, no measured times; sensors and prices come from catalogues |
@@ -245,7 +246,7 @@ stateTime, lint`.
 
 `TLABEL` gives each key a readable name for the CNC-idle build-up table.
 
-#### 5.1.1 Sources and intervals (A2.3, proposed 2026-10-30, pending the author's review)
+#### 5.1.1 Sources and intervals (A2.3, approved by the author 2026-10-30)
 
 Every time has a source and a kind in `TSRC`; the kind gives its interval [min, max] as factors of
 the nominal value (`TKIND`, rule per kind chosen by the author on 2026-10-29). Where a datasheet
@@ -573,6 +574,44 @@ How the model implements it (2026-10-29):
 - The master check of the sensor verification (X4, the technician) is in the procedure text at
   ± 0.010 mm but does not restart the 4-h timer (conservative: at most one extra check).
 
+### 5.15 KPI definitions (A2.4, 2026-10-30)
+
+Measured by the Python engine over a whole run (`CellSim.measures()`), reported by
+`engine/kpi_report.py` in `engine/kpi_report.md`.
+
+| Measure | Definition |
+|---|---|
+| Nominal exchange idle | Sum of the nominal step times of the idle band of one part exchange (`KPI.idle2`, 20.5 s; Setup 1 baseline 36.5 s). A design value: no waits, no faults. The measured mean of every CNC idle interval (cycle complete → next CYCLE START) is reported beside it |
+| Time not machining | Run time minus the time the CNC is in RUN. Machining share = RUN time / run time. The 85.4 % of the nominal cycle (120 / 140.5 s) is this share for a nominal exchange; it is **not** availability or OEE (no planned time, no quality or performance factor) |
+| Parts per hour | Parts that left the cell (placed on the output pallet or dropped as NOK) / run hours |
+| Good parts per hour | Parts placed on the output pallet / run hours |
+| Time lost by cause | Every instant in which the CNC is not machining is charged to **one** cause, the first that applies at that instant, so the causes add up to the time not machining: start-up (before the first CYCLE START) > fault (a machine in FAULT) > line stop (`HOLD.req`: line stop or camera fault) > quality hold (`QH`) > material shortage (Robot 1 in W1, no raw part) > pallet change (Robot 2 in E7, output pallet full) > exchange (the normal part change) |
+
+The causes are read from the states and signals of the model, not from the plant. A cause is
+charged while it holds, also when another machine could have hidden it (a FAULT of Robot 2 during a
+normal exchange is charged as fault). "Exchange minus nominal exchange × cycles" shows how much of
+the normal exchange time is beyond the design value; it is negative when another cause was active
+during part of an exchange.
+
+Results (8 h each; nominal and seeds 1–5 of `run_random` with faults, `engine/kpi_report.md`):
+
+| | Nominal | With random disturbances (5 runs) |
+|---|---:|---|
+| Mean CNC idle per part | 20.5 s | 40.6 – 203.1 s |
+| Time not machining | 70.1 min (14.6 %) | 143.9 – 301.7 min (30.0 – 62.9 %) |
+| Parts per hour / good parts per hour | 25.5 / 25.5 | 11.0 – 20.9 / 10.9 – 20.5 |
+| Lost: fault, line stop | 0, 0 | 1.5 – 8.8 min, 0 – 1.0 min |
+| Lost: quality hold | 0 | 0 |
+| Lost: material shortage, pallet change | 0, 0 | 0 – 120.0 min, 1.9 – 176.7 min |
+
+Reading: nominal operation loses nothing beyond start-up (0.4 min) and the nominal exchange, and
+the measured idle equals the model value. With disturbances, the cell logic's own losses (faults,
+line stops) are a few minutes per 8 h; most of the time is lost while the operator is away (input
+pallet empty, output pallet full), which `run_random` switches about every 55 min on average. The
+quality hold cost no CNC time in these runs (single undersized parts, released within 120 s); the
+test `test_kpi_measures` shows that it is charged when it does. The disturbance rates are chosen to
+exercise the logic, not measured: these ranges are not a forecast of a real cell.
+
 ---
 
 ## 6. Browser simulator (`source/sim-src/app.js`)
@@ -621,16 +660,17 @@ sim.inject_undersized()           # also inject_glitch(cp), toggle_sensor_fault(
                                   # inject_bad_frame(), inject_camera_failure(), inject_grip_miss(),
                                   # inject_guard_band(), inject_master_fault()
 sim.press("qh")                   # verify, resume, clear, qh, swap, load
-sim.state("R2"); sim.kpis(); sim.trace; sim.logs; sim.stats; sim.errors  # errors must stay empty
+sim.state("R2"); sim.kpis(); sim.measures(); sim.trace; sim.logs; sim.stats; sim.errors  # errors must stay empty
 ```
 
-- `run.py --hours H --faults --seed N --log N`.
+- `run.py --hours H --faults --seed N --log N`; `kpi_report.py --hours H --seeds N` (A2.4, §5.15).
 - `scenarios.run_random(setup, hours, faults, seed)` (about one disturbance every 14 min) and
   `scenarios.conformance(sim)` (every state change must be a model transition).
 - Tests (`test_engine.py`): export current; nominal idle = KPI every cycle; faulty CP-2 (dead
   PE-41) stops the line at the 3rd mismatch, after at most 3 FAULTs cleared by the operator, and
   verification + reset recover; two undersized parts → quality hold,
-  no cycle start; 4 h random runs conform with no property violation.
+  no cycle start; gauge policy (A2.2); KPI measures add up and charge the right cause (A2.4); 4 h
+  random runs conform with no property violation.
 - Parity: `node source/test_sim.js engine` runs three 1 h scenarios in the browser and in Python
   (`trace.py`): nominal, a dead PE-41 (CP-2) from t = 300 s, and `camwrong` (camera wrong, stale image
   and a proximity glitch at the five checkpoints). It requires identical traces (same changes, same
@@ -865,12 +905,13 @@ Gotchas met before:
 11. **Gauge** (resolved in A2.2, §5.14, `verification/gauge_policy.md`). Open: the uncertainty budget
     is an estimate (no Gauge R&R); the assignment gives only a lower limit; repeated invalid
     readings have no limit (E4 FAULT and repeat); the times `blowOff` and `r2Master` are estimates.
-12. **Times** (sources and intervals proposed in A2.3, §5.1.1, pending the author's review). Open:
+12. **Times** (resolved in A2.3, §5.1.1). Open:
     no value is measured; most are estimates checked only against a datasheet lower limit; the
     intervals are a rule per kind, not distributions; the layout is not to scale, so the base-turn
     limits are indicative; Keyence and SMC figures come from distributors.
-13. **KPIs are nominal.** Idle time counts only the idle-band states of the exchange; waits for
-    material, pallet changes, holds and repairs are not in it. Step A2.4.
+13. **KPIs** (resolved in A2.4, §5.15). Open: the faulty runs use chosen disturbance rates, not
+    measured ones; one cause per instant (priority order) hides overlapping causes; the browser
+    simulator shows only the nominal KPIs.
 14. **Fault coverage.** Sensor and process faults never combined; the 2-slot pallet is argued,
     not proved. Step A2.5.
 
@@ -954,7 +995,7 @@ green. Effort figures are indicative only.
 |---|---|---|---|
 | A0 Claims and assumptions stated | Done | `main` | 2026-10-23 |
 | A1 Base: Setup 2 only, CI, one build | Done | `a1-base` → `main` | 2026-10-23 |
-| A2 Design gaps: camera policy, gauge, times, KPIs, faults | In progress: A2.1 done (2026-10-28); A2.2 done (2026-10-29); A2.3 times proposed (2026-10-30, pending review); A2.4 KPIs next | `a2-design-gaps` | |
+| A2 Design gaps: camera policy, gauge, times, KPIs, faults | In progress: A2.1 done (2026-10-28); A2.2 done (2026-10-29); A2.3 times done (2026-10-30); A2.4 KPIs done (2026-10-30); A2.5 faults next | `a2-design-gaps` | |
 | A3 PLC demonstration | Not started | | |
 | A4 Timed verification (UPPAAL) | Not started | | |
 | A5 Studies with the Python engine | Not started | | |
@@ -1305,3 +1346,5 @@ Newest last. Every change to the plan or to a design rule is written here first 
 | 2026-10-29 | **A2.2 gauge policy implemented** in the model, the verifier and both simulators. Choices made in the implementation, within the decided policy: the master check is done by Robot 2 as conditional first steps of E1 (start-up: in E0) and not as a new state; E1→E2 requires `GAUGE.zeroed`; a failed master check is a gauge FAULT and only a passed one clears the 4-h due flag; the technician's sensor verification does not restart the 4-h timer; new property P12 (a part is measured only after a passed master check) and P11 extended to the master cube; air blow-off valve YV-66; estimated times 0.5 s blow-off and 6 s master check (to be confirmed with hardware); in the verifier the 4-h timer may fire only while Robot 2 is in E5/E6 | A new state for the check did not fit the layout of figure 13 (two rails) and multiplied the state space; E1 is the only place where the check can be done with the nest empty and Robot 2 free. Firing the timer only before E1, its only reader, gives E1 every value of the flag it could see with a timer that fires at any time at ×1.4–1.75 instead of ×2.4–2.9 states. All 15 properties hold in the 5 runs; NuSMV not yet run on these models |
 | 2026-10-30 | NuSMV cross-check of the A2.2 models: every decided specification agrees with the search, states equal in all 5 runs; P11 and P12 of `sensor_camwrong` undecided after the 12-h limit. Recorded as is, not re-run; A2.3 started | The search already proves both properties in that run; the cross-check is additional evidence, and a second run of more than 12 h would hold up A2.3 |
 | 2026-10-30 | **A2.3 times proposed**, pending the author's review (§5.1.1). Rules chosen by the author on 2026-10-29: an interval per kind of time, sources from datasheets of concrete models, result committed as a proposal. Kinds and factors proposed by Claude: robot move or gripper step −10 / +30 %, actuator and I/O handshake ±50 %, belt transport −5 / +10 %, belt ramps ±50 %, sensing −20 / +50 %, CNC cycle ±5 %. Robot 2 keeps the UR10e of the hardware list (a UR5e was mentioned on 2026-10-29 only as an example). Nominal values unchanged. §1.1 brought up to date (15 properties, 5 runs, NuSMV agreement of A2.2) | Robot moves are rarely faster than programmed and often slower; actuators and ramps are set at commissioning and vary most; the CNC program is repeatable. Datasheet lower limits make sure no interval allows a physically impossible time. Changing nominal values would change every KPI and reference: left to the author |
+| 2026-10-30 | **A2.3 approved by the author** as proposed | — |
+| 2026-10-30 | **A2.4 KPI definitions** (§5.15), chosen by Claude within the plan: the five measures over a whole run in the Python engine (`CellSim.measures()`, `engine/kpi_report.py`); time not machining charged to one cause per instant in the order start-up > fault > line stop > quality hold > material shortage > pallet change > exchange, each read from the model (machine in FAULT, `HOLD.req`, `QH`, R1 in W1, R2 in E7); `kpis()` left unchanged so that the regression stays comparable; report for nominal and five seeded runs with faults | One cause per instant makes the causes add up to the time not machining with no double counting; reading the causes from the model's states keeps them the same in every simulator. Finding: with the disturbances of `run_random` the losses come mostly from the absent operator (pallets), not from the cross-check or the gauge |

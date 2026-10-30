@@ -25,7 +25,7 @@ sim.inject_undersized()            # disturbances: also inject_glitch(cp), toggl
                                    # inject_bad_frame(), inject_camera_failure(), inject_grip_miss(),
                                    # inject_guard_band(), inject_master_fault()
 sim.advance(600)
-print(sim.state("R2"), sim.kpis())
+print(sim.state("R2"), sim.kpis(), sim.measures())   # measures(): A2.4 KPIs, time lost by cause
 sim.press("qh")                    # HMI buttons: verify, resume, clear, qh, swap, load
 ```
 
@@ -53,6 +53,7 @@ violated property); it must stay empty.
 | `cellsim/scenarios.py` | Long runs with random disturbances; conformance check against the model |
 | `cellsim/cell_model.json` | The model, exported from `source/src/cell-model.js` (with the time sources and intervals `TSRC`, `TRANGE` of A2.3) |
 | `run.py` | Command line |
+| `kpi_report.py` | KPI measures of step A2.4 for nominal and faulty runs, written to `kpi_report.md` |
 | `test_engine.py` | Tests |
 | `trace.py` | Trace of a scenario as JSON, for the comparison with the browser simulator |
 | `regress.py` | Fingerprints of fixed scenarios for the regression check (`source/regress.js`) |

@@ -2233,5 +2233,12 @@
    17,
    27.5
   ]
+ },
+ "BASELINE": {
+  "idle": 36.5,
+  "cycle": 156.5,
+  "util": 0.7667731629392971,
+  "pph": 23.003194888178914,
+  "text": "Setup 1, single gripper (branch legacy-setup1-setup2, commit 1f4b8ad)"
  }
 }
