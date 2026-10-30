@@ -30,7 +30,7 @@ reference behind it.
 | Python engine tests | `python -m unittest test_engine` | 6 tests OK (new: gauge policy) |
 | Browser tests | `npm test` (basic, fault, quality hold, phone width, 20 h conformance, Python parity in 3 scenarios) | all pass, no page errors, no property violation |
 | Regression | `npm run regress` | identical to `regression/setup2_reference.json` (recorded at the end of A2.2; the A2.1 reference kept as `regression/setup2_a21.json`); differences all intended (`regression/README.md`) |
-| Exhaustive verification | `npm run verify` | 5 runs, 15 properties (P1–P12, L1–L3) hold, no deadlock (§9.3). NuSMV not yet run on the A2.2 models (§9.4) |
+| Exhaustive verification | `npm run verify` | 5 runs, 15 properties (P1–P12, L1–L3) hold, no deadlock (§9.3). NuSMV 2.7.1 agrees on every specification it decided (48 per model) and on the reachable states of all 5 runs; in `sensor_camwrong` P11 and P12 got no NuSMV result within 12 h (run locally, 2026-10-30, §9.4) |
 | Environment of this check | — | local: Node.js 24, Python 3.11, Google Chrome |
 | KPIs | `M.KPI` | idle 20.5 s, cycle 140.5 s, 85.4 % of the cycle machining, 25.6 parts/h; baseline `M.BASELINE` 36.5 s |
 
@@ -648,9 +648,12 @@ and git history, the A1 ones in `regression/setup2_a1.json`; the Setup 1 runs (5
 88,132 states) in the legacy branch. Never-reached states are listed per run (e.g. `R2: E6` without
 process faults, which is expected: no undersized parts).
 
-NuSMV has not been run on the A2.2 models. The A2.1 models (47 specifications each) agreed in all
-five runs (§9.4); their outputs were removed from `verification/` because they no longer match the
-`.smv` files there and remain in git history (commit `7f59e55`).
+NuSMV 2.7.1 was run on these models locally on 2026-10-29/30: same verdict on every specification it
+decided and the same number of reachable states in all 5 runs. 48 specifications per model; in
+`sensor_camwrong` the invariant process stopped at its 12-h limit without a result for P11 and P12
+(the two job-start properties, written with `next()`), so for that run they rest on the explicit
+search alone (§9.4). Outputs in `verification/cell_setup2_<run>.nusmv.txt`; those of the A2.1 models
+are in git history (commit `7f59e55`).
 
 ### 9.4 NuSMV export (`toSmv(ir)`) and cross-check
 
@@ -668,7 +671,10 @@ five runs (§9.4); their outputs were removed from `verification/` because they 
   specs per model, all agree, states equal in all 5 runs; NuSMV time per model from 160 s (`none`)
   to 7.3 h (`sensor`, its next-state invariants alone 5.5 h), about 5.5 h of wall clock with 8
   parallel jobs (`NUSMV_TIMEOUT` raised to 12 h; the default 4 h is too short for `sensor`). A2.2
-  models (2026-10-29): not run yet; with 1.4–1.75 times the states of A2.1, expect more than 5.5 h.
+  models (2026-10-29/30): 48 specs per model, all decided ones agree, states equal in all 5 runs;
+  NuSMV time per model from 228 s (`none`) to 21.5 h (`sensor_camwrong`, summed over its two
+  processes), about 12 h of wall clock with 8 parallel jobs. The invariants of `sensor_camwrong` hit
+  the 12-h limit with P11 and P12 undecided; a run with a longer `NUSMV_TIMEOUT` would close them.
 - Manual run of one file: `NuSMV -dynamic -dcx -r cell_setup2_none.smv`.
 
 What the agreement means: additional evidence that the explicit search and the NuSMV export are
@@ -1219,3 +1225,4 @@ Newest last. Every change to the plan or to a design rule is written here first 
 | 2026-10-28 | **A2.2 gauge policy decided by the author**, the recommended set as a whole (`verification/gauge_policy.md`, §5.14): 3-2-1 nest tilted to the datum corner with air blow-off, one laser per axis; `size = 50.000 + (d_master − d_part)`, readings outside 45–52 mm invalid; master cube at start-up, after every sensor verification, every 4 h and after a gauge FAULT, accepted at 50.000 ± 0.010 mm; U = 0.05 mm (k = 2, estimated); OK only if L, W, H ≥ 48.05 mm (guard band inside the tolerance, ISO 14253-1), a part in the band is NOK and counts for the quality hold; no upper limit. To be implemented in the model next. An early tool-wear warning is placed in A6 | The tolerance (2 mm) is about forty times the estimated uncertainty, so the conservative rule rejects practically no good part; rejecting in the band adds no state to the machines; recalibration every 4 h bounds drift at < 0.1 % of production |
 | 2026-10-29 | **Phases B and C rewritten** (§15). B becomes the element framework: a generic core, a catalogue of element types described by data, three levels of detail (N1 control, N2 station, N3 flow) with N2 derived from N1 where it exists, ports and interface contracts; steps B1–B8. The equivalence with Setup 2 is kept (B3) and comes before anything new; a structurally different second process cell (bar cutting as the working example, the type chosen by the author at B5), a parametric variant with other times, N2 derivation and a mini line. C becomes the factory for **optimization and scheduling**: a reference factory from inbound trucks through processes and packaging to outbound trucks, built in layers (N2/N3 skeleton first), the planner separated from cell safety, steps C1–C7. Order A → B → C unchanged. Consequences for A noted under B (generic PLC generator in A3, KPI definitions in A2.4 that extend to lines) | The author's goal for C is to optimize and schedule a whole factory with many kinds of elements (trucks, packaging, transport), not copies of one cell; a parametric cell template alone would not support it. Three levels of detail keep the factory tractable, and deriving the upper levels from verified lower ones keeps its numbers traceable. The project is a personal one without a deadline, so the larger B is accepted |
 | 2026-10-29 | **A2.2 gauge policy implemented** in the model, the verifier and both simulators. Choices made in the implementation, within the decided policy: the master check is done by Robot 2 as conditional first steps of E1 (start-up: in E0) and not as a new state; E1→E2 requires `GAUGE.zeroed`; a failed master check is a gauge FAULT and only a passed one clears the 4-h due flag; the technician's sensor verification does not restart the 4-h timer; new property P12 (a part is measured only after a passed master check) and P11 extended to the master cube; air blow-off valve YV-66; estimated times 0.5 s blow-off and 6 s master check (to be confirmed with hardware); in the verifier the 4-h timer may fire only while Robot 2 is in E5/E6 | A new state for the check did not fit the layout of figure 13 (two rails) and multiplied the state space; E1 is the only place where the check can be done with the nest empty and Robot 2 free. Firing the timer only before E1, its only reader, gives E1 every value of the flag it could see with a timer that fires at any time at ×1.4–1.75 instead of ×2.4–2.9 states. All 15 properties hold in the 5 runs; NuSMV not yet run on these models |
+| 2026-10-30 | NuSMV cross-check of the A2.2 models: every decided specification agrees with the search, states equal in all 5 runs; P11 and P12 of `sensor_camwrong` undecided after the 12-h limit. Recorded as is, not re-run; A2.3 started | The search already proves both properties in that run; the cross-check is additional evidence, and a second run of more than 12 h would hold up A2.3 |
