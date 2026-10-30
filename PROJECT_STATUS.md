@@ -14,15 +14,15 @@ reference behind it.
 | Repository | https://github.com/juanlopez-gif/CNC-Cell-Simulator (public) |
 | Live simulator | https://juanlopez-gif.github.io/CNC-Cell-Simulator/ (GitHub Pages from `main`, root `index.html` redirects to `simulation/`) |
 | Scope | **Setup 2 only** (dual gripper on Robot 1, gauge and NOK sorting on Robot 2) since step A1 |
-| Branch `main` | Step A1 merged (Setup 2 only, CI, one build command, regression references) |
-| Branch `a2-design-gaps` | Step A2 done (A2.1 to A2.5, 2026-10-30), not merged into `main`. On GitHub since 2026-10-28 (the cloud session had no GitHub access; its work came as a git bundle) |
+| Branch `main` | Steps A1 and A2 merged (A2 on 2026-10-30: camera policy, gauge, time intervals, KPI measures, pallet capacity and combined faults) |
+| Branch `a2-design-gaps` | Step A2 done (A2.1 to A2.5) and merged into `main` on 2026-10-30. On GitHub since 2026-10-28 (the cloud session had no GitHub access; its work came as a git bundle) |
 | Branch `legacy-setup1-setup2` | Commit `1f4b8ad`: the last version with Setup 1 and Setup 2, frozen |
 | Branch `state-machines-as-data` | Commit `6204b09`; history only, no work on it |
 | Continuous integration | GitHub Actions `checks` on every push; `full verification` (NuSMV) by hand (§11) |
 | Toolchain used | Node.js 24, Python 3.11, Google Chrome (headless via puppeteer-core), NuSMV 2.7.1; Windows 11 locally, Ubuntu in CI |
 | Built by | Claude Code (one agent, model Claude Opus 5.5) directed by the author |
 
-### Health check at the end of step A2 (2026-10-30, branch `a2-design-gaps`, local)
+### Health check at the end of step A2 (2026-10-30, branch `a2-design-gaps` before the merge into `main`, local)
 
 | Check | Command | Result |
 |---|---|---|
@@ -42,12 +42,12 @@ reference behind it.
 | Work continues with Setup 2 only | Yes (2026-10-23) | Yes (step A1): the code, the figures, the tests and this file describe Setup 2 only |
 | Both setups frozen in `legacy-setup1-setup2` | Yes | Yes |
 | Claims limited to what the evidence shows (§1.1) | Yes | Yes (this revision) |
-| Cross-check rule tested against camera errors | Yes (A2.1, 2026-10-28): rule per checkpoint (CP-1 camera; CP-2, CP-3, CP-4 absent; CP-5 present) and four FAULT-recovery changes | **Yes, in branch `a2-design-gaps`** (not merged): camera false positive, false negative and stale image in the verifier and both simulators; evidence in `verification/camera_policy.md` |
-| Gauge specification: guard band (accept from 48.05 mm), calibration every 4 h, validity range (§5.14) | Yes (A2.2, 2026-10-28) | **Yes, in branch `a2-design-gaps`** (not merged, 2026-10-29): guard band, 4-h master check and gauge FAULT, distance-to-size formula and validity range, air blow-off, in the model, the verifier and both simulators; P12 |
-| Time sources and intervals (§5.1.1) | Yes (A2.3, approved by the author 2026-10-30) | In branch `a2-design-gaps` (not merged): `TKIND`, `TSRC`, `TRANGE` in the model, checked by `lint()`; nominal values unchanged |
-| KPI definitions: five measures, time lost by cause (§5.15) | Yes (A2.4, 2026-10-30) | In branch `a2-design-gaps` (not merged): `CellSim.measures()` and `engine/kpi_report.py` |
-| Pallet capacity and combined faults (§9.1, `verification/pallet_capacity.md`) | Yes (A2.5, 2026-10-30) | In branch `a2-design-gaps` (not merged): `slots: 'any'` and the counter game in `cell-verify.js`, `verify_pallet.js`; `verify.js` still runs capacity 2 |
-| Roadmap A1–A6, B, C (§15) | Yes | A0 and A1 done; A2 done in branch `a2-design-gaps` (not merged); progress table in §15 |
+| Cross-check rule tested against camera errors | Yes (A2.1, 2026-10-28): rule per checkpoint (CP-1 camera; CP-2, CP-3, CP-4 absent; CP-5 present) and four FAULT-recovery changes | Yes (merged into `main` 2026-10-30): camera false positive, false negative and stale image in the verifier and both simulators; evidence in `verification/camera_policy.md` |
+| Gauge specification: guard band (accept from 48.05 mm), calibration every 4 h, validity range (§5.14) | Yes (A2.2, 2026-10-28) | Yes (implemented 2026-10-29, merged into `main` 2026-10-30): guard band, 4-h master check and gauge FAULT, distance-to-size formula and validity range, air blow-off, in the model, the verifier and both simulators; P12 |
+| Time sources and intervals (§5.1.1) | Yes (A2.3, approved by the author 2026-10-30) | Yes (merged into `main` 2026-10-30): `TKIND`, `TSRC`, `TRANGE` in the model, checked by `lint()`; nominal values unchanged |
+| KPI definitions: five measures, time lost by cause (§5.15) | Yes (A2.4, 2026-10-30) | Yes (merged into `main` 2026-10-30): `CellSim.measures()` and `engine/kpi_report.py` |
+| Pallet capacity and combined faults (§9.1, `verification/pallet_capacity.md`) | Yes (A2.5, 2026-10-30) | Yes (merged into `main` 2026-10-30): `slots: 'any'` and the counter game in `cell-verify.js`, `verify_pallet.js`; `verify.js` still runs capacity 2 |
+| Roadmap A1–A6, B, C (§15) | Yes | A0 and A1 done; A2 done and merged into `main` (2026-10-30); progress table in §15 |
 
 ---
 
@@ -1008,7 +1008,7 @@ green. Effort figures are indicative only.
 |---|---|---|---|
 | A0 Claims and assumptions stated | Done | `main` | 2026-10-23 |
 | A1 Base: Setup 2 only, CI, one build | Done | `a1-base` → `main` | 2026-10-23 |
-| A2 Design gaps: camera policy, gauge, times, KPIs, faults | Done: A2.1 (2026-10-28); A2.2 (2026-10-29); A2.3 times, A2.4 KPIs, A2.5 faults (2026-10-30). Not merged into `main` | `a2-design-gaps` | 2026-10-30 |
+| A2 Design gaps: camera policy, gauge, times, KPIs, faults | Done: A2.1 (2026-10-28); A2.2 (2026-10-29); A2.3 times, A2.4 KPIs, A2.5 faults (2026-10-30). Merged into `main` 2026-10-30 | `a2-design-gaps` → `main` | 2026-10-30 |
 | A3 PLC demonstration | Not started | | |
 | A4 Timed verification (UPPAAL) | Not started | | |
 | A5 Studies with the Python engine | Not started | | |
@@ -1124,6 +1124,10 @@ Done when all five deliverables exist and §1.1, §13 and §17 are updated:
 
 Done when: the four scenarios pass that comparison, a 1 h nominal run conforms to the model, and a
 short recorded demo exists.
+
+Carried from A2.5 (§17, 2026-10-30): at the first change of the model that needs a new NuSMV
+cross-check (in A3 or later), switch `verify.js` to `slots: 'any'` (the published models then cover
+any pallet capacity) and run `sensor_camwrong` with a `NUSMV_TIMEOUT` above 12 h to close P11 and P12.
 
 **A4. Timed verification with UPPAAL** (3–4 sessions)
 
@@ -1362,3 +1366,4 @@ Newest last. Every change to the plan or to a design rule is written here first 
 | 2026-10-30 | **A2.3 approved by the author** as proposed | — |
 | 2026-10-30 | **A2.4 KPI definitions** (§5.15), chosen by Claude within the plan: the five measures over a whole run in the Python engine (`CellSim.measures()`, `engine/kpi_report.py`); time not machining charged to one cause per instant in the order start-up > fault > line stop > quality hold > material shortage > pallet change > exchange, each read from the model (machine in FAULT, `HOLD.req`, `QH`, R1 in W1, R2 in E7); `kpis()` left unchanged so that the regression stays comparable; report for nominal and five seeded runs with faults | One cause per instant makes the causes add up to the time not machining with no double counting; reading the causes from the model's states keeps them the same in every simulator. Finding: with the disturbances of `run_random` the losses come mostly from the absent operator (pallets), not from the cross-check or the gauge |
 | 2026-10-30 | **A2.5 fault coverage**, done by Claude within the plan: output pallet of any capacity as an abstract count (`slots: 'any'`) and a counter game for L1–L3 in the verifier; capacity 3 run in three of the five runs; `faults: 'all'` documented as out of reach (about 1.4 × 10⁹ states) and the largest combined run reached instead (every class except undersized parts, all 15 properties hold). `verify.js` and the published NuSMV models stay at capacity 2. **Step A2 done** (`verification/pallet_capacity.md`) | The plan asks for the argument to carry the case of 12, not a capacity-3 run; the abstraction proves it for safety with no extra states. `all` needs about 140 GB with the explicit search. Changing the default to `'any'` would change the published models and need a new NuSMV cross-check of more than 12 h: left to the author |
+| 2026-10-30 | **A2.5 accepted by the author** with Claude's three recommendations: (1) `faults: 'all'` stays out of reach and is not planned (sensor faults with undersized parts alone are about 1.2 × 10⁹ states; reaching it needs another technique, such as partial-order reduction or disk-based search); (2) `verify.js` keeps capacity 2 for now and moves to `slots: 'any'` at the next NuSMV re-run that a model change requires anyway (expected in A3), with a longer `NUSMV_TIMEOUT` to close P11 and P12 of `sensor_camwrong`; (3) `a2-design-gaps` merged into `main` after the full checks (`npm run check`, `npm test`, `npm run regress`, Python tests, all green) | The proof for any capacity is already in `verification/pallet_capacity.json`; changing the published models now costs a NuSMV cross-check of more than 12 h for no new result. The merge publishes the A2 simulator on GitHub Pages |
