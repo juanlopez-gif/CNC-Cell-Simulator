@@ -25,6 +25,7 @@
   const BEXP = (e) => ({ op: 'bexp', e });
   const ADD = (v, n, lo, hi) => ({ op: 'add', v, n, lo, hi });
   const ONEOF = (vals) => ({ op: 'oneOf', vals });
+  const STEP = (v, map) => ({ op: 'step', v, map });           // value -> list of possible next values
   const san = (s) => String(s).replace(/[^A-Za-z0-9_]/g, '_');
 
   // ------------------------------------------------------------------ build
@@ -43,7 +44,11 @@
     const F = Object.fromEntries(Object.keys(FL).map((k) => [k, want.includes(k) || FL[k].some((g) => want.includes(g))]));
     // the rule that fuses camera and proximity at each checkpoint (model value, opts.rules overrides)
     const RULE = Object.fromEntries(M.CHECKPOINTS.map((c) => [c.id, opts.rules[c.id] || c.rule]));
-    const N = opts.slots;
+    // opts.slots: capacity of the output pallet, or 'any': a counter that only tells empty (0), partly
+    // filled (1) and full (2); a part placed on a partly filled pallet leaves it partly filled or makes
+    // it full. The logic reads the count only as empty, full and not full, so every run of the cell
+    // with any capacity >= 2 (12 included) is a run of this model (A2.5).
+    const ANY = opts.slots === 'any', N = ANY ? 2 : opts.slots;
     const PART = ['none', 'raw', 'ok', 'nok'];
     const FIN = ['ok', 'nok'];
     const vars = [], VI = {};
@@ -114,7 +119,8 @@
     addVar('inPresent', B, true, 'input pallet in place');
     addVar('inParts', B, true, 'raw parts left on the input pallet');
     addVar('outPresent', B, true, 'output pallet in place');
-    addVar('outCount', range(0, N), range(0, N - 1), `parts on the output pallet (capacity ${N} in the abstract model)`);
+    addVar('outCount', range(0, N), range(0, N - 1), ANY ? 'output pallet: 0 empty, 1 partly filled, 2 full (any capacity >= 2)'
+      : `parts on the output pallet (capacity ${N} in the abstract model)`);
     addVar('r1Home', B, true, 'Robot 1 at home');
     addVar('r2Home', B, true, 'Robot 2 at home');
     addVar('nest', PART, 'none', 'part in the gauge nest');
@@ -239,7 +245,7 @@
         let val;
         if (from === 'in') { val = VAL('raw'); u.inParts = ONEOF([true, false]); }
         else { val = COPY(fromVar); u[fromVar] = VAL('none'); if (fromVar === 'nest') u.measured = VAL(false); }
-        if (to === 'out') u.outCount = ADD('outCount', 1, 0, N);
+        if (to === 'out') u.outCount = ANY ? STEP('outCount', { 0: [1], 1: [1, 2], 2: [2] }) : ADD('outCount', 1, 0, N);
         else if (to === 'nok') u.pe65 = VAL(true);
         else u[toVar] = val;
       }
@@ -507,6 +513,7 @@
         else if (u.op === 'bexp') { const g = ce(u.e), t = [idxOf(true)], fl = [idxOf(false)]; f = (s) => (g(s) ? t : fl); }
         else if (u.op === 'add') { const j = VI[u.v]; const map = vars[j].dom.map((d) => [idxOf(Math.max(u.lo, Math.min(u.hi, d + u.n)))]); f = (s) => map[s[j]]; }
         else if (u.op === 'oneOf') { const ks = u.vals.map(idxOf); f = () => ks; }
+        else if (u.op === 'step') { const j = VI[u.v]; const map = vars[j].dom.map((d) => u.map[d].map(idxOf)); f = (s) => map[s[j]]; }
         else throw new Error('bad update ' + u.op);
         return [i, f];
       });
@@ -635,6 +642,58 @@
       }
       evProps.forEach(({ p }, k) => { if (badScc[k] !== -1) viol[p.id] = badScc[k]; });
     }
+    // counter game (A2.5): limits.counters names variables whose new value a step only chooses as
+    // an abstraction of a count (outCount with slots 'any', inParts). "Eventually" is then checked as
+    // a game: the cell and the plant choose the step, an adversary chooses these values, and the goal
+    // must be in the attractor of every reachable state. A goal reached that way is reached whatever
+    // the real capacity of the pallets is.
+    let game = null;
+    if (limits.counters && evProps.length) {
+      const adv = new Set(limits.counters.map((n) => VI[n]));
+      const keyIdx = vars.map((_, i) => i).filter((i) => !adv.has(i));
+      const owner = grow32(1 << 20), need = grow32(1 << 20), pS = grow32(1 << 22), pG = grow32(1 << 22);
+      for (let n = 0; n < ns; n++) {
+        const s = st(n);
+        for (const x of enabled(s).list) {
+          const groups = new Map();
+          for (const t of x.u(s)) {
+            let k = '';
+            for (const i of keyIdx) k += String.fromCharCode(t[i] + 33);
+            if (!groups.has(k)) groups.set(k, new Set());
+            groups.get(k).add(find(t));
+          }
+          for (const ids of groups.values()) {
+            const g = owner.length;
+            owner.push(n); need.push(ids.size);
+            for (const id of ids) { pS.push(id); pG.push(g); }
+          }
+        }
+      }
+      // reverse adjacency (successor state -> groups), compressed
+      const np = pS.length, off = new Int32Array(ns + 1), rev = new Int32Array(np);
+      for (let k = 0; k < np; k++) off[pS.get(k) + 1]++;
+      for (let n = 0; n < ns; n++) off[n + 1] += off[n];
+      const fill = off.slice(0, ns);
+      for (let k = 0; k < np; k++) rev[fill[pS.get(k)]++] = pG.get(k);
+      game = {};
+      evProps.forEach(({ p, f }) => {
+        const left = new Int32Array(owner.length);
+        for (let g = 0; g < owner.length; g++) left[g] = need.get(g);
+        const win = new Uint8Array(ns), queue = new Int32Array(ns);
+        let qh = 0, qt = 0;
+        for (let n = 0; n < ns; n++) if (f(st(n))) { win[n] = 1; queue[qt++] = n; }
+        while (qh < qt) {
+          const v = queue[qh++];
+          for (let k = off[v]; k < off[v + 1]; k++) {
+            const g = rev[k];
+            if (--left[g] === 0) { const o = owner.get(g); if (!win[o]) { win[o] = 1; queue[qt++] = o; } }
+          }
+        }
+        let lost = -1, nLost = 0;
+        for (let n = 0; n < ns; n++) if (!win[n]) { nLost++; if (lost < 0) lost = n; }
+        game[p.id] = { ok: nLost === 0, states: nLost, example: lost < 0 ? null : lost };
+      });
+    }
     // coverage: which states of each machine are reachable
     const covered = {};
     Object.keys(ir.mach).forEach((slot) => {
@@ -649,7 +708,7 @@
     };
     const describe = (id) => Object.fromEntries(vars.map((v, i) => [v.name, v.dom[pool[id * nv + i]]]));
     const results = ir.props.map((p) => ({ id: p.id, text: p.text, kind: p.kind, ok: viol[p.id] === undefined, trace: viol[p.id] === undefined ? null : trace(viol[p.id]), state: viol[p.id] === undefined ? null : describe(viol[p.id]) }));
-    return { states: ns, edges, ms: Date.now() - t0, results, deadlocks: deadlocks.length, deadlock: deadlocks.length ? { trace: trace(deadlocks[0]), state: describe(deadlocks[0]) } : null, unreached: covered, commands: cmds.length };
+    return { states: ns, edges, ms: Date.now() - t0, results, deadlocks: deadlocks.length, deadlock: deadlocks.length ? { trace: trace(deadlocks[0]), state: describe(deadlocks[0]) } : null, unreached: covered, commands: cmds.length, game };
   }
 
   // the verdict of the explicit search for every specification of toSmv(ir), by its NAME
@@ -687,6 +746,7 @@
         case 'bexp': return ex(u.e);
         case 'add': return `max(${u.lo}, min(${u.hi}, ${vname(u.v)} + ${u.n}))`;
         case 'oneOf': return `{${u.vals.map((x) => lit(v, x)).join(', ')}}`;
+        case 'step': return `case ${Object.entries(u.map).map(([d, xs]) => `${vname(u.v)} = ${d} : ${xs.length > 1 ? `{${xs.join(', ')}}` : xs[0]};`).join(' ')} esac`;
       }
       throw new Error('bad update');
     }
@@ -699,7 +759,7 @@
     L.push('-- is one of its automatic commands; otherwise the step leaves the state unchanged, like idle. Such');
     L.push('-- steps add no states and change none of the specifications below (no TRANS constraints: with them');
     L.push('-- NuSMV needs hours for the fair states of the largest model).');
-    L.push(`-- Abstractions: no step times; jobs complete at any time; output pallet capacity ${ir.opts.slots}.`);
+    L.push(`-- Abstractions: no step times; jobs complete at any time; output pallet ${ir.opts.slots === 'any' ? 'of any capacity >= 2 (empty / partly filled / full)' : 'capacity ' + ir.opts.slots}.`);
     L.push('MODULE main');
     L.push('VAR');
     vars.forEach((v) => {

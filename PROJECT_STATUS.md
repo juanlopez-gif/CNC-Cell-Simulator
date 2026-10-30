@@ -15,14 +15,14 @@ reference behind it.
 | Live simulator | https://juanlopez-gif.github.io/CNC-Cell-Simulator/ (GitHub Pages from `main`, root `index.html` redirects to `simulation/`) |
 | Scope | **Setup 2 only** (dual gripper on Robot 1, gauge and NOK sorting on Robot 2) since step A1 |
 | Branch `main` | Step A1 merged (Setup 2 only, CI, one build command, regression references) |
-| Branch `a2-design-gaps` | Step A2 in progress (A2.1, A2.2, A2.3 and A2.4 done; A2.5 next). On GitHub since 2026-10-28 (the cloud session had no GitHub access; its work came as a git bundle) |
+| Branch `a2-design-gaps` | Step A2 done (A2.1 to A2.5, 2026-10-30), not merged into `main`. On GitHub since 2026-10-28 (the cloud session had no GitHub access; its work came as a git bundle) |
 | Branch `legacy-setup1-setup2` | Commit `1f4b8ad`: the last version with Setup 1 and Setup 2, frozen |
 | Branch `state-machines-as-data` | Commit `6204b09`; history only, no work on it |
 | Continuous integration | GitHub Actions `checks` on every push; `full verification` (NuSMV) by hand (§11) |
 | Toolchain used | Node.js 24, Python 3.11, Google Chrome (headless via puppeteer-core), NuSMV 2.7.1; Windows 11 locally, Ubuntu in CI |
 | Built by | Claude Code (one agent, model Claude Opus 5.5) directed by the author |
 
-### Health check at the end of step A2.4 (2026-10-30, branch `a2-design-gaps`, local)
+### Health check at the end of step A2 (2026-10-30, branch `a2-design-gaps`, local)
 
 | Check | Command | Result |
 |---|---|---|
@@ -31,6 +31,7 @@ reference behind it.
 | Browser tests | `npm test` (basic, fault, quality hold, phone width, 20 h conformance, Python parity in 3 scenarios) | all pass, no page errors, no property violation |
 | Regression | `npm run regress` | identical to `regression/setup2_reference.json` (recorded at the end of A2.2, unchanged by A2.3 and A2.4; the A2.1 reference kept as `regression/setup2_a21.json`); differences all intended (`regression/README.md`) |
 | Exhaustive verification | `npm run verify` | 5 runs, 15 properties (P1–P12, L1–L3) hold, no deadlock (§9.3). NuSMV 2.7.1 agrees on every specification it decided (48 per model) and on the reachable states of all 5 runs; in `sensor_camwrong` P11 and P12 got no NuSMV result within 12 h (run locally, 2026-10-30, §9.4) |
+| Pallet capacity and combined faults (A2.5) | `node --max-old-space-size=4000 verify_pallet.js` | output pallet of any capacity: same states as capacity 2 in all 5 runs, 15 properties hold; counter game L1–L3 holds in 3 runs; capacity 3 in 3 runs; combined run without undersized parts 79,680,713 states, all hold (`verification/pallet_capacity.md`) |
 | Environment of this check | — | local: Node.js 24, Python 3.11, Google Chrome |
 | KPIs | `M.KPI` | idle 20.5 s, cycle 140.5 s, 85.4 % of the cycle machining, 25.6 parts/h; baseline `M.BASELINE` 36.5 s |
 
@@ -45,7 +46,8 @@ reference behind it.
 | Gauge specification: guard band (accept from 48.05 mm), calibration every 4 h, validity range (§5.14) | Yes (A2.2, 2026-10-28) | **Yes, in branch `a2-design-gaps`** (not merged, 2026-10-29): guard band, 4-h master check and gauge FAULT, distance-to-size formula and validity range, air blow-off, in the model, the verifier and both simulators; P12 |
 | Time sources and intervals (§5.1.1) | Yes (A2.3, approved by the author 2026-10-30) | In branch `a2-design-gaps` (not merged): `TKIND`, `TSRC`, `TRANGE` in the model, checked by `lint()`; nominal values unchanged |
 | KPI definitions: five measures, time lost by cause (§5.15) | Yes (A2.4, 2026-10-30) | In branch `a2-design-gaps` (not merged): `CellSim.measures()` and `engine/kpi_report.py` |
-| Roadmap A1–A6, B, C (§15) | Yes | A0 and A1 done; A2 in progress (A2.1 to A2.4 done); progress table in §15 |
+| Pallet capacity and combined faults (§9.1, `verification/pallet_capacity.md`) | Yes (A2.5, 2026-10-30) | In branch `a2-design-gaps` (not merged): `slots: 'any'` and the counter game in `cell-verify.js`, `verify_pallet.js`; `verify.js` still runs capacity 2 |
+| Roadmap A1–A6, B, C (§15) | Yes | A0 and A1 done; A2 done in branch `a2-design-gaps` (not merged); progress table in §15 |
 
 ---
 
@@ -80,7 +82,9 @@ formal verification are all generated from or interpret that file.
 | The model is internally consistent | `lint()` | Structural only: names exist, states reachable, texts match the logic. Says nothing about whether the logic is right |
 | The browser and Python simulators run the same controller logic | Export check; identical traces in 3 deterministic scenarios (1 h each, one with camera errors) | Shows that the Python port reproduces the browser in those scenarios. Python is a line-by-line port, so an error in the original would be reproduced, not detected |
 | Both simulators follow the model | Conformance runs, 20 h with random faults | Only with the simulated plant and the faults it can inject |
-| 15 properties hold and there is no deadlock | Exhaustive search of the abstract model, 5 runs (nominal, sensor faults, process faults, camera wrong, all sensor faults together; §9.3) | Untimed plant; one source wrong at a time (common mode not modelled); output pallet of 2 slots; sensor and process faults never combined in one run; L1–L3 are AG EF: the goal can always still be reached, not that it will be reached |
+| 15 properties hold and there is no deadlock | Exhaustive search of the abstract model, 5 runs (nominal, sensor faults, process faults, camera wrong, all sensor faults together; §9.3) | Untimed plant; one source wrong at a time (common mode not modelled); L1–L3 are AG EF: the goal can always still be reached, not that it will be reached |
+| The verdicts hold for an output pallet of any capacity (12 included) | Abstract count (empty / partly filled / full) with exactly the states of capacity 2 in all 5 runs; counter game for L1–L3 in 3 runs; capacity 3 compared in 3 runs (`verification/pallet_capacity.md`) | Rests on the logic reading the count only as `= 0`, `>= slots`, `< slots` (not checked by `lint()`). L1–L3 for any capacity not proved in `sensor` and `sensor_camwrong` (the game does not fit in memory) |
+| Sensor and process faults together | One run with every class of `all` except undersized parts: 79,680,713 states, 15 properties hold, no deadlock | `faults: 'all'` itself is about 1.4 × 10⁹ states (about 140 GB), out of reach; the rest is an argument (`pallet_capacity.md` §5) |
 | The search and the NuSMV export agree | Same verdicts on every specification NuSMV decided and same state counts in all 5 runs (48 specifications each; P11 and P12 of `sensor_camwrong` undecided after 12 h, §9.3) | Additional evidence of consistency. Both start from the same intermediate representation (`build()`), so an error made there would be shared |
 | CNC idle 36.5 s → 20.5 s; 23.0 → 25.6 parts/h | Setup 2: sum of nominal step times of the states in the idle band, reproduced by the simulators without faults. Setup 1: fixed baseline numbers (`M.BASELINE`) computed before A1 | Planning estimates, not measurements. Nominal exchange only: excludes material shortage, pallet changes, holds and repairs. Idle time falls 43.8 %, output rises 11.4 %. The 85.4 % is the share of the nominal cycle spent machining, not availability or OEE. Measured over 8 h in the Python engine (§5.15): 25.5 parts/h nominal, 10.9–20.5 good parts/h in five runs with random disturbances, losses mostly from the absent operator. With every time at its minimum / maximum at once (§5.1.1): 17 – 27.5 s idle per part |
 | Removing Setup 1 (A1) did not change Setup 2 | `regression/`: identical KPIs, NuSMV models, browser and Python traces (deterministic and seeded random runs) | Covers the recorded scenarios and the three abstract models, not every possible run |
@@ -133,6 +137,7 @@ Week2_Sensors_Design/
 │   ├── results.json                 every number of the last verification run
 │   ├── results.md                   human-readable results (tables of runs and properties)
 │   ├── camera_policy.md             step A2.1: evidence for the camera rule and the decision
+│   ├── pallet_capacity.md / .json   step A2.5: pallet of any capacity, counter game, combined faults
 │   └── camera_study/                outputs and scripts of the A2.1 studies
 ├── regression/
 │   ├── README.md                    what is compared, and the results of steps A1 and A2.1
@@ -166,6 +171,7 @@ Week2_Sensors_Design/
     ├── export_model.js              writes engine/cellsim/cell_model.json (--check mode)
     ├── verify.js                    runs the 5 verification runs (+ NuSMV), writes results
     ├── camera_study.js              step A2.1: exhaustive run per checkpoint and camera rule
+    ├── verify_pallet.js             step A2.5: capacity 3, any capacity, counter game, combined run
     ├── regress.js                   regression fingerprint and comparison
     ├── compare_verification.js      compares two verification results.json
     ├── test_sim.js                  headless tests: basic | fault | s2 | mobile | conform | engine | all
@@ -727,12 +733,17 @@ the port reproduces the original in those scenarios; it cannot find an error tha
   rule of the checkpoint; every disagreement adds to `mismatches`. `ask` takes the camera-fault
   path (hold, line stop, repeat the check). One source is wrong at a time; common-mode errors are
   not modelled.
-- **No combined faults.** `faults: 'all'` exists in `build()` but was never run; sensor and
-  process faults were verified separately.
-- **Pallet of 2.** Argument (not a proof) for why capacity 2 should represent 12: the machines
-  and properties read the count only through `PALLET.empty` (`=0`), `PALLET.full` (`>=slots`) and
-  P6 (`<slots`), so the logic distinguishes only empty, partly full and full. To be tested with
-  capacity 3 in step A2.
+- **Combined faults (A2.5).** `faults: 'all'` is out of reach (about 1.4 × 10⁹ states, measured
+  factors in `verification/pallet_capacity.md` §5). The largest combined run, every class of `all`
+  except `nok`, is in `verification/pallet_capacity.json` (79,680,713 states, all hold).
+- **Pallet capacity (A2.5).** The machines and properties read the count only through
+  `PALLET.empty` (`=0`), `PALLET.full` (`>=slots`) and P6 (`<slots`). `slots: 'any'` replaces the
+  count by empty / partly filled / full (a place goes 0 → 1, 1 → {1, 2}, 2 → 2): a sound
+  abstraction of every capacity N ≥ 2, so safety and deadlock freedom proved there hold for 12. It
+  gives exactly the states of capacity 2. `check(ir, {counters: ['outCount', 'inParts']})` solves
+  L1–L3 as a game in which an adversary chooses the counts. `verify.js` still runs capacity 2;
+  `verify_pallet.js` runs capacity 3, `'any'`, the game and the combined run
+  (`verification/pallet_capacity.md`).
 - Interleaving semantics: one command = one step of one machine or of the plant; commands with the
   same guard and updates are deduplicated.
 
@@ -912,8 +923,10 @@ Gotchas met before:
 13. **KPIs** (resolved in A2.4, §5.15). Open: the faulty runs use chosen disturbance rates, not
     measured ones; one cause per instant (priority order) hides overlapping causes; the browser
     simulator shows only the nominal KPIs.
-14. **Fault coverage.** Sensor and process faults never combined; the 2-slot pallet is argued,
-    not proved. Step A2.5.
+14. **Fault coverage** (resolved in A2.5, `verification/pallet_capacity.md`). Open: `faults: 'all'`
+    is out of reach (about 1.4 × 10⁹ states); undersized parts were never combined with sensor
+    faults; L1–L3 for any pallet capacity are not proved in `sensor` and `sensor_camwrong`; the
+    capacity argument depends on the count being compared only with 0 and the capacity.
 
 ---
 
@@ -995,7 +1008,7 @@ green. Effort figures are indicative only.
 |---|---|---|---|
 | A0 Claims and assumptions stated | Done | `main` | 2026-10-23 |
 | A1 Base: Setup 2 only, CI, one build | Done | `a1-base` → `main` | 2026-10-23 |
-| A2 Design gaps: camera policy, gauge, times, KPIs, faults | In progress: A2.1 done (2026-10-28); A2.2 done (2026-10-29); A2.3 times done (2026-10-30); A2.4 KPIs done (2026-10-30); A2.5 faults next | `a2-design-gaps` | |
+| A2 Design gaps: camera policy, gauge, times, KPIs, faults | Done: A2.1 (2026-10-28); A2.2 (2026-10-29); A2.3 times, A2.4 KPIs, A2.5 faults (2026-10-30). Not merged into `main` | `a2-design-gaps` | 2026-10-30 |
 | A3 PLC demonstration | Not started | | |
 | A4 Timed verification (UPPAAL) | Not started | | |
 | A5 Studies with the Python engine | Not started | | |
@@ -1348,3 +1361,4 @@ Newest last. Every change to the plan or to a design rule is written here first 
 | 2026-10-30 | **A2.3 times proposed**, pending the author's review (§5.1.1). Rules chosen by the author on 2026-10-29: an interval per kind of time, sources from datasheets of concrete models, result committed as a proposal. Kinds and factors proposed by Claude: robot move or gripper step −10 / +30 %, actuator and I/O handshake ±50 %, belt transport −5 / +10 %, belt ramps ±50 %, sensing −20 / +50 %, CNC cycle ±5 %. Robot 2 keeps the UR10e of the hardware list (a UR5e was mentioned on 2026-10-29 only as an example). Nominal values unchanged. §1.1 brought up to date (15 properties, 5 runs, NuSMV agreement of A2.2) | Robot moves are rarely faster than programmed and often slower; actuators and ramps are set at commissioning and vary most; the CNC program is repeatable. Datasheet lower limits make sure no interval allows a physically impossible time. Changing nominal values would change every KPI and reference: left to the author |
 | 2026-10-30 | **A2.3 approved by the author** as proposed | — |
 | 2026-10-30 | **A2.4 KPI definitions** (§5.15), chosen by Claude within the plan: the five measures over a whole run in the Python engine (`CellSim.measures()`, `engine/kpi_report.py`); time not machining charged to one cause per instant in the order start-up > fault > line stop > quality hold > material shortage > pallet change > exchange, each read from the model (machine in FAULT, `HOLD.req`, `QH`, R1 in W1, R2 in E7); `kpis()` left unchanged so that the regression stays comparable; report for nominal and five seeded runs with faults | One cause per instant makes the causes add up to the time not machining with no double counting; reading the causes from the model's states keeps them the same in every simulator. Finding: with the disturbances of `run_random` the losses come mostly from the absent operator (pallets), not from the cross-check or the gauge |
+| 2026-10-30 | **A2.5 fault coverage**, done by Claude within the plan: output pallet of any capacity as an abstract count (`slots: 'any'`) and a counter game for L1–L3 in the verifier; capacity 3 run in three of the five runs; `faults: 'all'` documented as out of reach (about 1.4 × 10⁹ states) and the largest combined run reached instead (every class except undersized parts, all 15 properties hold). `verify.js` and the published NuSMV models stay at capacity 2. **Step A2 done** (`verification/pallet_capacity.md`) | The plan asks for the argument to carry the case of 12, not a capacity-3 run; the abstraction proves it for safety with no extra states. `all` needs about 140 GB with the explicit search. Changing the default to `'any'` would change the published models and need a new NuSMV cross-check of more than 12 h: left to the author |
