@@ -15,7 +15,7 @@ reference behind it.
 | Live simulator | https://juanlopez-gif.github.io/CNC-Cell-Simulator/ (GitHub Pages from `main`, root `index.html` redirects to `simulation/`) |
 | Scope | **Setup 2 only** (dual gripper on Robot 1, gauge and NOK sorting on Robot 2) since step A1 |
 | Branch `main` | Step A1 merged (Setup 2 only, CI, one build command, regression references) |
-| Branch `a2-design-gaps` | Step A2 in progress (A2.1 and A2.2 done). On GitHub since 2026-10-28 (the cloud session had no GitHub access; its work came as a git bundle) |
+| Branch `a2-design-gaps` | Step A2 in progress (A2.1 and A2.2 done; A2.3 proposed, pending the author's review). On GitHub since 2026-10-28 (the cloud session had no GitHub access; its work came as a git bundle) |
 | Branch `legacy-setup1-setup2` | Commit `1f4b8ad`: the last version with Setup 1 and Setup 2, frozen |
 | Branch `state-machines-as-data` | Commit `6204b09`; history only, no work on it |
 | Continuous integration | GitHub Actions `checks` on every push; `full verification` (NuSMV) by hand (§11) |
@@ -43,7 +43,8 @@ reference behind it.
 | Claims limited to what the evidence shows (§1.1) | Yes | Yes (this revision) |
 | Cross-check rule tested against camera errors | Yes (A2.1, 2026-10-28): rule per checkpoint (CP-1 camera; CP-2, CP-3, CP-4 absent; CP-5 present) and four FAULT-recovery changes | **Yes, in branch `a2-design-gaps`** (not merged): camera false positive, false negative and stale image in the verifier and both simulators; evidence in `verification/camera_policy.md` |
 | Gauge specification: guard band (accept from 48.05 mm), calibration every 4 h, validity range (§5.14) | Yes (A2.2, 2026-10-28) | **Yes, in branch `a2-design-gaps`** (not merged, 2026-10-29): guard band, 4-h master check and gauge FAULT, distance-to-size formula and validity range, air blow-off, in the model, the verifier and both simulators; P12 |
-| Roadmap A1–A6, B, C (§15) | Yes | A0 and A1 done; A2 in progress (A2.1 and A2.2 done); progress table in §15 |
+| Time sources and intervals (§5.1.1) | Proposed (A2.3, 2026-10-30), **pending the author's review** | In branch `a2-design-gaps` (not merged): `TKIND`, `TSRC`, `TRANGE` in the model, checked by `lint()`; nominal values unchanged |
+| Roadmap A1–A6, B, C (§15) | Yes | A0 and A1 done; A2 in progress (A2.1 and A2.2 done, A2.3 proposed); progress table in §15 |
 
 ---
 
@@ -78,9 +79,9 @@ formal verification are all generated from or interpret that file.
 | The model is internally consistent | `lint()` | Structural only: names exist, states reachable, texts match the logic. Says nothing about whether the logic is right |
 | The browser and Python simulators run the same controller logic | Export check; identical traces in 3 deterministic scenarios (1 h each, one with camera errors) | Shows that the Python port reproduces the browser in those scenarios. Python is a line-by-line port, so an error in the original would be reproduced, not detected |
 | Both simulators follow the model | Conformance runs, 20 h with random faults | Only with the simulated plant and the faults it can inject |
-| 13 properties hold and there is no deadlock | Exhaustive search of the abstract model, 3 runs (nominal, sensor faults, process faults) | Untimed plant; **the fused check result always equals the physical truth** (a mismatch only adds to the counter, the camera is never wrong); output pallet of 2 slots; sensor and process faults never combined in one run; L1–L3 are AG EF: the goal can always still be reached, not that it will be reached |
-| The search and the NuSMV export agree | Same verdicts and state counts in all 5 runs (47 specifications each) | Additional evidence of consistency. Both start from the same intermediate representation (`build()`), so an error made there would be shared |
-| CNC idle 36.5 s → 20.5 s; 23.0 → 25.6 parts/h | Setup 2: sum of nominal step times of the states in the idle band, reproduced by the simulators without faults. Setup 1: fixed baseline numbers (`M.BASELINE`) computed before A1 | Planning estimates, not measurements. Nominal exchange only: excludes material shortage, pallet changes, holds and repairs. Idle time falls 43.8 %, output rises 11.4 %. The 85.4 % is the share of the nominal cycle spent machining, not availability or OEE |
+| 15 properties hold and there is no deadlock | Exhaustive search of the abstract model, 5 runs (nominal, sensor faults, process faults, camera wrong, all sensor faults together; §9.3) | Untimed plant; one source wrong at a time (common mode not modelled); output pallet of 2 slots; sensor and process faults never combined in one run; L1–L3 are AG EF: the goal can always still be reached, not that it will be reached |
+| The search and the NuSMV export agree | Same verdicts on every specification NuSMV decided and same state counts in all 5 runs (48 specifications each; P11 and P12 of `sensor_camwrong` undecided after 12 h, §9.3) | Additional evidence of consistency. Both start from the same intermediate representation (`build()`), so an error made there would be shared |
+| CNC idle 36.5 s → 20.5 s; 23.0 → 25.6 parts/h | Setup 2: sum of nominal step times of the states in the idle band, reproduced by the simulators without faults. Setup 1: fixed baseline numbers (`M.BASELINE`) computed before A1 | Planning estimates, not measurements. Nominal exchange only: excludes material shortage, pallet changes, holds and repairs. Idle time falls 43.8 %, output rises 11.4 %. The 85.4 % is the share of the nominal cycle spent machining, not availability or OEE. With every time at its minimum / maximum at once (§5.1.1): 17 – 27.5 s idle per part |
 | Removing Setup 1 (A1) did not change Setup 2 | `regression/`: identical KPIs, NuSMV models, browser and Python traces (deterministic and seeded random runs) | Covers the recorded scenarios and the three abstract models, not every possible run |
 | The cross-check rules of §5.3 keep the properties with one wrong source | Exhaustive search with proximity wrong, camera false positive / false negative / stale image at every checkpoint, PLC timeouts included (§9.3); timed study, `verification/camera_policy.md` | One source wrong at a time: both wrong the same way (common mode) is not modelled and no rule detects it. The original rule "the camera decides" was **not** safe: it failed P6 at CP-4, and FAULT recovery failed P5 and P11 (`camera_policy.md` §2–3) |
 | The design is validated for a real cell | — | **Not claimed.** No hardware, no measured times; sensors and prices come from catalogues |
@@ -225,7 +226,7 @@ document skeleton, for claude.ai). `npm run build` writes `simulation/index.html
 ## 5. The model (`source/src/cell-model.js`)
 
 Exported object `MODEL`:
-`T, TLABEL, KPI, BASELINE, RULES, CHECKPOINTS, SENSORS, STATES, idleSetup2, SLOTS, SIGNALS,
+`T, TLABEL, TKIND, TSRC, TRANGE, TMIN, TMAX, KPI, BASELINE, RULES, CHECKPOINTS, SENSORS, STATES, idleSetup2, SLOTS, SIGNALS,
 CONST, OUTPUTS, RUNGS, PROPERTIES, JOBS, MACHINES, SETUP_MACHINES, IDLE_MACHINE,
 expr: { parse, evaluate, names, terms, label, plain, visible, constVal }, jobTime, stateSteps,
 stateTime, lint`.
@@ -243,6 +244,80 @@ stateTime, lint`.
 | Robot 2 | `r2ToExit` 1.5 · `r2Pick` 1.0 · `r2ToPallet` 1.5 · `r2Place` 1.0 · `r2Home` 1.0 · `r2ToGauge` 1.5 · `blowOff` 0.5 · `r2LoadGauge` 1.5 · `measure` 1.0 · `r2Repick` 1.0 · `r2ToNok` 1.5 · `r2Drop` 0.5 · `r2Master` 6.0 (A2.2, estimates) |
 
 `TLABEL` gives each key a readable name for the CNC-idle build-up table.
+
+#### 5.1.1 Sources and intervals (A2.3, proposed 2026-10-30, pending the author's review)
+
+Every time has a source and a kind in `TSRC`; the kind gives its interval [min, max] as factors of
+the nominal value (`TKIND`, rule per kind chosen by the author on 2026-10-29). Where a datasheet
+gives a physical lower limit (`bound`), the minimum is never below it and `lint()` fails if the
+nominal is. `TRANGE` holds the intervals, `TMIN` / `TMAX` the table with every time at its
+minimum / maximum. The nominal values, and therefore every simulation, KPI and verification result,
+are unchanged. The intervals feed A4 and A5.
+
+| Kind | min / max | Meaning |
+|---|---|---|
+| `robot` | −10 % / +30 % | UR10e move or RG2 gripper step: rarely faster than planned, often slower |
+| `actuator` | −50 % / +50 % | pneumatic or electromechanical actuator, I/O handshake |
+| `beltTravel` | −5 % / +10 % | transport at the set drive speed (speed accuracy, slip, load) |
+| `beltRamp` | −50 % / +50 % | drive ramp or zero-speed window, set at commissioning |
+| `sensing` | −20 % / +50 % | settle + sensor reading + PLC compare |
+| `cnc` | −5 % / +5 % | CNC program cycle |
+
+Datasheets used: Universal Robots UR10e (base and shoulder joints 120 °/s, other joints 180 °/s,
+typical TCP speed 1 m/s), OnRobot RG2 v1.8 (gripping time 0.06–0.21 s for 8 mm), Cognex In-Sight 2800
+(acquisition up to 45 Hz); from distributor data, to be confirmed with the manufacturer: Keyence
+IL-065 (sampling 0.33/1/2/5 ms, reference values at 1 ms and average 128), SMC VQ110 (response
+12–15 ms). Robot-move bounds are the base turn between the stations of the layout (fig09) at
+120 °/s without acceleration time; the drawing is not to scale, so these angles are indicative. No
+nominal value was found below its bound; the closest is `r2ToNok` (1.5 s against 1.26 s).
+
+| Time | Nominal (s) | min – max (s) | Kind | Bound (s) | Source |
+|---|---:|---|---|---:|---|
+| `cncCycle` | 120 | 114 – 126 | cnc |  | Assignment: 120 s machining cycle of the block |
+| `unlock` | 0.5 | 0.25 – 0.75 | actuator |  | Estimate: guard-lock solenoid release + ZS-33 confirmation |
+| `lock` | 0.5 | 0.25 – 0.75 | actuator |  | Estimate: guard-lock solenoid + ZS-33 confirmation |
+| `cycleStart` | 0.5 | 0.25 – 0.75 | actuator |  | Estimate: CYCLE START handshake over the CNC robot interface |
+| `doorToHome` | 1.5 | 1.35 – 1.95 | robot | 0.38 | Estimate; bound: base turn 45° (UR10e datasheet: base joint 120 °/s) |
+| `park` | 1.5 | 1.35 – 1.95 | robot |  | Estimate: short move to the park pose |
+| `doorOpen` | 4 | 3.6 – 5.2 | robot | 0.75 | Estimate: grip handle, slide the door, release; bound: 0.75 m door travel (layout) at 1 m/s (UR10e typical TCP speed) |
+| `doorClose` | 4 | 3.6 – 5.2 | robot | 0.75 | Estimate, as door open |
+| `enterCnc` | 2 | 1.8 – 2.6 | robot | 0.7 | Estimate: linear move into the work area; bound: 0.7 m (layout) at 1 m/s (UR10e typical TCP speed) |
+| `exitCnc` | 2 | 1.8 – 2.6 | robot | 0.7 | Estimate, as enter CNC |
+| `grip` | 0.5 | 0.45 – 0.65 | robot | 0.06 | Estimate: approach, close, confirm; OnRobot RG2 datasheet: gripping time 0.06–0.21 s (8 mm stroke) |
+| `release` | 0.5 | 0.45 – 0.65 | robot | 0.06 | Estimate: open, confirm, retract; OnRobot RG2 datasheet: gripping time 0.06–0.21 s (8 mm stroke) |
+| `viseOpen` | 1 | 0.5 – 1.5 | actuator |  | Estimate: pneumatic vise stroke + ZS-34 (SMC D-M9 auto switch) |
+| `viseClamp` | 1 | 0.5 – 1.5 | actuator |  | Estimate: pneumatic vise stroke + ZS-35 (SMC D-M9 auto switch) |
+| `lift` | 1 | 0.9 – 1.3 | robot |  | Estimate: slow lift out of the jaws |
+| `placeInVise` | 1 | 0.9 – 1.3 | robot |  | Estimate: lower into the jaws, push against the fixed jaw |
+| `seatCheck` | 0.5 | 0.4 – 0.75 | sensing |  | Estimate: settle + PS-36 reading (SMC ISA3 gap sensor) |
+| `swapGripper` | 1.5 | 1.35 – 1.95 | robot | 1 | Wrist 3 turn 180° at 180 °/s = 1.0 s (UR10e datasheet) + air blast of the vise (estimate) |
+| `doorToConv` | 2.5 | 2.25 – 3.25 | robot | 1.3 | Estimate; bound: base turn 156° (UR10e datasheet: base joint 120 °/s) |
+| `placeConv` | 2 | 1.8 – 2.6 | robot | 0.06 | Estimate: lower, release, retract; OnRobot RG2 datasheet: gripping time 0.06–0.21 s (8 mm stroke) |
+| `convToPallet` | 2 | 1.8 – 2.6 | robot | 0.81 | Estimate; bound: base turn 97° (UR10e datasheet: base joint 120 °/s) |
+| `pickPallet` | 2 | 1.8 – 2.6 | robot | 0.06 | Estimate: approach at the CAM-1 position, grip, lift; OnRobot RG2 datasheet: gripping time 0.06–0.21 s (8 mm stroke) |
+| `palletToDoor` | 2.5 | 2.25 – 3.25 | robot | 0.89 | Estimate; bound: base turn 107° (UR10e datasheet: base joint 120 °/s) |
+| `check` | 0.5 | 0.4 – 0.75 | sensing | 0.32 | Settle 0.3 s (RULES) + Cognex In-Sight 2800 acquisition (up to 45 Hz: 0.022 s) + processing and compare (estimate) |
+| `beltTravel` | 8 | 7.6 – 8.8 | beltTravel |  | 2.0 m (layout) at 0.25 m/s set on the drive (design value) |
+| `beltStart` | 0.3 | 0.15 – 0.45 | beltRamp |  | Estimate: drive acceleration ramp |
+| `beltStop` | 0.3 | 0.15 – 0.45 | beltRamp |  | Estimate: drive deceleration ramp |
+| `zeroSpeed` | 0.2 | 0.1 – 0.3 | beltRamp |  | Estimate: zero-speed window on ENC-43 (Koyo TRD-N600) |
+| `r2ToExit` | 1.5 | 1.35 – 1.95 | robot | 1.09 | Estimate; bound: base turn 131° from home (UR10e datasheet: base joint 120 °/s) |
+| `r2Pick` | 1 | 0.9 – 1.3 | robot | 0.06 | Estimate: approach, grip, lift; OnRobot RG2 datasheet: gripping time 0.06–0.21 s (8 mm stroke) |
+| `r2ToPallet` | 1.5 | 1.35 – 1.95 | robot | 0.28 | Estimate; bound: base turn 33° (UR10e datasheet: base joint 120 °/s) |
+| `r2Place` | 1 | 0.9 – 1.3 | robot | 0.06 | Estimate: lower, release, retract; OnRobot RG2 datasheet: gripping time 0.06–0.21 s (8 mm stroke) |
+| `r2Home` | 1 | 0.9 – 1.3 | robot | 0.81 | Estimate; bound: base turn 98° from the output pallet (UR10e datasheet: base joint 120 °/s) |
+| `r2ToGauge` | 1.5 | 1.35 – 1.95 | robot | 0.99 | Estimate; bound: base turn 118° (UR10e datasheet: base joint 120 °/s) |
+| `r2LoadGauge` | 1.5 | 1.35 – 1.95 | robot | 0.06 | Estimate: place in the tilted nest, push against the datums, release; OnRobot RG2 datasheet: gripping time 0.06–0.21 s (8 mm stroke) |
+| `measure` | 1 | 0.8 – 1.5 | sensing | 0.13 | Keyence IL-065: sampling 1 ms x average 128 = 0.13 s per reading (datasheet conditions, distributor data) + settle (estimate) |
+| `r2Repick` | 1 | 0.9 – 1.3 | robot | 0.06 | Estimate: grip and lift out of the nest; OnRobot RG2 datasheet: gripping time 0.06–0.21 s (8 mm stroke) |
+| `r2ToNok` | 1.5 | 1.35 – 1.95 | robot | 1.26 | Estimate; bound: base turn 152° (UR10e datasheet: base joint 120 °/s) |
+| `r2Drop` | 0.5 | 0.45 – 0.65 | robot | 0.06 | Estimate: open over the chute; OnRobot RG2 datasheet: gripping time 0.06–0.21 s (8 mm stroke) |
+| `blowOff` | 0.5 | 0.25 – 0.75 | actuator |  | Estimate (A2.2): SMC VQ110 valve (response 12–15 ms, distributor data) + air pulse |
+| `r2Master` | 6 | 5.4 – 7.8 | robot |  | Estimate (A2.2): master cube from its stand to the nest and back, 3 readings |
+
+CNC idle per part with every time at its minimum / maximum at once: 17 / 27.5 s (`KPI.idle2Range`;
+nominal 20.5 s). These are extremes, not a distribution: all times at one end together is
+unlikely.
 
 ### 5.2 Rules `RULES`
 
@@ -790,7 +865,10 @@ Gotchas met before:
 11. **Gauge** (resolved in A2.2, §5.14, `verification/gauge_policy.md`). Open: the uncertainty budget
     is an estimate (no Gauge R&R); the assignment gives only a lower limit; repeated invalid
     readings have no limit (E4 FAULT and repeat); the times `blowOff` and `r2Master` are estimates.
-12. **Times without source or tolerance.** Every value in `T` is a planning estimate. Step A2.3.
+12. **Times** (sources and intervals proposed in A2.3, §5.1.1, pending the author's review). Open:
+    no value is measured; most are estimates checked only against a datasheet lower limit; the
+    intervals are a rule per kind, not distributions; the layout is not to scale, so the base-turn
+    limits are indicative; Keyence and SMC figures come from distributors.
 13. **KPIs are nominal.** Idle time counts only the idle-band states of the exchange; waits for
     material, pallet changes, holds and repairs are not in it. Step A2.4.
 14. **Fault coverage.** Sensor and process faults never combined; the 2-slot pallet is argued,
@@ -876,7 +954,7 @@ green. Effort figures are indicative only.
 |---|---|---|---|
 | A0 Claims and assumptions stated | Done | `main` | 2026-10-23 |
 | A1 Base: Setup 2 only, CI, one build | Done | `a1-base` → `main` | 2026-10-23 |
-| A2 Design gaps: camera policy, gauge, times, KPIs, faults | In progress: A2.1 done (2026-10-28); A2.2 done (2026-10-29); A2.3 times next | `a2-design-gaps` | |
+| A2 Design gaps: camera policy, gauge, times, KPIs, faults | In progress: A2.1 done (2026-10-28); A2.2 done (2026-10-29); A2.3 times proposed (2026-10-30, pending review); A2.4 KPIs next | `a2-design-gaps` | |
 | A3 PLC demonstration | Not started | | |
 | A4 Timed verification (UPPAAL) | Not started | | |
 | A5 Studies with the Python engine | Not started | | |
@@ -1226,3 +1304,4 @@ Newest last. Every change to the plan or to a design rule is written here first 
 | 2026-10-29 | **Phases B and C rewritten** (§15). B becomes the element framework: a generic core, a catalogue of element types described by data, three levels of detail (N1 control, N2 station, N3 flow) with N2 derived from N1 where it exists, ports and interface contracts; steps B1–B8. The equivalence with Setup 2 is kept (B3) and comes before anything new; a structurally different second process cell (bar cutting as the working example, the type chosen by the author at B5), a parametric variant with other times, N2 derivation and a mini line. C becomes the factory for **optimization and scheduling**: a reference factory from inbound trucks through processes and packaging to outbound trucks, built in layers (N2/N3 skeleton first), the planner separated from cell safety, steps C1–C7. Order A → B → C unchanged. Consequences for A noted under B (generic PLC generator in A3, KPI definitions in A2.4 that extend to lines) | The author's goal for C is to optimize and schedule a whole factory with many kinds of elements (trucks, packaging, transport), not copies of one cell; a parametric cell template alone would not support it. Three levels of detail keep the factory tractable, and deriving the upper levels from verified lower ones keeps its numbers traceable. The project is a personal one without a deadline, so the larger B is accepted |
 | 2026-10-29 | **A2.2 gauge policy implemented** in the model, the verifier and both simulators. Choices made in the implementation, within the decided policy: the master check is done by Robot 2 as conditional first steps of E1 (start-up: in E0) and not as a new state; E1→E2 requires `GAUGE.zeroed`; a failed master check is a gauge FAULT and only a passed one clears the 4-h due flag; the technician's sensor verification does not restart the 4-h timer; new property P12 (a part is measured only after a passed master check) and P11 extended to the master cube; air blow-off valve YV-66; estimated times 0.5 s blow-off and 6 s master check (to be confirmed with hardware); in the verifier the 4-h timer may fire only while Robot 2 is in E5/E6 | A new state for the check did not fit the layout of figure 13 (two rails) and multiplied the state space; E1 is the only place where the check can be done with the nest empty and Robot 2 free. Firing the timer only before E1, its only reader, gives E1 every value of the flag it could see with a timer that fires at any time at ×1.4–1.75 instead of ×2.4–2.9 states. All 15 properties hold in the 5 runs; NuSMV not yet run on these models |
 | 2026-10-30 | NuSMV cross-check of the A2.2 models: every decided specification agrees with the search, states equal in all 5 runs; P11 and P12 of `sensor_camwrong` undecided after the 12-h limit. Recorded as is, not re-run; A2.3 started | The search already proves both properties in that run; the cross-check is additional evidence, and a second run of more than 12 h would hold up A2.3 |
+| 2026-10-30 | **A2.3 times proposed**, pending the author's review (§5.1.1). Rules chosen by the author on 2026-10-29: an interval per kind of time, sources from datasheets of concrete models, result committed as a proposal. Kinds and factors proposed by Claude: robot move or gripper step −10 / +30 %, actuator and I/O handshake ±50 %, belt transport −5 / +10 %, belt ramps ±50 %, sensing −20 / +50 %, CNC cycle ±5 %. Robot 2 keeps the UR10e of the hardware list (a UR5e was mentioned on 2026-10-29 only as an example). Nominal values unchanged. §1.1 brought up to date (15 properties, 5 runs, NuSMV agreement of A2.2) | Robot moves are rarely faster than programmed and often slower; actuators and ramps are set at commissioning and vary most; the CNC program is repeatable. Datasheet lower limits make sure no interval allows a physically impossible time. Changing nominal values would change every KPI and reference: left to the author |

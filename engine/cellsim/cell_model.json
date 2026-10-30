@@ -43,6 +43,407 @@
   "blowOff": 0.5,
   "r2Master": 6
  },
+ "TKIND": {
+  "robot": {
+   "f": [
+    0.9,
+    1.3
+   ],
+   "text": "UR10e move or RG2 gripper step: rarely faster than planned, often slower"
+  },
+  "actuator": {
+   "f": [
+    0.5,
+    1.5
+   ],
+   "text": "pneumatic or electromechanical actuator, I/O handshake"
+  },
+  "beltTravel": {
+   "f": [
+    0.95,
+    1.1
+   ],
+   "text": "transport at the set drive speed (speed accuracy, slip, load)"
+  },
+  "beltRamp": {
+   "f": [
+    0.5,
+    1.5
+   ],
+   "text": "drive ramp or zero-speed window, set at commissioning"
+  },
+  "sensing": {
+   "f": [
+    0.8,
+    1.5
+   ],
+   "text": "settle + sensor reading + PLC compare"
+  },
+  "cnc": {
+   "f": [
+    0.95,
+    1.05
+   ],
+   "text": "CNC program cycle"
+  }
+ },
+ "TSRC": {
+  "cncCycle": {
+   "kind": "cnc",
+   "src": "Assignment: 120 s machining cycle of the block"
+  },
+  "unlock": {
+   "kind": "actuator",
+   "src": "Estimate: guard-lock solenoid release + ZS-33 confirmation"
+  },
+  "lock": {
+   "kind": "actuator",
+   "src": "Estimate: guard-lock solenoid + ZS-33 confirmation"
+  },
+  "cycleStart": {
+   "kind": "actuator",
+   "src": "Estimate: CYCLE START handshake over the CNC robot interface"
+  },
+  "doorToHome": {
+   "kind": "robot",
+   "bound": 0.38,
+   "src": "Estimate; bound: base turn 45° (UR10e datasheet: base joint 120 °/s)"
+  },
+  "park": {
+   "kind": "robot",
+   "src": "Estimate: short move to the park pose"
+  },
+  "doorOpen": {
+   "kind": "robot",
+   "bound": 0.75,
+   "src": "Estimate: grip handle, slide the door, release; bound: 0.75 m door travel (layout) at 1 m/s (UR10e typical TCP speed)"
+  },
+  "doorClose": {
+   "kind": "robot",
+   "bound": 0.75,
+   "src": "Estimate, as door open"
+  },
+  "enterCnc": {
+   "kind": "robot",
+   "bound": 0.7,
+   "src": "Estimate: linear move into the work area; bound: 0.7 m (layout) at 1 m/s (UR10e typical TCP speed)"
+  },
+  "exitCnc": {
+   "kind": "robot",
+   "bound": 0.7,
+   "src": "Estimate, as enter CNC"
+  },
+  "grip": {
+   "kind": "robot",
+   "bound": 0.06,
+   "src": "Estimate: approach, close, confirm; OnRobot RG2 datasheet: gripping time 0.06–0.21 s (8 mm stroke)"
+  },
+  "release": {
+   "kind": "robot",
+   "bound": 0.06,
+   "src": "Estimate: open, confirm, retract; OnRobot RG2 datasheet: gripping time 0.06–0.21 s (8 mm stroke)"
+  },
+  "viseOpen": {
+   "kind": "actuator",
+   "src": "Estimate: pneumatic vise stroke + ZS-34 (SMC D-M9 auto switch)"
+  },
+  "viseClamp": {
+   "kind": "actuator",
+   "src": "Estimate: pneumatic vise stroke + ZS-35 (SMC D-M9 auto switch)"
+  },
+  "lift": {
+   "kind": "robot",
+   "src": "Estimate: slow lift out of the jaws"
+  },
+  "placeInVise": {
+   "kind": "robot",
+   "src": "Estimate: lower into the jaws, push against the fixed jaw"
+  },
+  "seatCheck": {
+   "kind": "sensing",
+   "src": "Estimate: settle + PS-36 reading (SMC ISA3 gap sensor)"
+  },
+  "swapGripper": {
+   "kind": "robot",
+   "bound": 1,
+   "src": "Wrist 3 turn 180° at 180 °/s = 1.0 s (UR10e datasheet) + air blast of the vise (estimate)"
+  },
+  "doorToConv": {
+   "kind": "robot",
+   "bound": 1.3,
+   "src": "Estimate; bound: base turn 156° (UR10e datasheet: base joint 120 °/s)"
+  },
+  "placeConv": {
+   "kind": "robot",
+   "bound": 0.06,
+   "src": "Estimate: lower, release, retract; OnRobot RG2 datasheet: gripping time 0.06–0.21 s (8 mm stroke)"
+  },
+  "convToPallet": {
+   "kind": "robot",
+   "bound": 0.81,
+   "src": "Estimate; bound: base turn 97° (UR10e datasheet: base joint 120 °/s)"
+  },
+  "pickPallet": {
+   "kind": "robot",
+   "bound": 0.06,
+   "src": "Estimate: approach at the CAM-1 position, grip, lift; OnRobot RG2 datasheet: gripping time 0.06–0.21 s (8 mm stroke)"
+  },
+  "palletToDoor": {
+   "kind": "robot",
+   "bound": 0.89,
+   "src": "Estimate; bound: base turn 107° (UR10e datasheet: base joint 120 °/s)"
+  },
+  "check": {
+   "kind": "sensing",
+   "bound": 0.32,
+   "src": "Settle 0.3 s (RULES) + Cognex In-Sight 2800 acquisition (up to 45 Hz: 0.022 s) + processing and compare (estimate)"
+  },
+  "beltTravel": {
+   "kind": "beltTravel",
+   "src": "2.0 m (layout) at 0.25 m/s set on the drive (design value)"
+  },
+  "beltStart": {
+   "kind": "beltRamp",
+   "src": "Estimate: drive acceleration ramp"
+  },
+  "beltStop": {
+   "kind": "beltRamp",
+   "src": "Estimate: drive deceleration ramp"
+  },
+  "zeroSpeed": {
+   "kind": "beltRamp",
+   "src": "Estimate: zero-speed window on ENC-43 (Koyo TRD-N600)"
+  },
+  "r2ToExit": {
+   "kind": "robot",
+   "bound": 1.09,
+   "src": "Estimate; bound: base turn 131° from home (UR10e datasheet: base joint 120 °/s)"
+  },
+  "r2Pick": {
+   "kind": "robot",
+   "bound": 0.06,
+   "src": "Estimate: approach, grip, lift; OnRobot RG2 datasheet: gripping time 0.06–0.21 s (8 mm stroke)"
+  },
+  "r2ToPallet": {
+   "kind": "robot",
+   "bound": 0.28,
+   "src": "Estimate; bound: base turn 33° (UR10e datasheet: base joint 120 °/s)"
+  },
+  "r2Place": {
+   "kind": "robot",
+   "bound": 0.06,
+   "src": "Estimate: lower, release, retract; OnRobot RG2 datasheet: gripping time 0.06–0.21 s (8 mm stroke)"
+  },
+  "r2Home": {
+   "kind": "robot",
+   "bound": 0.81,
+   "src": "Estimate; bound: base turn 98° from the output pallet (UR10e datasheet: base joint 120 °/s)"
+  },
+  "r2ToGauge": {
+   "kind": "robot",
+   "bound": 0.99,
+   "src": "Estimate; bound: base turn 118° (UR10e datasheet: base joint 120 °/s)"
+  },
+  "blowOff": {
+   "kind": "actuator",
+   "src": "Estimate (A2.2): SMC VQ110 valve (response 12–15 ms, distributor data) + air pulse"
+  },
+  "r2LoadGauge": {
+   "kind": "robot",
+   "bound": 0.06,
+   "src": "Estimate: place in the tilted nest, push against the datums, release; OnRobot RG2 datasheet: gripping time 0.06–0.21 s (8 mm stroke)"
+  },
+  "measure": {
+   "kind": "sensing",
+   "bound": 0.13,
+   "src": "Keyence IL-065: sampling 1 ms x average 128 = 0.13 s per reading (datasheet conditions, distributor data) + settle (estimate)"
+  },
+  "r2Repick": {
+   "kind": "robot",
+   "bound": 0.06,
+   "src": "Estimate: grip and lift out of the nest; OnRobot RG2 datasheet: gripping time 0.06–0.21 s (8 mm stroke)"
+  },
+  "r2ToNok": {
+   "kind": "robot",
+   "bound": 1.26,
+   "src": "Estimate; bound: base turn 152° (UR10e datasheet: base joint 120 °/s)"
+  },
+  "r2Drop": {
+   "kind": "robot",
+   "bound": 0.06,
+   "src": "Estimate: open over the chute; OnRobot RG2 datasheet: gripping time 0.06–0.21 s (8 mm stroke)"
+  },
+  "r2Master": {
+   "kind": "robot",
+   "src": "Estimate (A2.2): master cube from its stand to the nest and back, 3 readings"
+  }
+ },
+ "TRANGE": {
+  "cncCycle": [
+   114,
+   126
+  ],
+  "unlock": [
+   0.25,
+   0.75
+  ],
+  "lock": [
+   0.25,
+   0.75
+  ],
+  "cycleStart": [
+   0.25,
+   0.75
+  ],
+  "doorToHome": [
+   1.35,
+   1.95
+  ],
+  "park": [
+   1.35,
+   1.95
+  ],
+  "doorOpen": [
+   3.6,
+   5.2
+  ],
+  "doorClose": [
+   3.6,
+   5.2
+  ],
+  "enterCnc": [
+   1.8,
+   2.6
+  ],
+  "exitCnc": [
+   1.8,
+   2.6
+  ],
+  "grip": [
+   0.45,
+   0.65
+  ],
+  "release": [
+   0.45,
+   0.65
+  ],
+  "viseOpen": [
+   0.5,
+   1.5
+  ],
+  "viseClamp": [
+   0.5,
+   1.5
+  ],
+  "lift": [
+   0.9,
+   1.3
+  ],
+  "placeInVise": [
+   0.9,
+   1.3
+  ],
+  "seatCheck": [
+   0.4,
+   0.75
+  ],
+  "swapGripper": [
+   1.35,
+   1.95
+  ],
+  "doorToConv": [
+   2.25,
+   3.25
+  ],
+  "placeConv": [
+   1.8,
+   2.6
+  ],
+  "convToPallet": [
+   1.8,
+   2.6
+  ],
+  "pickPallet": [
+   1.8,
+   2.6
+  ],
+  "palletToDoor": [
+   2.25,
+   3.25
+  ],
+  "check": [
+   0.4,
+   0.75
+  ],
+  "beltTravel": [
+   7.6,
+   8.8
+  ],
+  "beltStart": [
+   0.15,
+   0.45
+  ],
+  "beltStop": [
+   0.15,
+   0.45
+  ],
+  "zeroSpeed": [
+   0.1,
+   0.3
+  ],
+  "r2ToExit": [
+   1.35,
+   1.95
+  ],
+  "r2Pick": [
+   0.9,
+   1.3
+  ],
+  "r2ToPallet": [
+   1.35,
+   1.95
+  ],
+  "r2Place": [
+   0.9,
+   1.3
+  ],
+  "r2Home": [
+   0.9,
+   1.3
+  ],
+  "r2ToGauge": [
+   1.35,
+   1.95
+  ],
+  "r2LoadGauge": [
+   1.35,
+   1.95
+  ],
+  "measure": [
+   0.8,
+   1.5
+  ],
+  "r2Repick": [
+   0.9,
+   1.3
+  ],
+  "r2ToNok": [
+   1.35,
+   1.95
+  ],
+  "r2Drop": [
+   0.45,
+   0.65
+  ],
+  "blowOff": [
+   0.25,
+   0.75
+  ],
+  "r2Master": [
+   5.4,
+   7.8
+  ]
+ },
  "RULES": {
   "mismatchWindow": 600,
   "mismatchLimit": 3,
@@ -1827,6 +2228,10 @@
   "idle2": 20.5,
   "cycle2": 140.5,
   "util2": 0.8540925266903915,
-  "pph2": 25.622775800711743
+  "pph2": 25.622775800711743,
+  "idle2Range": [
+   17,
+   27.5
+  ]
  }
 }

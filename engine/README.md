@@ -51,7 +51,7 @@ violated property); it must stay empty.
 | `cellsim/model.py` | Reads the model; the guard language (parser, evaluator, texts) |
 | `cellsim/sim.py` | Interpreter of the state machines, scheduler, plant, property monitors |
 | `cellsim/scenarios.py` | Long runs with random disturbances; conformance check against the model |
-| `cellsim/cell_model.json` | The model, exported from `source/src/cell-model.js` |
+| `cellsim/cell_model.json` | The model, exported from `source/src/cell-model.js` (with the time sources and intervals `TSRC`, `TRANGE` of A2.3) |
 | `run.py` | Command line |
 | `test_engine.py` | Tests |
 | `trace.py` | Trace of a scenario as JSON, for the comparison with the browser simulator |

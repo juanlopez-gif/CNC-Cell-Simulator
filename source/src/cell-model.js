@@ -38,6 +38,74 @@
     r2ToNok: 'To NOK chute', r2Drop: 'Drop', blowOff: 'Air blow-off', r2Master: 'Master cube check',
   };
 
+  // Source and interval of every time (step A2.3, proposed 2026-10-30, pending the author's review).
+  // Each time has a kind; the kind gives the interval as factors of the nominal value. bound is a
+  // physical lower limit from a datasheet: the minimum is never below it, and the nominal must not
+  // be either. Robot moves: base turn between the stations of the layout (fig09; the drawing is not
+  // to scale, but the angles around each robot base are indicative) at the UR10e datasheet speed of
+  // the base joint, 120 °/s, without acceleration time, so a true lower limit.
+  const TKIND = {
+    robot: { f: [0.9, 1.3], text: 'UR10e move or RG2 gripper step: rarely faster than planned, often slower' },
+    actuator: { f: [0.5, 1.5], text: 'pneumatic or electromechanical actuator, I/O handshake' },
+    beltTravel: { f: [0.95, 1.1], text: 'transport at the set drive speed (speed accuracy, slip, load)' },
+    beltRamp: { f: [0.5, 1.5], text: 'drive ramp or zero-speed window, set at commissioning' },
+    sensing: { f: [0.8, 1.5], text: 'settle + sensor reading + PLC compare' },
+    cnc: { f: [0.95, 1.05], text: 'CNC program cycle' },
+  };
+  const UR = 'UR10e datasheet: base joint 120 °/s';
+  const RG2 = 'OnRobot RG2 datasheet: gripping time 0.06–0.21 s (8 mm stroke)';
+  const TSRC = {
+    cncCycle: { kind: 'cnc', src: 'Assignment: 120 s machining cycle of the block' },
+    unlock: { kind: 'actuator', src: 'Estimate: guard-lock solenoid release + ZS-33 confirmation' },
+    lock: { kind: 'actuator', src: 'Estimate: guard-lock solenoid + ZS-33 confirmation' },
+    cycleStart: { kind: 'actuator', src: 'Estimate: CYCLE START handshake over the CNC robot interface' },
+    doorToHome: { kind: 'robot', bound: 0.38, src: `Estimate; bound: base turn 45° (${UR})` },
+    park: { kind: 'robot', src: 'Estimate: short move to the park pose' },
+    doorOpen: { kind: 'robot', bound: 0.75, src: 'Estimate: grip handle, slide the door, release; bound: 0.75 m door travel (layout) at 1 m/s (UR10e typical TCP speed)' },
+    doorClose: { kind: 'robot', bound: 0.75, src: 'Estimate, as door open' },
+    enterCnc: { kind: 'robot', bound: 0.7, src: 'Estimate: linear move into the work area; bound: 0.7 m (layout) at 1 m/s (UR10e typical TCP speed)' },
+    exitCnc: { kind: 'robot', bound: 0.7, src: 'Estimate, as enter CNC' },
+    grip: { kind: 'robot', bound: 0.06, src: `Estimate: approach, close, confirm; ${RG2}` },
+    release: { kind: 'robot', bound: 0.06, src: `Estimate: open, confirm, retract; ${RG2}` },
+    viseOpen: { kind: 'actuator', src: 'Estimate: pneumatic vise stroke + ZS-34 (SMC D-M9 auto switch)' },
+    viseClamp: { kind: 'actuator', src: 'Estimate: pneumatic vise stroke + ZS-35 (SMC D-M9 auto switch)' },
+    lift: { kind: 'robot', src: 'Estimate: slow lift out of the jaws' },
+    placeInVise: { kind: 'robot', src: 'Estimate: lower into the jaws, push against the fixed jaw' },
+    seatCheck: { kind: 'sensing', src: 'Estimate: settle + PS-36 reading (SMC ISA3 gap sensor)' },
+    swapGripper: { kind: 'robot', bound: 1.0, src: 'Wrist 3 turn 180° at 180 °/s = 1.0 s (UR10e datasheet) + air blast of the vise (estimate)' },
+    doorToConv: { kind: 'robot', bound: 1.3, src: `Estimate; bound: base turn 156° (${UR})` },
+    placeConv: { kind: 'robot', bound: 0.06, src: `Estimate: lower, release, retract; ${RG2}` },
+    convToPallet: { kind: 'robot', bound: 0.81, src: `Estimate; bound: base turn 97° (${UR})` },
+    pickPallet: { kind: 'robot', bound: 0.06, src: `Estimate: approach at the CAM-1 position, grip, lift; ${RG2}` },
+    palletToDoor: { kind: 'robot', bound: 0.89, src: `Estimate; bound: base turn 107° (${UR})` },
+    check: { kind: 'sensing', bound: 0.32, src: 'Settle 0.3 s (RULES) + Cognex In-Sight 2800 acquisition (up to 45 Hz: 0.022 s) + processing and compare (estimate)' },
+    beltTravel: { kind: 'beltTravel', src: '2.0 m (layout) at 0.25 m/s set on the drive (design value)' },
+    beltStart: { kind: 'beltRamp', src: 'Estimate: drive acceleration ramp' },
+    beltStop: { kind: 'beltRamp', src: 'Estimate: drive deceleration ramp' },
+    zeroSpeed: { kind: 'beltRamp', src: 'Estimate: zero-speed window on ENC-43 (Koyo TRD-N600)' },
+    r2ToExit: { kind: 'robot', bound: 1.09, src: `Estimate; bound: base turn 131° from home (${UR})` },
+    r2Pick: { kind: 'robot', bound: 0.06, src: `Estimate: approach, grip, lift; ${RG2}` },
+    r2ToPallet: { kind: 'robot', bound: 0.28, src: `Estimate; bound: base turn 33° (${UR})` },
+    r2Place: { kind: 'robot', bound: 0.06, src: `Estimate: lower, release, retract; ${RG2}` },
+    r2Home: { kind: 'robot', bound: 0.81, src: `Estimate; bound: base turn 98° from the output pallet (${UR})` },
+    r2ToGauge: { kind: 'robot', bound: 0.99, src: `Estimate; bound: base turn 118° (${UR})` },
+    blowOff: { kind: 'actuator', src: 'Estimate (A2.2): SMC VQ110 valve (response 12–15 ms, distributor data) + air pulse' },
+    r2LoadGauge: { kind: 'robot', bound: 0.06, src: `Estimate: place in the tilted nest, push against the datums, release; ${RG2}` },
+    measure: { kind: 'sensing', bound: 0.13, src: 'Keyence IL-065: sampling 1 ms x average 128 = 0.13 s per reading (datasheet conditions, distributor data) + settle (estimate)' },
+    r2Repick: { kind: 'robot', bound: 0.06, src: `Estimate: grip and lift out of the nest; ${RG2}` },
+    r2ToNok: { kind: 'robot', bound: 1.26, src: `Estimate; bound: base turn 152° (${UR})` },
+    r2Drop: { kind: 'robot', bound: 0.06, src: `Estimate: open over the chute; ${RG2}` },
+    r2Master: { kind: 'robot', src: 'Estimate (A2.2): master cube from its stand to the nest and back, 3 readings' },
+  };
+  const r2 = (x) => Math.round(x * 100) / 100;
+  // [min, max] of every time; TMIN / TMAX are T with every value at its minimum / maximum.
+  const TRANGE = {}, TMIN = {}, TMAX = {};
+  Object.keys(T).forEach((k) => {
+    const src = TSRC[k] || {}, f = (TKIND[src.kind] || { f: [1, 1] }).f;
+    TRANGE[k] = [Math.max(r2(T[k] * f[0]), src.bound || 0), r2(T[k] * f[1])];
+    [TMIN[k], TMAX[k]] = TRANGE[k];
+  });
+
   // ---------------------------------------------------------------- rules
   const RULES = {
     mismatchWindow: 600,     // s  (10 min sliding window)
@@ -720,30 +788,32 @@
   const r1 = (x) => Math.round(x * 10) / 10;
   const jobTime = (j) => JOBS[j].time.reduce((s, k) => s + T[k], 0);
   // Nominal step times of a state: every step runs, checks take T.check unless quick.
-  function stateSteps(mk, id) {
+  function stateSteps(mk, id, tt = T) {
     const s = MACHINES[mk].states[id], rows = [];
     (s.do || []).forEach((st) => {
-      if (st.job) JOBS[st.job].time.forEach((k) => rows.push([(JOBS[st.job].labels || {})[k] || TLABEL[k] || k, T[k]]));
-      else if (st.check && !st.quick) rows.push([`Check ${st.check}`, T.check]);
+      if (st.job) JOBS[st.job].time.forEach((k) => rows.push([(JOBS[st.job].labels || {})[k] || TLABEL[k] || k, tt[k]]));
+      else if (st.check && !st.quick) rows.push([`Check ${st.check}`, tt.check]);
     });
-    (s.time || []).forEach((k) => rows.push([TLABEL[k] || k, T[k]]));
-    (s.next || []).forEach((tr) => { if (tr.for) rows.push([TLABEL[tr.for] || tr.for, T[tr.for]]); });
+    (s.time || []).forEach((k) => rows.push([TLABEL[k] || k, tt[k]]));
+    (s.next || []).forEach((tr) => { if (tr.for) rows.push([TLABEL[tr.for] || tr.for, tt[tr.for]]); });
     return rows;
   }
   const stateTime = (mk, id) => r1(stateSteps(mk, id).reduce((a, x) => a + x[1], 0));
   // CNC idle per cycle = from "cycle complete" to the next "cycle start": the door unlock of the
   // CNC plus every state of the Robot 1 machine in the idle band.
-  function idleList(setup) {
+  function idleList(setup, tt = T) {
     const mk = IDLE_MACHINE[setup], m = MACHINES[mk];
-    let rows = [[TLABEL.unlock, T.unlock]];
-    m.view.main.forEach((id) => { if (m.states[id].band === 'idle') rows = rows.concat(stateSteps(mk, id)); });
+    let rows = [[TLABEL.unlock, tt.unlock]];
+    m.view.main.forEach((id) => { if (m.states[id].band === 'idle') rows = rows.concat(stateSteps(mk, id, tt)); });
     return rows;
   }
   const idleSetup2 = idleList(2);
   const sum = (a) => r1(a.reduce((s, x) => s + x[1], 0));
   const KPI = (() => {
     const i2 = sum(idleSetup2), c2 = T.cncCycle + i2;
-    return { idle2: i2, cycle2: c2, util2: T.cncCycle / c2, pph2: 3600 / c2 };
+    // idle2Range: every time at its minimum / at its maximum at once (extremes, not a distribution)
+    return { idle2: i2, cycle2: c2, util2: T.cncCycle / c2, pph2: 3600 / c2,
+      idle2Range: [sum(idleList(2, TMIN)), sum(idleList(2, TMAX))] };
   })();
   // Reference for the comparison: Setup 1 (single gripper), computed by this model before Setup 1 was
   // removed. Fixed numbers, not derived from the current machines.
@@ -754,6 +824,14 @@
   // Returns a list of problems; empty = the model is consistent.
   function lint() {
     const errs = [];
+    Object.keys(T).forEach((k) => {
+      const src = TSRC[k];
+      if (!src) { errs.push(`T.${k}: no source in TSRC`); return; }
+      if (!TKIND[src.kind]) errs.push(`T.${k}: unknown kind ${src.kind}`);
+      if (src.bound > T[k]) errs.push(`T.${k}: nominal ${T[k]} s below its physical bound ${src.bound} s`);
+      if (!(TRANGE[k][0] <= T[k] && T[k] <= TRANGE[k][1])) errs.push(`T.${k}: nominal outside [${TRANGE[k]}]`);
+    });
+    Object.keys(TSRC).forEach((k) => { if (!(k in T)) errs.push(`TSRC.${k}: no such time`); });
     const allStates = {};
     Object.keys(SLOTS).forEach((s) => { allStates[s] = new Set(['H', 'F']); });
     Object.values(MACHINES).forEach((m) => Object.keys(m.states).forEach((id) => allStates[m.slot].add(id)));
@@ -848,7 +926,7 @@
   }
 
   const MODEL = {
-    T, TLABEL, KPI, BASELINE, RULES, CHECKPOINTS, SENSORS, STATES, idleSetup2,
+    T, TLABEL, TKIND, TSRC, TRANGE, TMIN, TMAX, KPI, BASELINE, RULES, CHECKPOINTS, SENSORS, STATES, idleSetup2,
     SLOTS, SIGNALS, CONST, OUTPUTS, RUNGS, PROPERTIES, JOBS, MACHINES, SETUP_MACHINES, IDLE_MACHINE,
     expr: { parse, evaluate, names, terms, label, plain, visible, constVal },
     jobTime, stateSteps, stateTime, lint,
