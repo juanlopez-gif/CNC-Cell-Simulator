@@ -1,0 +1,3 @@
+Wrong readings at every checkpoint (mismatch, camfp, camfn, stale), PLC timeouts, recovery changes
+of ../camera_policy.md §3, rules: CP-4 absent, all others camera.
+28933373 states, failed properties: none, 0 deadlocks

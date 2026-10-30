@@ -1,163 +1,169 @@
 {
- "note": "Reference of Setup 2 after step A1 (Setup 1 removed from the code). Produced by source/regress.js; npm run regress compares with it.",
- "recorded": "2026-10-23",
- "commit": "end of step A1 (branch a1-base)",
- "fingerprint": {
-  "kpi": {
-   "idle": 20.5,
-   "cycle": 140.5,
-   "util": 0.854093,
-   "pph": 25.622776
+ "kpi": {
+  "idle": 20.5,
+  "cycle": 140.5,
+  "util": 0.854093,
+  "pph": 25.622776
+ },
+ "stateTimes": {
+  "R1S2.B0": 1.5,
+  "R1S2.B1": 4.5,
+  "R1S2.B2": 2.5,
+  "R1S2.B3": 4,
+  "R1S2.B4": 11,
+  "R1S2.B5": 4.5,
+  "R1S2.B6": 0.5,
+  "R1S2.B7": 5,
+  "R1S2.W1": 1.5,
+  "CONV.C1": 0,
+  "CONV.C2": 0,
+  "CONV.C3": 8.3,
+  "CONV.C4": 0.5,
+  "CONV.C5": 0.5,
+  "R2S2.E0": 8.5,
+  "R2S2.E1": 7,
+  "R2S2.E2": 2.5,
+  "R2S2.E3": 4,
+  "R2S2.E4": 1,
+  "R2S2.E5": 4,
+  "R2S2.E6": 3,
+  "R2S2.E7": 1.5,
+  "SUP.X1": 0,
+  "SUP.X2": 0,
+  "SUP.X3": 0,
+  "SUP.X4": 0
+ },
+ "smv": {
+  "none": {
+   "vars": 45,
+   "commands": 307,
+   "sha256": "45522e3ad939202e5640cab5cac811ac7100c7597775aed8c16552c49d9792be"
   },
-  "stateTimes": {
-   "R1S2.B0": 1.5,
-   "R1S2.B1": 4.5,
-   "R1S2.B2": 2.5,
-   "R1S2.B3": 4,
-   "R1S2.B4": 11,
-   "R1S2.B5": 4.5,
-   "R1S2.B6": 0.5,
-   "R1S2.B7": 5,
-   "R1S2.W1": 1.5,
-   "CONV.C1": 0,
-   "CONV.C2": 0,
-   "CONV.C3": 8.3,
-   "CONV.C4": 0.5,
-   "CONV.C5": 0.5,
-   "R2S2.E0": 1.5,
-   "R2S2.E1": 1,
-   "R2S2.E2": 2.5,
-   "R2S2.E3": 3.5,
-   "R2S2.E4": 1,
-   "R2S2.E5": 4,
-   "R2S2.E6": 3,
-   "R2S2.E7": 1.5,
-   "SUP.X1": 0,
-   "SUP.X2": 0,
-   "SUP.X3": 0,
-   "SUP.X4": 0
+  "sensor": {
+   "vars": 45,
+   "commands": 357,
+   "sha256": "18c1b2b0a9bf9969d4182b83a66d49ced4cd18da93bab03e4014a388b11b0f28"
   },
-  "smv": {
-   "none": {
-    "vars": 44,
-    "commands": 266,
-    "sha256": "3cc43a76dcbd33386f3d54aecc9667672ee2ebaf824d6b9e6b2d5a683fc07abd"
+  "process": {
+   "vars": 45,
+   "commands": 327,
+   "sha256": "bb1d108bc3b0ca73e18eff8acb95dcc85bc46d7562a49c185c0afb16cc20c230"
+  },
+  "camwrong": {
+   "vars": 45,
+   "commands": 376,
+   "sha256": "5a5be9450e8314a3e30c0758dba2876905a558beffbf3fd06b3ba22f956bbcd2"
+  },
+  "sensor_camwrong": {
+   "vars": 45,
+   "commands": 405,
+   "sha256": "93b22d66a77536de75a9806e1490a5af4c9d88eb9ccf3280a315a8ddb6259341"
+  }
+ },
+ "figures": {
+  "fig02_control_architecture": "48abd3b93114089f3acf6f199302e2aa87f2dc174a301412174ba5ae72fcba1e",
+  "fig03_crosscheck_flow": "b7ade2f2c9ec9ea37d341895d9077fea88cd4bc8b6584db4cbd516dacebfa6bb",
+  "fig04_supervisor_states": "5f10ecac0dd5420586b513691bb9ee24b8793b893e40b6edfa66fb2793a93b01",
+  "fig07_states_conveyor": "735557afbe18cc76abc309d1e33ea401eae51790efc0e9ea054e13ba5fa926df",
+  "fig09_layout_setup2": "645dab2066c935213f672bb950488f7d943f1fa8257db427e9229f8729d4c7f9",
+  "fig10_timing_setup1_vs_setup2": "81ab67bce9466a602eee7fdbf899249a170fdc1063a03bd3bed3b450c9d247de",
+  "fig11_flow_setup2": "7ee1a46b9af8cdd21ea200cdc459e4a6b5b2891a86b35bc62ee638c0b505475e",
+  "fig12_states_robot1_setup2": "95b7b96dedde91aab54ea1c7ecd27b218e38c43ac7db59604b2d13057edebc88",
+  "fig13_states_robot2_setup2": "dd1558206c5925d8d1f975ba7269a20aa4d89abce9639d58652cdce9c55d6229",
+  "fig14_dual_gripper_exchange": "0c69d4de1e45b5dfeb12f5e36d03c477dd73a7bd9e7f459bed2de5416759c3d8"
+ },
+ "browser": {
+  "det_nominal": {
+   "changes": 440,
+   "sha256": "cb57d939862c91ca7a58d585a9d61c15c8cfad04c9ee7ebada39ae0eea2b1fc0"
+  },
+  "det_cp2fault": {
+   "changes": 453,
+   "sha256": "acbe37cde5083bf7e5ffb107b96f6f2a58f1d7cc516aa652877aa6626131b6ef"
+  },
+  "pageErrors": []
+ },
+ "python": {
+  "det_nominal": {
+   "changes": 440,
+   "sha256": "cb57d939862c91ca7a58d585a9d61c15c8cfad04c9ee7ebada39ae0eea2b1fc0",
+   "cycles": 25,
+   "mismatches": 0,
+   "stops": 0,
+   "parts": 25,
+   "errors": 0
+  },
+  "det_cp2fault": {
+   "changes": 453,
+   "sha256": "acbe37cde5083bf7e5ffb107b96f6f2a58f1d7cc516aa652877aa6626131b6ef",
+   "cycles": 25,
+   "mismatches": 3,
+   "stops": 1,
+   "parts": 25,
+   "errors": 0
+  },
+  "random_nominal_2h": {
+   "changes": 876,
+   "sha256": "c11071180fbdc301c9d1f3013beaa2149415120388c0e79986bc080b9e215b5c",
+   "cycles": 51,
+   "errors": 0,
+   "injected": {},
+   "actions": {
+    "clear": 0,
+    "verify": 0,
+    "reset": 0,
+    "release": 0
    },
-   "sensor": {
-    "vars": 44,
-    "commands": 295,
-    "sha256": "2cea5b7c089f8bcb2aad582334f814716f9a32628f8028c1da041f73e48d65bd"
-   },
-   "process": {
-    "vars": 44,
-    "commands": 284,
-    "sha256": "f6c09559c7d2a94adf76a0eb0f61a00f56f145558ab495f9c8827edfdbe8fe1b"
+   "kpis": {
+    "sim_time_h": 2,
+    "parts_on_pallet": 50,
+    "nok_parts": 0,
+    "cnc_cycles": 51,
+    "cnc_utilization": 0.854295,
+    "mean_cnc_idle_s": 20.5,
+    "design_cnc_idle_s": 20.5,
+    "parts_per_hour": 25.622776,
+    "mismatches": 0,
+    "line_stops": 0,
+    "jobs": 872,
+    "property_violations": 0
    }
   },
-  "figures": {
-   "fig02_control_architecture": "48abd3b93114089f3acf6f199302e2aa87f2dc174a301412174ba5ae72fcba1e",
-   "fig03_crosscheck_flow": "cc6a903b466f2c14e1902f072f7965af2c7b10c45efda6b4d6c0762a397b23b7",
-   "fig04_supervisor_states": "50e4599e89566f53c46a4374e75a53f67011529556221e649994206a5f0d07d7",
-   "fig07_states_conveyor": "aa5513c8d2b39eac5ab01d9b32879e81cf8e19ee6e168212b9589c7bfccd8a25",
-   "fig09_layout_setup2": "645dab2066c935213f672bb950488f7d943f1fa8257db427e9229f8729d4c7f9",
-   "fig10_timing_setup1_vs_setup2": "61370473367958e750b4edacbf77d406a496f31971a27e8f485fced79497d071",
-   "fig11_flow_setup2": "7ee1a46b9af8cdd21ea200cdc459e4a6b5b2891a86b35bc62ee638c0b505475e",
-   "fig12_states_robot1_setup2": "95b7b96dedde91aab54ea1c7ecd27b218e38c43ac7db59604b2d13057edebc88",
-   "fig13_states_robot2_setup2": "692332a8302471fe6753ad2f4188e376e02ac3f94fe95d539678851ce06495ba",
-   "fig14_dual_gripper_exchange": "0c69d4de1e45b5dfeb12f5e36d03c477dd73a7bd9e7f459bed2de5416759c3d8"
-  },
-  "browser": {
-   "det_nominal": {
-    "changes": 440,
-    "sha256": "f6363076a45b04fa3c39a9f063d8164c75b6cc67f48810df4f0f4d35b458809f"
+  "random_faults_8h": {
+   "changes": 1596,
+   "sha256": "fcff5402ce45dfe03201f7d578257e3a0c7ad1b109b367da2ceb20068056f36f",
+   "cycles": 89,
+   "errors": 0,
+   "injected": {
+    "grip miss": 3,
+    "operator away": 5,
+    "bad frame": 3,
+    "glitch": 8,
+    "undersized part": 1,
+    "sensor fault": 6,
+    "camera failure": 3,
+    "master check out of tolerance": 2,
+    "operator back": 4
    },
-   "det_cp2fault": {
-    "changes": 447,
-    "sha256": "1cc5d4e07889ba5a8d8fae64ce40a4219772b8aeadd180b9fcb700bf6600bdaf"
+   "actions": {
+    "clear": 8,
+    "verify": 5,
+    "reset": 5,
+    "release": 0
    },
-   "pageErrors": []
-  },
-  "python": {
-   "det_nominal": {
-    "changes": 440,
-    "sha256": "02ed8d5b1d34d889a8659cacd894392f56621169dbb32de98e367f1a68839634",
-    "cycles": 25,
-    "mismatches": 0,
-    "stops": 0,
-    "parts": 25,
-    "errors": 0
-   },
-   "det_cp2fault": {
-    "changes": 447,
-    "sha256": "1cc5d4e07889ba5a8d8fae64ce40a4219772b8aeadd180b9fcb700bf6600bdaf",
-    "cycles": 25,
-    "mismatches": 3,
-    "stops": 1,
-    "parts": 25,
-    "errors": 0
-   },
-   "random_nominal_2h": {
-    "changes": 876,
-    "sha256": "8a0a40cfb6812441ecc384685e478e9da24d72dc664173f613e8cc22a02e796a",
-    "cycles": 51,
-    "errors": 0,
-    "injected": {},
-    "actions": {
-     "clear": 0,
-     "verify": 0,
-     "reset": 0,
-     "release": 0
-    },
-    "kpis": {
-     "sim_time_h": 2,
-     "parts_on_pallet": 50,
-     "nok_parts": 0,
-     "cnc_cycles": 51,
-     "cnc_utilization": 0.854295,
-     "mean_cnc_idle_s": 20.5,
-     "design_cnc_idle_s": 20.5,
-     "parts_per_hour": 25.622776,
-     "mismatches": 0,
-     "line_stops": 0,
-     "jobs": 871,
-     "property_violations": 0
-    }
-   },
-   "random_faults_8h": {
-    "changes": 1587,
-    "sha256": "07b8d38589158a6094cb6ecfff766b562fcd000ea4ecdb22aa68084b54d6d925",
-    "cycles": 89,
-    "errors": 0,
-    "injected": {
-     "grip miss": 3,
-     "operator away": 5,
-     "bad frame": 3,
-     "glitch": 8,
-     "undersized part": 3,
-     "sensor fault": 6,
-     "camera failure": 3,
-     "operator back": 4
-    },
-    "actions": {
-     "clear": 3,
-     "verify": 5,
-     "reset": 5,
-     "release": 1
-    },
-    "kpis": {
-     "sim_time_h": 8,
-     "parts_on_pallet": 86,
-     "nok_parts": 3,
-     "cnc_cycles": 89,
-     "cnc_utilization": 0.372451,
-     "mean_cnc_idle_s": 202.898876,
-     "design_cnc_idle_s": 20.5,
-     "parts_per_hour": 11.149001,
-     "mismatches": 11,
-     "line_stops": 5,
-     "jobs": 1542,
-     "property_violations": 0
-    }
+   "kpis": {
+    "sim_time_h": 8,
+    "parts_on_pallet": 87,
+    "nok_parts": 1,
+    "cnc_cycles": 89,
+    "cnc_utilization": 0.371812,
+    "mean_cnc_idle_s": 203.105618,
+    "design_cnc_idle_s": 20.5,
+    "parts_per_hour": 11.141868,
+    "mismatches": 13,
+    "line_stops": 5,
+    "jobs": 1544,
+    "property_violations": 0
    }
   }
  }

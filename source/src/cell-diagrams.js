@@ -568,7 +568,7 @@
   // ------------------------------------------------------------------ Cross-check flowchart
   function flowCrossCheck(o) {
     const d = new Diagram(860, 0, 'Camera + proximity cross-check (runs at every checkpoint CP-1 … CP-5)',
-      'Both sources must agree. If they disagree the camera decides; 3 disagreements within 10 minutes stop the line.', o);
+      'Both sources must agree. If they disagree the rule of the checkpoint decides; 3 disagreements within 10 minutes stop the line.', o);
     const t = d.top;
     const LX = 18, LW = 222, LC = LX + LW / 2;
     const MX = 280, MW = 320, MC = MX + MW / 2;
@@ -583,20 +583,20 @@
     d.arrow([[q1.left, q1.cy], [r1.right, q1.cy]], ['No'], { at: [(q1.left + r1.right) / 2, q1.cy - 13], kind: 'fault' });
     const q1b = d.choice('Q1B', LC, r1.bottom + 30 + 33, 170, 66, ['Valid now?']);
     d.arrow([[LC, r1.bottom], [LC, q1b.top]]);
-    const cf = d.node('CF', LX, q1b.bottom + 36, LW, 86, ['CAMERA FAULT', '→ LINE STOP', 'the camera is the reference,', 'so the line never runs blind'], { shape: 'term', kind: 'stop', titleLines: 2 });
+    const cf = d.node('CF', LX, q1b.bottom + 36, LW, 86, ['CAMERA FAULT', '→ LINE STOP', 'no cross-check possible,', 'the line never runs on one source'], { shape: 'term', kind: 'stop', titleLines: 2 });
     d.arrow([[LC, q1b.bottom], [LC, cf.top]], ['No'], { at: [LC + 14, (q1b.bottom + cf.top) / 2], anchor: 'start', kind: 'fault' });
     const q2 = d.choice('Q2', MC, q1b.cy + 30 + 44, 262, 88, ['Proximity', '= Camera?']);
     d.arrow([[MC, q1.bottom], [MC, q2.top]], ['Yes'], { at: [MC + 14, q1.bottom + 16], anchor: 'start' });
     d.arrow([[q1b.right, q1b.cy], [MC - 3, q1b.cy]], ['Yes'], { at: [(q1b.right + MC) / 2 - 10, q1b.cy - 13] });
     const ag = d.node('AG', RX, q2.cy - 36, RW, 72, ['AGREE', 'use the value, the', 'sequence continues'], { shape: 'term', kind: 'ok' });
     d.arrow([[q2.right, q2.cy], [ag.left, q2.cy]], ['Yes'], { at: [(q2.right + ag.left) / 2, q2.cy - 13], kind: 'ok' });
-    const mm = d.node('MM', MX, q2.bottom + 40, MW, 90, ['MISMATCH', 'USE THE CAMERA VALUE', 'log time, CP and both readings', 'amber light · HMI names the sensor'], { kind: 'warn', titleLines: 2 });
+    const mm = d.node('MM', MX, q2.bottom + 40, MW, 90, ['MISMATCH', 'USE THE VALUE OF THE CP RULE', 'log time, CP and both readings', 'amber light · HMI names the sensor'], { kind: 'warn', titleLines: 2 });
     d.arrow([[MC, q2.bottom], [MC, mm.top]], ['No'], { at: [MC + 14, (q2.bottom + mm.top) / 2], anchor: 'start', kind: 'fault' });
     const wn = d.node('WN', MX, mm.bottom + 30, MW, 58, ['ADD TO THE 10-MIN WINDOW', 'events older than 10 min drop out']);
     d.arrow([[MC, mm.bottom], [MC, wn.top]]);
     const q3 = d.choice('Q3', MC, wn.bottom + 30 + 46, 276, 92, ['≥ 3 mismatches', 'in the last 10 min?']);
     d.arrow([[MC, wn.bottom], [MC, q3.top]]);
-    const cn = d.node('CN', RX, q3.cy - 36, RW, 72, ['CONTINUE', 'with the camera value,', 'warning stays active'], { shape: 'term', kind: 'warn' });
+    const cn = d.node('CN', RX, q3.cy - 36, RW, 72, ['CONTINUE', 'with the value of the rule,', 'warning stays active'], { shape: 'term', kind: 'warn' });
     d.arrow([[q3.right, q3.cy], [cn.left, q3.cy]], ['No'], { at: [(q3.right + cn.left) / 2, q3.cy - 13] });
     const ls = d.node('LS', MX, q3.bottom + 40, MW, 88, ['LINE STOP', 'SENSOR VERIFICATION', 'controlled stop · red light', '(see the supervisor states)'], { shape: 'term', kind: 'stop', titleLines: 2 });
     d.arrow([[MC, q3.bottom], [MC, ls.top]], ['Yes'], { at: [MC + 14, (q3.bottom + ls.top) / 2], anchor: 'start', kind: 'fault' });

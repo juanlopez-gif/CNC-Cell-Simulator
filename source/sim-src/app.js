@@ -41,7 +41,7 @@
     S = {
       t: 0, speed: +$('#selSpeed').value || 10, running: true, setup: 2, step: false,
       autoOp: $('#chkAuto').checked, logAll: $('#chkAll').checked,
-      inject: { under: 0, gripMiss: false, frames: { 'CAM-1': 0, 'CAM-2': 0 } }, faults: {}, camFault: null, verify: null,
+      inject: { under: 0, band: 0, master: false, gripMiss: false, frames: { 'CAM-1': 0, 'CAM-2': 0 } }, faults: {}, camFault: null, askAt: null, verify: null,
       stopReason: '', vars: {}, cp: {}, inputs: { verify: false, reset: false, release: false, clearAt: -1 },
     };
     Object.keys(M.SIGNALS).forEach((k) => { const s = M.SIGNALS[k]; if (s.kind === 'var' && k !== 'mismatches') S.vars[k] = s.num ? 0 : false; });
@@ -50,11 +50,11 @@
       cnc: { state: 'EMPTY', part: null, locked: false, startCmd: false, vise: 'open', runStart: 0, doneAt: null },
       door: { pos: 0, anim: null }, belt: { cmd: false, v: 0, off: 0 },
       r1: robot(L.r1, true), r2: robot(L.r2, false),
-      gauge: { zeroed: false, valid: false, ok: false }, lastSlot: null, beacon: false,
+      gauge: { zeroed: false, due: false, valid: false, ok: false, dMaster: null, masterAt: null }, lastSlot: null, beacon: false,
       ok: 0, nok: 0, pe65: -9,
       stats: { runTime: 0, firstStart: null, lastIdle: null, idleSum: 0, idleN: 0, cycles: 0, mism: 0, stops: 0, jobs: 0, violations: 0 },
     };
-    CPS.forEach((c) => { c.fault = false; c.glitch = false; c.last = null; c.count = 0; });
+    CPS.forEach((c) => { c.fault = false; c.glitch = false; c.camWrong = false; c.stale = false; c.last = null; c.count = 0; });
     for (let i = 3; i < 12; i++) addPart('raw', { k: 'in', slot: i });
     for (let i = 0; i < 8; i++) addPart('fin', { k: 'out', slot: i });
     SUP = { events: [] };
@@ -69,6 +69,7 @@
     spawn(runMachine('R2'));
     spawn(runMachine('SUP'));
     spawn(operatorProc());
+    spawn(gaugeClock());
     logs.length = 0; logDirty = true;
     log('info', `Setup 2 started · input pallet 9 raw parts · output pallet 8 of 12 · CNC empty`);
     buildUi();
@@ -130,10 +131,10 @@
     'PX-52': () => proxLive('CP-4'),
     'CAM-2.slot': () => W.lastSlot != null && W.parts.some((p) => p.loc.k === 'out' && p.loc.slot === W.lastSlot),
     'outCount': () => outCount(),
-    'GAUGE.zeroed': () => W.gauge.zeroed, 'GAUGE.valid': () => W.gauge.valid, 'GAUGE.ok': () => W.gauge.ok,
+    'GAUGE.zeroed': () => W.gauge.zeroed, 'GAUGE.due': () => W.gauge.due, 'GAUGE.valid': () => W.gauge.valid, 'GAUGE.ok': () => W.gauge.ok,
     'PE-65': () => S.t - W.pe65 < 0.8,
     'TRUE.entryPart': () => truth['CP-2'](), 'TRUE.outPallet': () => W.palletOut.present,
-    'TRUE.r2Nok': () => undersized(W.r2.hold.S),
+    'TRUE.r2Nok': () => undersized(W.r2.hold.S), 'TRUE.nestPart': () => truth['CP-5'](),
   };
   const INPUT = {
     'HMI.clear': (slot) => !!slot && S.inputs.clearAt >= MCH[slot].since,
@@ -186,7 +187,7 @@
       if (s.log) log({ op: 'pallet', stop: 'stop' }[s.kind] || 'info', s.log);
       if (slot === 'SUP' && s.kind === 'stop') {
         W.stats.stops++;
-        S.stopReason = S.vars.CAM_FAULT ? `${S.camFault || 'a camera'} gave two invalid images (camera fault)` : `${SUP.events.length} camera / proximity mismatches within 10 min (${windowSummary()})`;
+        S.stopReason = S.vars.CAM_FAULT ? (S.askAt ? `${S.askAt}: proximity and camera disagree, the operator checks` : `${S.camFault || 'a camera'} gave two invalid images (camera fault)`) : `${SUP.events.length} camera / proximity mismatches within 10 min (${windowSummary()})`;
       }
       if (s.hmi && s.hmi.proc === 'verify') startVerify();
       if (slot === 'SUP' && s.kind === 'ok' && stateOf(slot, x.prev) && stateOf(slot, x.prev).kind === 'check') {
@@ -229,7 +230,7 @@
   }
   function* holdState(slot) {
     const m = machineOf(slot);
-    setState(slot, 'H', S.vars.CAM_FAULT && !ev('lineStop') ? `${S.camFault || 'camera'} fault: line stop` : 'LINE STOP from the cross-check supervisor');
+    setState(slot, 'H', S.vars.CAM_FAULT && !ev('lineStop') ? (S.askAt ? `${S.askAt} disagreement: line stop` : `${S.camFault || 'camera'} fault: line stop`) : 'LINE STOP from the cross-check supervisor');
     yield* runSteps(slot, m.hold.do || [], false);
     yield* until(() => ev(m.hold.exit, slot));
   }
@@ -313,7 +314,7 @@
     const before = S.vars[v];
     S.vars[v] = val;
     if (val === true && before !== true && M.SIGNALS[v].logOn) log(v === 'QH' ? 'quality' : 'info', M.SIGNALS[v].logOn);
-    if (v === 'CAM_FAULT' && !val) S.camFault = null;
+    if (v === 'CAM_FAULT' && !val) { S.camFault = null; S.askAt = null; }
   }
   function consumeInputs(expr) { X.names(expr, true).forEach((n) => { if (LATCH[n]) S.inputs[LATCH[n]] = false; }); }
   function evalRungs() {
@@ -364,8 +365,9 @@
   };
   const proxLive = (id) => (CP[id].fault ? false : truth[id]());
   const camWord = (id, v) => ((id === 'CP-1' || id === 'CP-4') ? (v ? 'a pallet' : 'no pallet') : (v ? 'a part' : 'no part'));
-  // Both sources must agree; if not, the camera value is used and the mismatch is counted. An invalid
-  // image is re-triggered once; a second invalid image is a camera fault (line stop).
+  // Both sources must agree; if not, the mismatch is counted and the rule of the checkpoint gives the
+  // value used (camera, prox, present, absent; ask = line stop until the operator has looked, then the
+  // check is repeated). An invalid image is re-triggered once; a second one is a camera fault (line stop).
   function* check(id, quick, slot) {
     const cp = CP[id];
     if (!quick) yield* wait(T.check);
@@ -387,21 +389,35 @@
     const t = truth[id]();
     let prox = cp.fault ? false : t;
     if (cp.glitch) { prox = !prox; cp.glitch = false; }
-    const cam = t;
+    let cam = t;
+    if (cp.camWrong) { cam = !t; cp.camWrong = false; }                    // valid image, wrong answer
+    else if (cp.stale) { cam = cp.last ? cp.last.cam : t; cp.stale = false; }   // the previous image again
     cp.last = { t: S.t, prox, cam, agree: prox === cam };
     markRoi(cp.roi, prox === cam);
-    if (prox !== cam) mismatch(cp, prox, cam);
+    if (prox !== cam && cp.rule === 'ask') {
+      cp.count++; W.stats.mism++;
+      S.askAt = cp.id;
+      setVar('CAM_FAULT', true);
+      log('stop', `${cp.id} ${cp.where}: ${cp.prox} = ${prox ? 'ON' : 'OFF'} but ${cp.cam} sees ${camWord(cp.id, cam)} → line stop, the operator checks ${cp.where.toLowerCase()}`);
+      return 'camfault';
+    }
+    const used = prox === cam ? cam : FUSE[cp.rule](prox, cam);
+    if (prox !== cam) mismatch(cp, prox, cam, used);
     else if (S.logAll) log('check', `${id} agree: ${cp.prox} ${prox ? 'ON' : 'OFF'}, ${cp.cam} sees ${camWord(id, cam)}`);
     const res = S.cp[slot] = S.cp[slot] || {};
-    res[id] = cam;
-    if (id === 'CP-1') res['CAM-1.part'] = cam && firstRaw() >= 0;
-    return cam;
+    res[id] = used;
+    if (id === 'CP-1') res['CAM-1.part'] = used && firstRaw() >= 0;
+    return used;
   }
-  function mismatch(cp, prox, cam) {
+  // value used when the two sources disagree, by rule
+  const FUSE = { camera: (prox, cam) => cam, prox: (prox) => prox, present: () => true, absent: () => false };
+  const RULE_WORD = { camera: 'camera value used', prox: 'proximity value used', present: 'treated as present', absent: 'treated as absent' };
+  function mismatch(cp, prox, cam, used) {
     cp.count++; W.stats.mism++;
     SUP.events.push({ t: S.t, cp: cp.id, tag: cp.prox });
     pruneWindow();
-    log('mismatch', `${cp.id} ${cp.where}: ${cp.prox} = ${prox ? 'ON' : 'OFF'} but ${cp.cam} sees ${camWord(cp.id, cam)} → camera value used (${SUP.events.length} of ${RU.mismatchLimit} in 10 min)`);
+    const how = cp.rule === 'camera' || cp.rule === 'prox' ? RULE_WORD[cp.rule] : `${RULE_WORD[cp.rule]} (${camWord(cp.id, used)})`;
+    log('mismatch', `${cp.id} ${cp.where}: ${cp.prox} = ${prox ? 'ON' : 'OFF'} but ${cp.cam} sees ${camWord(cp.id, cam)} → ${how} (${SUP.events.length} of ${RU.mismatchLimit} in 10 min)`);
   }
   function windowSummary() {
     const c = {};
@@ -481,6 +497,7 @@
     },
     'R2.loadGauge': function* (r) {
       yield* moveTo(r, P.nest, T.r2ToGauge);
+      yield* wait(T.blowOff);                          // YV-66: chips and coolant off the nest and the part
       yield* wait(T.r2LoadGauge * 0.6);
       const p = r.hold.S; r.hold.S = null; r.fing = 'open';
       if (p) p.loc = { k: 'gauge' };
@@ -490,14 +507,26 @@
       yield* wait(T.measure);
       const p = W.parts.find((q) => q.loc.k === 'gauge');
       if (!p) { W.gauge.valid = false; return; }
-      const meas = p.dims.map((v) => v + (Math.random() - 0.5) * 0.004);
+      // each laser reads the distance to the free face; size = 50.000 + (d master − d part)
+      const dPart = p.dims.map((v) => RU.masterDist - (v - RU.nominal) - (Math.random() - 0.5) * 0.004);
+      const meas = dPart.map((d, i) => RU.nominal + (W.gauge.dMaster[i] - d));
       p.meas = meas;
-      W.gauge.valid = true; W.gauge.ok = meas.every((v) => v >= RU.minSize);
-      log('measure', `Part #${p.id}: L ${meas[0].toFixed(3)} · W ${meas[1].toFixed(3)} · H ${meas[2].toFixed(3)} mm → ${W.gauge.ok ? 'OK, all ≥ 48.00' : 'NOK, undersized'}`);
+      W.gauge.valid = meas.every((v) => v >= RU.validRange[0] && v <= RU.validRange[1]);
+      if (!W.gauge.valid) { log('measure', `Part #${p.id}: reading outside ${RU.validRange[0]}–${RU.validRange[1]} mm → invalid, not a part size`); return; }
+      W.gauge.ok = meas.every((v) => v >= RU.minSize + RU.guardBand);
+      const verdict = W.gauge.ok ? `OK, all ≥ ${(RU.minSize + RU.guardBand).toFixed(2)}` : meas.some((v) => v < RU.minSize) ? 'NOK, undersized' : 'NOK, rejected in guard band';
+      log('measure', `Part #${p.id}: L ${meas[0].toFixed(3)} · W ${meas[1].toFixed(3)} · H ${meas[2].toFixed(3)} mm → ${verdict}`);
     },
-    'GAUGE.master': function* () {
-      log('measure', 'Start-up master cube 50.000 mm: LS-61 50.001 · LS-62 49.999 · LS-63 50.000 mm → gauge OK');
-      W.gauge.zeroed = true;
+    'GAUGE.master': function* (r) {
+      yield* moveTo(r, P.nest, T.r2Master * 0.3);
+      yield* wait(T.r2Master * 0.4);
+      const read = [50.001, 49.999, 50.000];
+      if (S.inject.master) { S.inject.master = false; read[0] = 50.023; }
+      const pass = read.every((v) => Math.abs(v - RU.nominal) <= RU.masterTol + 1e-9);
+      W.gauge.zeroed = pass;
+      if (pass) { W.gauge.due = false; W.gauge.dMaster = [RU.masterDist, RU.masterDist, RU.masterDist]; W.gauge.masterAt = S.t; }
+      log(pass ? 'measure' : 'fault', `Master cube 50.000 mm: LS-61 ${read[0].toFixed(3)} · LS-62 ${read[1].toFixed(3)} · LS-63 ${read[2].toFixed(3)} mm → ${pass ? 'gauge OK' : 'outside ± 0.010 mm: gauge FAULT, no part is measured'}`);
+      yield* moveTo(r, P.nestOut, T.r2Master * 0.3);
     },
     'R2.repick': function* (r) {
       yield* moveTo(r, P.nest, T.r2Repick / 2);
@@ -562,10 +591,24 @@
         p.st = 'fin';
         p.dims = [0, 1, 2].map(() => 50 + (Math.random() - 0.5) * 0.04);
         if (S.inject.under > 0) { S.inject.under--; p.dims[Math.floor(Math.random() * 3)] = 47.35 + Math.random() * 0.5; }
+        else if (S.inject.band > 0) { S.inject.band--; p.dims[Math.floor(Math.random() * 3)] = 48.01 + Math.random() * 0.03; }
       }
       W.cnc.state = 'DONE'; W.cnc.doneAt = S.t; st.cycles++;
       yield* wait(T.unlock);
       W.cnc.locked = false;
+    }
+  }
+
+  // ------------------------------------------------------------------ gauge timer: master check every RULES.masterEvery
+  function* gaugeClock() {
+    for (;;) {
+      yield* until(() => W.gauge.zeroed && !W.gauge.due);
+      const at = W.gauge.masterAt;
+      yield* wait(at + RU.masterEvery - S.t);
+      if (W.gauge.zeroed && !W.gauge.due && W.gauge.masterAt === at) {
+        W.gauge.due = true;
+        log('measure', '4 h since the last master check → master check due');
+      }
     }
   }
 
@@ -769,14 +812,14 @@
     lamps = {}; $$('[data-lamp]', svgRoot).forEach((el) => { lamps[el.dataset.lamp] = el; });
     fovs = {}; $$('[data-fov]', svgRoot).forEach((el) => { fovs[el.dataset.fov] = el; });
     rois = {}; $$('rect[data-roi]', svgRoot).forEach((el) => { rois[el.dataset.roi] = el; });
-    $('#underNote').textContent = 'The gauge measures every part; any dimension below 48.00 mm goes to the NOK chute. Two NOK parts in a row trigger a quality hold.';
+    $('#underNote').textContent = 'The gauge measures every part; any dimension below 48.05 mm (limit 48.00 + guard band 0.05) goes to the NOK chute. Two NOK parts in a row trigger a quality hold.';
     const tb = $('#cpTable tbody');
     tb.innerHTML = CPS.map((c) => `<tr data-cp="${c.id}">
       <td><span class="cpid">${c.id}</span><span class="cpw">${esc(c.where)}</span></td>
       <td><span class="led"></span><span class="tag">${c.prox}</span><span class="flt" hidden>FAULT</span></td>
       <td><span class="tag">${c.cam}</span> <span class="cr"></span></td>
       <td><span class="res"></span><span class="ago"></span></td>
-      <td><div class="inj"><button type="button" class="btn sm" data-inj="glitch">Glitch</button><button type="button" class="btn sm" data-inj="fault">Fault</button></div></td></tr>`).join('');
+      <td><div class="inj"><button type="button" class="btn sm" data-inj="glitch">Glitch</button><button type="button" class="btn sm" data-inj="fault">Fault</button><button type="button" class="btn sm" data-inj="camwrong" title="The next ${c.cam} answer at ${c.id} is wrong although the image is valid">Cam wrong</button><button type="button" class="btn sm" data-inj="stale" title="The next ${c.cam} answer at ${c.id} comes from the previous image">Stale</button></div></td></tr>`).join('');
     buildChips();
     showTab(tab);
     statesDirty = true; logDirty = true; bannerKey = '';
@@ -833,14 +876,14 @@
       $('.flt', tr).hidden = !c.fault;
       const res = $('.res', tr), ago = $('.ago', tr), cr = $('.cr', tr);
       if (c.last) {
-        res.textContent = c.last.agree ? 'AGREE' : 'MISMATCH → CAMERA';
+        res.textContent = c.last.agree ? 'AGREE' : 'MISMATCH → ' + { camera: 'CAMERA', prox: 'PROXIMITY', present: 'PRESENT', absent: 'ABSENT', ask: 'OPERATOR' }[c.rule];
         res.className = 'res ' + (c.last.agree ? 'ok' : 'bad');
         ago.textContent = `${Math.round(S.t - c.last.t)} s ago · ${c.count} mismatch${c.count === 1 ? '' : 'es'}`;
         cr.textContent = c.last.cam ? (c.id === 'CP-1' || c.id === 'CP-4' ? '✓ pallet' : '✓ part') : '– none';
       } else { res.textContent = 'waiting'; res.className = 'res'; ago.textContent = ''; cr.textContent = ''; }
       $$('[data-inj]', tr).forEach((b) => {
         if (b.dataset.inj === 'fault') { b.textContent = c.fault ? 'Faulty' : 'Fault'; b.classList.toggle('bad', c.fault); }
-        else b.classList.toggle('warn', c.glitch);
+        else b.classList.toggle('warn', !!c[{ glitch: 'glitch', camwrong: 'camWrong', stale: 'stale' }[b.dataset.inj]]);
       });
     });
     const n = SUP.events.length;
@@ -891,13 +934,18 @@
     let key = '', title = '', text = '', cls = '', acts = [], list = [];
     if (ev('lineStop')) {
       const h = stateOf('SUP', MCH.SUP.state).hmi;
-      key = `stop:${MCH.SUP.state}:${S.verify ? S.verify.i + ':' + S.verify.done : ''}:${S.inputs.verify}:${ev('CELL.stopped')}`;
+      key = `stop:${MCH.SUP.state}:${S.verify ? S.verify.i + ':' + S.verify.done : ''}:${S.inputs.verify}:${ev('CELL.stopped')}:${fault || ''}`;
       title = h.title;
       text = `${S.stopReason}. Controlled stop: the CNC finishes the part in the machine, the robots park at home and the belt starts no new transport.`;
       cls = 'bad';
       if (h.act === 'verify') {
         if (S.inputs.verify && !ev('CELL.stopped')) text += ' The check starts as soon as both robots are parked and the belt is stopped.';
         acts = [[S.inputs.verify ? 'Waiting for the cell to stop…' : 'Start sensor verification', 'verify', 'bad', S.inputs.verify]];
+      }
+      // a machine in FAULT parks only after the fault is cleared: offer it here too, or the cell never stops
+      if (fault) {
+        text += ` ${M.SLOTS[fault].label} is in FAULT (${S.faults[fault]}): check the part and clear the fault so that it can park.`;
+        acts.unshift(['Part checked · clear fault', 'clear', 'bad']);
       }
       if (h.act === 'reset' && S.verify) {
         list = S.verify.steps.map((s, i) => [s, i < S.verify.i ? 'done' : i === S.verify.i && !S.verify.done ? 'run' : '']);
@@ -910,7 +958,7 @@
       key = 'qh'; title = 'Quality hold · 2 NOK parts in a row'; text = 'The CNC finished its part and will not start a new cycle. Check tool wear and work offsets, then release the hold.'; cls = 'warn';
       acts = [['Tool and offsets checked · release', 'qh', 'warn']];
     } else if (SUP.events.length) {
-      key = 'mm:' + SUP.events.length; title = `Sensor mismatch warning · ${SUP.events.length} of ${RU.mismatchLimit} in 10 min`; text = `Disagreements: ${windowSummary()}. The camera value is used and the line keeps running. A ${RU.mismatchLimit}rd mismatch within 10 minutes stops the line.`; cls = 'warn';
+      key = 'mm:' + SUP.events.length; title = `Sensor mismatch warning · ${SUP.events.length} of ${RU.mismatchLimit} in 10 min`; text = `Disagreements: ${windowSummary()}. The rule of each checkpoint gives the value used and the line keeps running. A ${RU.mismatchLimit}rd mismatch within 10 minutes stops the line.`; cls = 'warn';
     } else {
       const s = activeHmi('swap') || activeHmi('load');
       if (s) {
@@ -939,7 +987,7 @@
     steps.push('Check brackets and the alignment LEDs of the through-beams');
     CPS.forEach((c) => steps.push(`Test ${c.id} with a test part: ${c.prox} ON and ${c.cam} part · removed: both OFF`));
     steps.push('Camera calibration target: CAM-1 and CAM-2 position error < 1 mm');
-    steps.push('Master cube 50.000 mm: LS-61 / LS-62 / LS-63 within ±0.02 mm');
+    steps.push('Master cube 50.000 mm: LS-61 / LS-62 / LS-63 within ±0.010 mm');
     S.verify = { steps, i: 0, done: false };
     log('stop', 'Sensor verification started: all equipment stopped, technician in the cell');
     if (instant) { S.verify.i = steps.length - 1; }
@@ -948,7 +996,7 @@
       S.verify.i++;
       if (S.verify.i >= S.verify.steps.length) {
         S.verify.done = true;
-        CPS.forEach((c) => { c.fault = false; c.glitch = false; });        // the technician repaired the sensors
+        CPS.forEach((c) => { c.fault = false; c.glitch = false; c.camWrong = false; c.stale = false; });   // the technician repaired the sensors
         S.inject.frames = { 'CAM-1': 0, 'CAM-2': 0 };
         log('stop', 'All checkpoint tests passed');
       } else setTimeout(tick, 650);
@@ -971,12 +1019,16 @@
       const b = e.target.closest('button[data-inj]'); if (!b) return;
       const c = CP[b.closest('tr').dataset.cp];
       if (b.dataset.inj === 'glitch') { c.glitch = true; log('info', `Test: next ${c.id} reading of ${c.prox} will be wrong (single glitch)`); }
+      else if (b.dataset.inj === 'camwrong') { c.camWrong = true; log('info', `Test: next ${c.id} answer of ${c.cam} will be wrong with a valid image`); }
+      else if (b.dataset.inj === 'stale') { c.stale = true; log('info', `Test: next ${c.id} answer of ${c.cam} will come from the previous image`); }
       else { c.fault = !c.fault; log('info', c.fault ? `Test: ${c.prox} made faulty (dirty / misaligned: it misses the object)` : `Test: ${c.prox} fault removed`); }
     });
     $('#btnBadFrame').addEventListener('click', () => { S.inject.frames['CAM-1'] = 1; log('info', 'Test: the next CAM-1 image will be invalid once'); });
     $('#btnCamFail').addEventListener('click', () => { S.inject.frames['CAM-2'] = 2; log('info', 'Test: CAM-2 will deliver two invalid images in a row'); });
     $('#btnGripMiss').addEventListener('click', () => { S.inject.gripMiss = true; log('info', 'Test: Robot 1 will miss its next pick'); });
     $('#btnUnder').addEventListener('click', () => { S.inject.under++; log('info', 'Test: the next part to finish will be undersized in one dimension'); });
+    $('#btnBand').addEventListener('click', () => { S.inject.band++; log('info', 'Test: the next part to finish will be in the guard band (48.00–48.05 mm) in one dimension'); });
+    $('#btnMaster').addEventListener('click', () => { S.inject.master = true; log('info', 'Test: the next master check will read outside ± 0.010 mm'); });
     $('#btnLoadIn').addEventListener('click', () => {
       if (activeHmi('load') || firstRaw() < 0) spawn(reloadInput());
       else { let n = 0; for (let i = 0; i < 12; i++) if (!partIn(i) && !W.parts.some((p) => p.loc.k === 'r1')) { addPart('raw', { k: 'in', slot: i }); n++; } if (n) log('operator', `Operator tops up the input pallet (+${n} raw parts)`); }

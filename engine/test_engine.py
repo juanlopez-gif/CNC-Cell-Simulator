@@ -5,6 +5,11 @@
 - a faulty CP-2 sensor: the camera keeps the line running, the 3rd mismatch stops it, the sensor
   verification and the reset bring it back
 - two undersized parts in a row cause a quality hold; no cycle start during the hold
+- gauge (A2.2): a part in the guard band is rejected; a master check out of tolerance is a FAULT and
+  no part is measured until a master check passes; the master check is repeated every 4 h
+- KPI measures (A2.4): machining time and the time lost by cause add up to the run time; nominal
+  operation loses nothing beyond start-up and the nominal exchange; an absent operator is charged
+  to the pallet change, a quality hold to the quality hold
 - long runs with random disturbances: every state change is a transition of the model, no property
   is violated and every job takes its model time
 """
@@ -43,11 +48,17 @@ class EngineTest(unittest.TestCase):
         sim = CellSim(seed=1, instant_verify=True)
         sim.advance(300)
         sim.toggle_sensor_fault("CP-2")
+        # CP-2 rule "absent": PE-41 misses the part placed, so Robot 1 goes to FAULT (missing
+        # confirmation) and the operator clears it; the third mismatch stops the line
+        clears = 0
         while sim.state("SUP") != "X3" and sim.t < 3600:
             sim.advance(5)
-            if sim.state("SUP") == "X1":
-                self.assertEqual(sim.stats["mismatches"], 0)
+            if sim.faults.get("R1"):
+                sim.press("clear")
+                clears += 1
         self.assertEqual(sim.state("SUP"), "X3", "no line stop")
+        self.assertLessEqual(clears, 3)
+        self.assertEqual(sim.stats["violations"], 0)
         self.assertEqual(len(sim.events), 3)
         self.assertTrue(sim.ev("lineStop"))
         sim.advance(200)                                    # the CNC finishes, the robots park, the belt stops
@@ -82,6 +93,65 @@ class EngineTest(unittest.TestCase):
         sim.advance(600)
         self.assertFalse(sim.vars["QH"])
         self.assertGreater(sim.stats["idle_n"], starts)
+        self.assertClean(sim)
+
+    def test_kpi_measures(self):
+        sim = CellSim(seed=1)
+        sim.advance(2 * 3600)
+        m = sim.measures()
+        self.assertAlmostEqual(m["machining_s"] + sum(m["lost_s"].values()), sim.t, places=3)
+        self.assertAlmostEqual(m["exchange_beyond_nominal_s"], 0, places=3)
+        self.assertEqual({c for c, v in m["lost_s"].items() if v > 0}, {"start-up", "exchange"})
+        self.assertEqual(m["parts_per_hour"], m["good_parts_per_hour"])
+        # without the operator the output pallet fills and Robot 2 waits in E7: from then on every
+        # second is a pallet-change loss
+        sim.auto_operator = False
+        sim.advance(3600)
+        before = sim.measures()["lost_s"]["pallet change"]
+        self.assertEqual(sim.state("R2"), "E7")
+        sim.advance(600)
+        self.assertAlmostEqual(sim.measures()["lost_s"]["pallet change"] - before, 600, places=3)
+        # two NOK parts in a row: the quality hold keeps the CNC idle until it is released
+        sim = CellSim(seed=1)
+        sim.advance(600)
+        sim.inject_undersized()
+        sim.inject_undersized()
+        while not sim.vars["QH"] and sim.t < 3 * 3600:
+            sim.advance(5)
+        sim.advance(600)
+        self.assertGreater(sim.measures()["lost_s"]["quality hold"], 0)
+        self.assertClean(sim)
+
+    def test_gauge_policy(self):
+        sim = CellSim(seed=1)
+        sim.advance(600)
+        sim.inject_guard_band()
+        n = sim.nok_parts
+        while sim.nok_parts == n and sim.t < 3600:
+            sim.advance(5)
+        self.assertEqual(sim.nok_parts, n + 1, 'the part in the guard band was not rejected')
+        self.assertTrue(any('rejected in guard band' in m for _, c, m in sim.logs if c == 'measure'))
+        # 4 h after the start-up master check the next one is made before the next part
+        sim.advance(4 * 3600 - sim.t + 300)
+        checks = [t for t, c, m in sim.logs if m.startswith('Master cube')]
+        self.assertEqual(len(checks), 2)
+        self.assertLess(checks[1] - checks[0] - sim.RU['masterEvery'], 200)
+        # a master check out of tolerance: gauge FAULT, no measurement until a master check passes
+        sim.inject_master_fault()
+        sim.gauge['due'] = True
+        while sim.state('R2') != 'F' and sim.t < 6 * 3600:
+            sim.advance(5)
+        self.assertEqual(sim.state('R2'), 'F')
+        self.assertFalse(sim.gauge['zeroed'])
+        t_fault = sim.t
+        sim.advance(120)
+        self.assertFalse([t for t, c, m in sim.logs if c == 'measure' and m.startswith('Part #') and t > t_fault])
+        sim.press('clear')
+        sim.advance(600)
+        self.assertTrue(sim.gauge['zeroed'])
+        last_pass = max(t for t, c, m in sim.logs if m.startswith('Master cube') and 'gauge OK' in m)
+        first_part = min(t for t, c, m in sim.logs if c == 'measure' and m.startswith('Part #') and t > t_fault)
+        self.assertLess(last_pass, first_part)
         self.assertClean(sim)
 
     def test_random_disturbances(self):

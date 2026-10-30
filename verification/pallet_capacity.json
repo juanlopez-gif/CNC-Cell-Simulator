@@ -1,0 +1,232 @@
+{
+ "cap3_none": {
+  "faults": false,
+  "slots": 3,
+  "states": 374739,
+  "edges": 1541157,
+  "seconds": 8.845,
+  "failed": [],
+  "deadlocks": 0,
+  "game": null,
+  "unreached": {
+   "R1": [
+    "H",
+    "F"
+   ],
+   "CONV": [
+    "H",
+    "F"
+   ],
+   "R2": [
+    "E6",
+    "H"
+   ],
+   "SUP": [
+    "X2",
+    "X3",
+    "X4"
+   ]
+  }
+ },
+ "cap3_process": {
+  "faults": "process",
+  "slots": 3,
+  "states": 11479617,
+  "edges": 60088907,
+  "seconds": 363.498,
+  "failed": [],
+  "deadlocks": 0,
+  "game": null,
+  "unreached": {
+   "R1": [
+    "H"
+   ],
+   "CONV": [
+    "H"
+   ],
+   "R2": [
+    "H"
+   ],
+   "SUP": [
+    "X2",
+    "X3",
+    "X4"
+   ]
+  }
+ },
+ "cap3_camwrong": {
+  "faults": [
+   "camwrong",
+   "timeout"
+  ],
+  "slots": 3,
+  "states": 23007294,
+  "edges": 109216384,
+  "seconds": 769.462,
+  "failed": [],
+  "deadlocks": 0,
+  "game": null,
+  "unreached": {
+   "R1": [],
+   "CONV": [],
+   "R2": [
+    "E6"
+   ],
+   "SUP": []
+  }
+ },
+ "any_none": {
+  "faults": false,
+  "slots": "any",
+  "states": 297136,
+  "edges": 1250796,
+  "seconds": 11.716,
+  "failed": [],
+  "deadlocks": 0,
+  "game": {
+   "L1": true,
+   "L2": true,
+   "L3": true
+  },
+  "unreached": {
+   "R1": [
+    "H",
+    "F"
+   ],
+   "CONV": [
+    "H",
+    "F"
+   ],
+   "R2": [
+    "E6",
+    "H"
+   ],
+   "SUP": [
+    "X2",
+    "X3",
+    "X4"
+   ]
+  }
+ },
+ "any_process": {
+  "faults": "process",
+  "slots": "any",
+  "states": 8855602,
+  "edges": 47164565,
+  "seconds": 441.591,
+  "failed": [],
+  "deadlocks": 0,
+  "game": {
+   "L1": true,
+   "L2": true,
+   "L3": true
+  },
+  "unreached": {
+   "R1": [
+    "H"
+   ],
+   "CONV": [
+    "H"
+   ],
+   "R2": [
+    "H"
+   ],
+   "SUP": [
+    "X2",
+    "X3",
+    "X4"
+   ]
+  }
+ },
+ "any_camwrong": {
+  "faults": [
+   "camwrong",
+   "timeout"
+  ],
+  "slots": "any",
+  "states": 17046483,
+  "edges": 82107838,
+  "seconds": 920.264,
+  "failed": [],
+  "deadlocks": 0,
+  "game": {
+   "L1": true,
+   "L2": true,
+   "L3": true
+  },
+  "unreached": {
+   "R1": [],
+   "CONV": [],
+   "R2": [
+    "E6"
+   ],
+   "SUP": []
+  }
+ },
+ "any_sensor": {
+  "faults": [
+   "sensor",
+   "timeout"
+  ],
+  "slots": "any",
+  "states": 68790749,
+  "edges": 332484230,
+  "seconds": 2318.048,
+  "failed": [],
+  "deadlocks": 0,
+  "game": null,
+  "unreached": {
+   "R1": [],
+   "CONV": [],
+   "R2": [
+    "E6"
+   ],
+   "SUP": []
+  }
+ },
+ "any_sensor_camwrong": {
+  "faults": [
+   "sensor",
+   "camwrong",
+   "timeout"
+  ],
+  "slots": "any",
+  "states": 79819587,
+  "edges": 403227914,
+  "seconds": 2727.658,
+  "failed": [],
+  "deadlocks": 0,
+  "game": null,
+  "unreached": {
+   "R1": [],
+   "CONV": [],
+   "R2": [
+    "E6"
+   ],
+   "SUP": []
+  }
+ },
+ "all_but_nok": {
+  "faults": [
+   "sensor",
+   "timeout",
+   "grip",
+   "master"
+  ],
+  "slots": 2,
+  "states": 79680713,
+  "edges": 385911904,
+  "seconds": 2635.264,
+  "failed": [],
+  "deadlocks": 0,
+  "game": null,
+  "unreached": {
+   "R1": [],
+   "CONV": [],
+   "R2": [
+    "E6"
+   ],
+   "SUP": []
+  }
+ }
+}

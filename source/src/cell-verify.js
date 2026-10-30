@@ -25,18 +25,30 @@
   const BEXP = (e) => ({ op: 'bexp', e });
   const ADD = (v, n, lo, hi) => ({ op: 'add', v, n, lo, hi });
   const ONEOF = (vals) => ({ op: 'oneOf', vals });
+  const STEP = (v, map) => ({ op: 'step', v, map });           // value -> list of possible next values
   const san = (s) => String(s).replace(/[^A-Za-z0-9_]/g, '_');
 
   // ------------------------------------------------------------------ build
   function build(setup, opts) {
     if (setup !== 2) throw new Error('only Setup 2 is modelled (Setup 1 is in the branch legacy-setup1-setup2)');
-    opts = Object.assign({ faults: 'all', slots: 2 }, opts || {});
+    opts = Object.assign({ faults: 'all', slots: 2, rules: {} }, opts || {});
     if (opts.faults === true) opts.faults = 'all';
-    // fault classes: sensor = camera / proximity mismatches and camera faults; process = missed picks,
-    // confirmation timeouts and timer faults, undersized parts (Setup 2)
-    const FL = { mismatch: ['sensor', 'all'], camera: ['sensor', 'all'], grip: ['process', 'all'], timeout: ['process', 'all'], nok: ['process', 'all'] };
-    const F = Object.fromEntries(Object.keys(FL).map((k) => [k, FL[k].includes(opts.faults)]));
-    const N = opts.slots;
+    // fault classes: sensor = proximity sensor wrong (mismatch) and camera faults (invalid images);
+    // process = missed picks, confirmation timeouts and timer faults, undersized parts (Setup 2),
+    //   a master check out of tolerance (gauge FAULT, A2.2);
+    // camwrong = camera wrong with a valid image: false positive, false negative, stale image.
+    // opts.faults is a group name, a class name or a list of them.
+    const FL = { mismatch: ['sensor', 'all'], camera: ['sensor', 'all'], grip: ['process', 'all'], timeout: ['process', 'all'], nok: ['process', 'all'], master: ['process', 'all'],
+      camfp: ['camwrong'], camfn: ['camwrong'], stale: ['camwrong'] };
+    const want = [].concat(opts.faults || []);
+    const F = Object.fromEntries(Object.keys(FL).map((k) => [k, want.includes(k) || FL[k].some((g) => want.includes(g))]));
+    // the rule that fuses camera and proximity at each checkpoint (model value, opts.rules overrides)
+    const RULE = Object.fromEntries(M.CHECKPOINTS.map((c) => [c.id, opts.rules[c.id] || c.rule]));
+    // opts.slots: capacity of the output pallet, or 'any': a counter that only tells empty (0), partly
+    // filled (1) and full (2); a part placed on a partly filled pallet leaves it partly filled or makes
+    // it full. The logic reads the count only as empty, full and not full, so every run of the cell
+    // with any capacity >= 2 (12 included) is a run of this model (A2.5).
+    const ANY = opts.slots === 'any', N = ANY ? 2 : opts.slots;
     const PART = ['none', 'raw', 'ok', 'nok'];
     const FIN = ['ok', 'nok'];
     const vars = [], VI = {};
@@ -107,12 +119,14 @@
     addVar('inPresent', B, true, 'input pallet in place');
     addVar('inParts', B, true, 'raw parts left on the input pallet');
     addVar('outPresent', B, true, 'output pallet in place');
-    addVar('outCount', range(0, N), range(0, N - 1), `parts on the output pallet (capacity ${N} in the abstract model)`);
+    addVar('outCount', range(0, N), range(0, N - 1), ANY ? 'output pallet: 0 empty, 1 partly filled, 2 full (any capacity >= 2)'
+      : `parts on the output pallet (capacity ${N} in the abstract model)`);
     addVar('r1Home', B, true, 'Robot 1 at home');
     addVar('r2Home', B, true, 'Robot 2 at home');
     addVar('nest', PART, 'none', 'part in the gauge nest');
     addVar('measured', B, false, 'gauge reading valid');
     addVar('zeroed', B, false, 'gauge zeroed with the master cube');
+    addVar('due', B, false, 'master check due (4 h since the last one)');
     addVar('pe65', B, false, 'PE-65 saw a part fall');
     const has = (v) => v in VI;
 
@@ -131,8 +145,9 @@
       'GR-51': () => not(eq('r2S', 'none')),
       'ENC-43': () => bv('moving'), 'PE-42': () => not(eq('beltExit', 'none')), 'ROI-C': () => not(eq('beltExit', 'none')),
       'PX-52': () => bv('outPresent'), 'CAM-2.slot': () => TT,
-      'GAUGE.zeroed': () => bv('zeroed'), 'GAUGE.valid': () => bv('measured'), 'GAUGE.ok': () => eq('nest', 'ok'), 'PE-65': () => bv('pe65'),
+      'GAUGE.zeroed': () => bv('zeroed'), 'GAUGE.due': () => bv('due'), 'GAUGE.valid': () => bv('measured'), 'GAUGE.ok': () => eq('nest', 'ok'), 'PE-65': () => bv('pe65'),
       'TRUE.entryPart': () => not(eq('beltEntry', 'none')), 'TRUE.outPallet': () => bv('outPresent'), 'TRUE.r2Nok': () => eq('r2S', 'nok'),
+      'TRUE.nestPart': () => not(eq('nest', 'none')),
     };
     const TRUTH = {
       'CP-1': bv('inPresent'), 'CP-2': not(eq('beltEntry', 'none')), 'CP-3': not(eq('beltExit', 'none')),
@@ -230,7 +245,7 @@
         let val;
         if (from === 'in') { val = VAL('raw'); u.inParts = ONEOF([true, false]); }
         else { val = COPY(fromVar); u[fromVar] = VAL('none'); if (fromVar === 'nest') u.measured = VAL(false); }
-        if (to === 'out') u.outCount = ADD('outCount', 1, 0, N);
+        if (to === 'out') u.outCount = ANY ? STEP('outCount', { 0: [1], 1: [1, 2], 2: [2] }) : ADD('outCount', 1, 0, N);
         else if (to === 'nok') u.pe65 = VAL(true);
         else u[toVar] = val;
       }
@@ -319,6 +334,7 @@
           if (st.job) {
             const variants = [{ name: 'done', upd: jobUpd(st.job) }];
             if (F.grip && M.JOBS[st.job].canFail) variants.push({ name: 'missed', upd: {} });
+            if (F.master && st.job === 'GAUGE.master') variants.push({ name: 'out of tolerance', upd: { zeroed: VAL(false) } });
             variants.forEach((v) => {
               const after = st.confirm ? subst(SIG(st.confirm), v.upd) : TT;
               emit(slot, at, after, advance(slot, sid, i + 1, TT, v.upd), `${sid}: ${st.job} ${v.name}`);
@@ -328,12 +344,33 @@
             const cpv = CPV(slot, st.check);
             const base = { [cpv]: BEXP(TRUTH[st.check]) };
             if (st.check === 'CP-1') base[CPV(slot, 'CAM-1.part')] = BEXP(and(bv('inPresent'), bv('inParts')));
-            const variants = [{ name: 'agree', upd: base }];
-            if (F.mismatch) variants.push({ name: 'mismatch', upd: Object.assign({}, base, { mismatches: ADD('mismatches', 1, 0, M.RULES.mismatchLimit) }) });
+            // A disagreement: one source is wrong. The value used follows the rule of the checkpoint:
+            // camera (camera value), prox (proximity value), present / absent (that value whenever the
+            // sources disagree), ask (line stop; the operator looks and the check is repeated).
+            const t = TRUTH[st.check], rule = RULE[st.check];
+            const used = (camRight) => (rule === 'camera' ? (camRight ? t : not(t)) : rule === 'prox' ? (camRight ? not(t) : t) : rule === 'present' ? TT : FF);
+            const variants = [{ name: 'agree', guard: TT, upd: base }];
+            const disagree = (name, guard, camRight) => {
+              if (rule === 'ask') { asks.push({ name, guard }); return; }
+              variants.push({ name, guard, upd: Object.assign({}, base, { [cpv]: BEXP(used(camRight)), mismatches: ADD('mismatches', 1, 0, M.RULES.mismatchLimit) }) });
+            };
+            if (!['camera', 'prox', 'present', 'absent', 'ask'].includes(rule)) throw new Error(`unknown rule ${rule} at ${st.check}`);
+            const asks = [];
+            const here = !opts.cps || opts.cps.includes(st.check);      // wrong readings only at these checkpoints
+            if (F.mismatch && here) disagree('mismatch', TT, true);
+            if (F.camfp && here) disagree('camera false positive', not(t), false);
+            if (F.camfn && here) disagree('camera false negative', t, false);
+            // the camera returns the image of the previous check: wrong only if the fact has changed
+            if (F.stale && here) disagree('stale image', or(and(bv(cpv), not(t)), and(not(bv(cpv)), t)), false);
+            if (asks.length && sid !== 'I' && mach[slot].m.hold) {
+              const leaves = advance(slot, 'H', 0, TT, {});
+              leaves.forEach((l) => { l.upd.CAM_FAULT = VAL(true); l.upd[slot + '_res'] = VAL(`${sid}@${i}`); });
+              emit(slot, at, or(asks.map((a) => a.guard)), leaves, `${sid}: ${st.check} disagreement, operator asked`, { _res: true });
+            }
             variants.forEach((v) => {
               const ok = st.until ? subst(SIG(st.until), v.upd) : TT;
               const conf = st.confirm ? subst(SIG(st.confirm), v.upd) : TT;
-              emit(slot, at, and(ok, conf), advance(slot, sid, i + 1, TT, v.upd), `${sid}: ${st.check} ${v.name}`);
+              emit(slot, at, and(v.guard, ok, conf), advance(slot, sid, i + 1, TT, v.upd), `${sid}: ${st.check} ${v.name}`);
               if (st.confirm) toFault(slot, at, and(ok, not(conf)), `${sid}@0`, `${sid}: ${st.check} ${v.name}, confirmation missing`);
               if (st.until) {
                 // not yet: check again later (or hold while waiting)
@@ -416,6 +453,10 @@
     plant('OP', 'operator places a full input pallet', not(bv('inPresent')), { inPresent: VAL(true), inParts: VAL(true) });
     plant('OP', 'operator takes the full output pallet away', and(LT53, bv('outPresent')), { outPresent: VAL(false), outCount: VAL(0) });
     plant('OP', 'operator places an empty output pallet', not(bv('outPresent')), { outPresent: VAL(true) });
+    // the 4-h master timer is read only when R2 enters E1 (from E5 or E6, the states that end a part), so
+    // it expires only just before: the machines behave as with a timer that expires anywhere, with far
+    // fewer states
+    plant('ENV', '4 h pass since the last master check', and(bv('zeroed'), not(bv('due')), inn('R2', ['E5_x', 'E6_x'])), { due: VAL(true) });
     if (F.mismatch) plant('ENV', 'a mismatch leaves the 10-min window', cmp('mismatches', '>', 0), { mismatches: ADD('mismatches', -1, 0, M.RULES.mismatchLimit) });
     M.RUNGS.forEach((r) => {
       const g = SIG(r.when, { 'HMI.release': true });
@@ -472,6 +513,7 @@
         else if (u.op === 'bexp') { const g = ce(u.e), t = [idxOf(true)], fl = [idxOf(false)]; f = (s) => (g(s) ? t : fl); }
         else if (u.op === 'add') { const j = VI[u.v]; const map = vars[j].dom.map((d) => [idxOf(Math.max(u.lo, Math.min(u.hi, d + u.n)))]); f = (s) => map[s[j]]; }
         else if (u.op === 'oneOf') { const ks = u.vals.map(idxOf); f = () => ks; }
+        else if (u.op === 'step') { const j = VI[u.v]; const map = vars[j].dom.map((d) => u.map[d].map(idxOf)); f = (s) => map[s[j]]; }
         else throw new Error('bad update ' + u.op);
         return [i, f];
       });
@@ -600,6 +642,58 @@
       }
       evProps.forEach(({ p }, k) => { if (badScc[k] !== -1) viol[p.id] = badScc[k]; });
     }
+    // counter game (A2.5): limits.counters names variables whose new value a step only chooses as
+    // an abstraction of a count (outCount with slots 'any', inParts). "Eventually" is then checked as
+    // a game: the cell and the plant choose the step, an adversary chooses these values, and the goal
+    // must be in the attractor of every reachable state. A goal reached that way is reached whatever
+    // the real capacity of the pallets is.
+    let game = null;
+    if (limits.counters && evProps.length) {
+      const adv = new Set(limits.counters.map((n) => VI[n]));
+      const keyIdx = vars.map((_, i) => i).filter((i) => !adv.has(i));
+      const owner = grow32(1 << 20), need = grow32(1 << 20), pS = grow32(1 << 22), pG = grow32(1 << 22);
+      for (let n = 0; n < ns; n++) {
+        const s = st(n);
+        for (const x of enabled(s).list) {
+          const groups = new Map();
+          for (const t of x.u(s)) {
+            let k = '';
+            for (const i of keyIdx) k += String.fromCharCode(t[i] + 33);
+            if (!groups.has(k)) groups.set(k, new Set());
+            groups.get(k).add(find(t));
+          }
+          for (const ids of groups.values()) {
+            const g = owner.length;
+            owner.push(n); need.push(ids.size);
+            for (const id of ids) { pS.push(id); pG.push(g); }
+          }
+        }
+      }
+      // reverse adjacency (successor state -> groups), compressed
+      const np = pS.length, off = new Int32Array(ns + 1), rev = new Int32Array(np);
+      for (let k = 0; k < np; k++) off[pS.get(k) + 1]++;
+      for (let n = 0; n < ns; n++) off[n + 1] += off[n];
+      const fill = off.slice(0, ns);
+      for (let k = 0; k < np; k++) rev[fill[pS.get(k)]++] = pG.get(k);
+      game = {};
+      evProps.forEach(({ p, f }) => {
+        const left = new Int32Array(owner.length);
+        for (let g = 0; g < owner.length; g++) left[g] = need.get(g);
+        const win = new Uint8Array(ns), queue = new Int32Array(ns);
+        let qh = 0, qt = 0;
+        for (let n = 0; n < ns; n++) if (f(st(n))) { win[n] = 1; queue[qt++] = n; }
+        while (qh < qt) {
+          const v = queue[qh++];
+          for (let k = off[v]; k < off[v + 1]; k++) {
+            const g = rev[k];
+            if (--left[g] === 0) { const o = owner.get(g); if (!win[o]) { win[o] = 1; queue[qt++] = o; } }
+          }
+        }
+        let lost = -1, nLost = 0;
+        for (let n = 0; n < ns; n++) if (!win[n]) { nLost++; if (lost < 0) lost = n; }
+        game[p.id] = { ok: nLost === 0, states: nLost, example: lost < 0 ? null : lost };
+      });
+    }
     // coverage: which states of each machine are reachable
     const covered = {};
     Object.keys(ir.mach).forEach((slot) => {
@@ -614,7 +708,7 @@
     };
     const describe = (id) => Object.fromEntries(vars.map((v, i) => [v.name, v.dom[pool[id * nv + i]]]));
     const results = ir.props.map((p) => ({ id: p.id, text: p.text, kind: p.kind, ok: viol[p.id] === undefined, trace: viol[p.id] === undefined ? null : trace(viol[p.id]), state: viol[p.id] === undefined ? null : describe(viol[p.id]) }));
-    return { states: ns, edges, ms: Date.now() - t0, results, deadlocks: deadlocks.length, deadlock: deadlocks.length ? { trace: trace(deadlocks[0]), state: describe(deadlocks[0]) } : null, unreached: covered, commands: cmds.length };
+    return { states: ns, edges, ms: Date.now() - t0, results, deadlocks: deadlocks.length, deadlock: deadlocks.length ? { trace: trace(deadlocks[0]), state: describe(deadlocks[0]) } : null, unreached: covered, commands: cmds.length, game };
   }
 
   // the verdict of the explicit search for every specification of toSmv(ir), by its NAME
@@ -652,6 +746,7 @@
         case 'bexp': return ex(u.e);
         case 'add': return `max(${u.lo}, min(${u.hi}, ${vname(u.v)} + ${u.n}))`;
         case 'oneOf': return `{${u.vals.map((x) => lit(v, x)).join(', ')}}`;
+        case 'step': return `case ${Object.entries(u.map).map(([d, xs]) => `${vname(u.v)} = ${d} : ${xs.length > 1 ? `{${xs.join(', ')}}` : xs[0]};`).join(' ')} esac`;
       }
       throw new Error('bad update');
     }
@@ -664,7 +759,7 @@
     L.push('-- is one of its automatic commands; otherwise the step leaves the state unchanged, like idle. Such');
     L.push('-- steps add no states and change none of the specifications below (no TRANS constraints: with them');
     L.push('-- NuSMV needs hours for the fair states of the largest model).');
-    L.push(`-- Abstractions: no step times; jobs complete at any time; output pallet capacity ${ir.opts.slots}.`);
+    L.push(`-- Abstractions: no step times; jobs complete at any time; output pallet ${ir.opts.slots === 'any' ? 'of any capacity >= 2 (empty / partly filled / full)' : 'capacity ' + ir.opts.slots}.`);
     L.push('MODULE main');
     L.push('VAR');
     vars.forEach((v) => {
@@ -716,7 +811,15 @@
     return L.join('\n') + '\n';
   }
 
-  const API = { build, check, expected, toSmv };
+  // The verification runs (verify.js, build_all.js, regress.js): name -> fault classes of build().
+  // Since step A2.1 a disagreement gives the safe value of the checkpoint, so a wrong reading can make
+  // a confirmation fail; the PLC recovers through the confirmation timeout (FAULT, operator clears,
+  // the state is repeated). Every run with sensor faults therefore includes the class `timeout`.
+  //   sensor = proximity wrong + invalid camera images; camwrong = camera wrong with a valid image;
+  //   sensor_camwrong = both together.
+  const RUNS = { none: false, sensor: ['sensor', 'timeout'], process: 'process', camwrong: ['camwrong', 'timeout'], sensor_camwrong: ['sensor', 'camwrong', 'timeout'] };
+
+  const API = { build, check, expected, toSmv, RUNS };
   root.CellVerify = API;
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
 })(typeof window !== 'undefined' ? window : globalThis);

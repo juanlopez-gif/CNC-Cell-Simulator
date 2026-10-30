@@ -19,7 +19,7 @@ const V = require('./src/cell-verify.js');
 const OUT = process.argv[2] || path.join(__dirname, 'out', 'verification');
 fs.mkdirSync(OUT, { recursive: true });
 const RUNS = [];
-['none', 'sensor', 'process'].forEach((faults) => RUNS.push({ setup: 2, faults }));   // Setup 2 only (Setup 1: branch legacy-setup1-setup2)
+Object.keys(V.RUNS).forEach((faults) => RUNS.push({ setup: 2, faults }));   // Setup 2 only (Setup 1: branch legacy-setup1-setup2)
 const ONLY = process.env.ONLY ? process.env.ONLY.split(',') : null;
 const { REPORT_ONLY, NUSMV_ONLY } = process.env;
 const selected = (tag) => !ONLY || ONLY.includes(tag);
@@ -33,12 +33,12 @@ if (lint.length) { console.error('model lint failed:\n' + lint.join('\n')); proc
 if (!REPORT_ONLY && !NUSMV_ONLY) for (const run of RUNS) {
   const tag = `setup${run.setup}_${run.faults}`;
   if (!selected(tag)) continue;
-  const ir = V.build(run.setup, { faults: run.faults === 'none' ? false : run.faults });
+  const ir = V.build(run.setup, { faults: V.RUNS[run.faults] });
   const smvFile = `cell_${tag}.smv`;
   fs.writeFileSync(path.join(OUT, smvFile), V.toSmv(ir));
   process.stdout.write(`${tag}: ${ir.vars.length} variables, ${ir.cmds.length} commands ... `);
   const t0 = Date.now();
-  const r = V.check(ir, { maxStates: 30e6 });
+  const r = V.check(ir, { maxStates: 100e6 });
   console.log(`${r.states} states, ${r.edges} transitions, ${((Date.now() - t0) / 1000).toFixed(1)} s, ${r.results.filter((x) => !x.ok).length} failed, ${r.deadlocks} deadlocks`);
   results = results.filter((x) => x.tag !== tag);
   results.push({ tag, setup: run.setup, faults: run.faults, vars: ir.vars.length, commands: ir.cmds.length, smv: smvFile, states: r.states, edges: r.edges, seconds: (Date.now() - t0) / 1000, deadlocks: r.deadlocks, deadlock: r.deadlock, unreached: r.unreached, props: r.results, expect: V.expected(ir, r) });
@@ -145,7 +145,9 @@ function compare(x) {
 
   // ---- report
   const L = [];
-  const FAULTS = { none: 'nominal operation', sensor: 'camera / proximity mismatches and camera faults', process: 'missed picks, confirmation timeouts, transport timers' };
+  const FAULTS = { none: 'nominal operation', sensor: 'proximity sensor wrong and invalid camera images, with confirmation timeouts', process: 'missed picks, confirmation timeouts, transport timers',
+    camwrong: 'camera wrong with a valid image (false positive, false negative, stale image), with confirmation timeouts',
+    sensor_camwrong: 'all sensor faults together (proximity wrong, camera wrong, invalid images), with confirmation timeouts' };
   const faultText = (x) => FAULTS[x.faults] + (x.faults === 'process' && x.setup === 2 ? ', undersized parts' : '');
   const num = (n) => n.toLocaleString('en-US');
   const smvNum = (n) => (n >= 1e6 ? n.toExponential(5).replace(/\.?0+e/, 'e').replace(/e\+(\d)$/, 'e+0$1') : num(n));   // as NuSMV prints it

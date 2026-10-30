@@ -2,7 +2,7 @@
 
 run_random drives a cell like the conformance test of the browser simulator (source/test_sim.js):
 every 10 s of simulated time it may inject a disturbance (sensor glitch or fault, bad camera
-frame, camera failure, missed pick, undersized part) or send the operator away, and an operator
+frame, camera failure, missed pick, undersized part, master check out of tolerance) or send the operator away, and an operator
 and a technician answer the HMI (clear a fault after 60 s, release a quality hold after 120 s,
 start the sensor verification and reset the line).
 """
@@ -38,8 +38,10 @@ def run_random(setup, hours, faults=True, seed=1, model=None, step=10.0):
                 sim.inject_camera_failure(); inj("camera failure")
             elif k < 0.85:
                 sim.inject_grip_miss(); inj("grip miss")
-            else:
+            elif k < 0.95:
                 sim.inject_undersized(); inj("undersized part")
+            else:
+                sim.inject_master_fault(); inj("master check out of tolerance")
         # the operator is sometimes away: the input pallet runs empty (Robot 1 waits in W1)
         if faults and rnd.random() < 0.003:
             sim.auto_operator = not sim.auto_operator

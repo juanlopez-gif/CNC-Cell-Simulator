@@ -3,12 +3,12 @@
   "tag": "setup2_none",
   "setup": 2,
   "faults": "none",
-  "vars": 44,
-  "commands": 266,
+  "vars": 45,
+  "commands": 307,
   "smv": "cell_setup2_none.smv",
-  "states": 212303,
-  "edges": 870229,
-  "seconds": 5.315,
+  "states": 297136,
+  "edges": 1247985,
+  "seconds": 7.314,
   "deadlocks": 0,
   "deadlock": null,
   "unreached": {
@@ -112,6 +112,22 @@
     "state": null
    },
    {
+    "id": "P11",
+    "text": "Robot 2 loads the gauge nest (part or master cube) only when it is empty",
+    "kind": "start",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P12",
+    "text": "A part is measured only after a passed master check",
+    "kind": "start",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
     "id": "L1",
     "text": "A new CNC cycle can always be started again",
     "kind": "eventually",
@@ -147,6 +163,8 @@
    "P8": true,
    "P9": true,
    "P10": true,
+   "P11": true,
+   "P12": true,
    "L1": true,
    "L2": true,
    "L3": true,
@@ -185,17 +203,17 @@
    "unreachable_SUP_X4": true
   },
   "nusmv": {
-   "seconds": 168.495,
-   "jobs": 6,
+   "seconds": 227.736,
+   "jobs": 8,
    "parts": [
     {
      "name": "L1, L2, L3",
-     "seconds": 46.723,
+     "seconds": 55.065,
      "problem": null
     },
     {
      "name": "invariants",
-     "seconds": 121.772,
+     "seconds": 172.671,
      "problem": null
     }
    ],
@@ -245,10 +263,12 @@
     "P5": true,
     "P6": true,
     "P7": true,
-    "P8": true
+    "P8": true,
+    "P11": true,
+    "P12": true
    },
    "problems": [],
-   "states": 212303,
+   "states": 297136,
    "version": "2.7.1"
   }
  },
@@ -256,21 +276,17 @@
   "tag": "setup2_sensor",
   "setup": 2,
   "faults": "sensor",
-  "vars": 44,
-  "commands": 295,
+  "vars": 45,
+  "commands": 357,
   "smv": "cell_setup2_sensor.smv",
-  "states": 14685160,
-  "edges": 66124127,
-  "seconds": 447.287,
+  "states": 68790749,
+  "edges": 332161934,
+  "seconds": 2181.804,
   "deadlocks": 0,
   "deadlock": null,
   "unreached": {
-   "R1": [
-    "F"
-   ],
-   "CONV": [
-    "F"
-   ],
+   "R1": [],
+   "CONV": [],
    "R2": [
     "E6"
    ],
@@ -358,6 +374,22 @@
     "state": null
    },
    {
+    "id": "P11",
+    "text": "Robot 2 loads the gauge nest (part or master cube) only when it is empty",
+    "kind": "start",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P12",
+    "text": "A part is measured only after a passed master check",
+    "kind": "start",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
     "id": "L1",
     "text": "A new CNC cycle can always be started again",
     "kind": "eventually",
@@ -393,6 +425,8 @@
    "P8": true,
    "P9": true,
    "P10": true,
+   "P11": true,
+   "P12": true,
    "L1": true,
    "L2": true,
    "L3": true,
@@ -407,14 +441,14 @@
    "unreachable_R1_B7": false,
    "unreachable_R1_W1": false,
    "unreachable_R1_H": false,
-   "unreachable_R1_F": true,
+   "unreachable_R1_F": false,
    "unreachable_CONV_C1": false,
    "unreachable_CONV_C2": false,
    "unreachable_CONV_C3": false,
    "unreachable_CONV_C4": false,
    "unreachable_CONV_C5": false,
    "unreachable_CONV_H": false,
-   "unreachable_CONV_F": true,
+   "unreachable_CONV_F": false,
    "unreachable_R2_E0": false,
    "unreachable_R2_E1": false,
    "unreachable_R2_E2": false,
@@ -431,17 +465,17 @@
    "unreachable_SUP_X4": false
   },
   "nusmv": {
-   "seconds": 6333.832,
-   "jobs": 6,
+   "seconds": 43242.617,
+   "jobs": 8,
    "parts": [
     {
      "name": "L1, L2, L3",
-     "seconds": 2997.091,
+     "seconds": 8334.797,
      "problem": null
     },
     {
      "name": "invariants",
-     "seconds": 3336.741,
+     "seconds": 34907.82,
      "problem": null
     }
    ],
@@ -464,14 +498,14 @@
     "unreachable_R1_B7": false,
     "unreachable_R1_W1": false,
     "unreachable_R1_H": false,
-    "unreachable_R1_F": true,
+    "unreachable_R1_F": false,
     "unreachable_CONV_C1": false,
     "unreachable_CONV_C2": false,
     "unreachable_CONV_C3": false,
     "unreachable_CONV_C4": false,
     "unreachable_CONV_C5": false,
     "unreachable_CONV_H": false,
-    "unreachable_CONV_F": true,
+    "unreachable_CONV_F": false,
     "unreachable_R2_E0": false,
     "unreachable_R2_E1": false,
     "unreachable_R2_E2": false,
@@ -491,10 +525,12 @@
     "P5": true,
     "P6": true,
     "P7": true,
-    "P8": true
+    "P8": true,
+    "P11": true,
+    "P12": true
    },
    "problems": [],
-   "states": 14685200,
+   "states": 68790700,
    "version": "2.7.1"
   }
  },
@@ -502,12 +538,12 @@
   "tag": "setup2_process",
   "setup": 2,
   "faults": "process",
-  "vars": 44,
-  "commands": 284,
+  "vars": 45,
+  "commands": 327,
   "smv": "cell_setup2_process.smv",
-  "states": 5327386,
-  "edges": 27709028,
-  "seconds": 160.691,
+  "states": 8855602,
+  "edges": 47127181,
+  "seconds": 285.963,
   "deadlocks": 0,
   "deadlock": null,
   "unreached": {
@@ -608,6 +644,22 @@
     "state": null
    },
    {
+    "id": "P11",
+    "text": "Robot 2 loads the gauge nest (part or master cube) only when it is empty",
+    "kind": "start",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P12",
+    "text": "A part is measured only after a passed master check",
+    "kind": "start",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
     "id": "L1",
     "text": "A new CNC cycle can always be started again",
     "kind": "eventually",
@@ -643,6 +695,8 @@
    "P8": true,
    "P9": true,
    "P10": true,
+   "P11": true,
+   "P12": true,
    "L1": true,
    "L2": true,
    "L3": true,
@@ -681,17 +735,17 @@
    "unreachable_SUP_X4": true
   },
   "nusmv": {
-   "seconds": 814.588,
-   "jobs": 6,
+   "seconds": 469.924,
+   "jobs": 8,
    "parts": [
     {
      "name": "L1, L2, L3",
-     "seconds": 317.34,
+     "seconds": 228.126,
      "problem": null
     },
     {
      "name": "invariants",
-     "seconds": 497.248,
+     "seconds": 241.798,
      "problem": null
     }
    ],
@@ -741,10 +795,536 @@
     "P5": true,
     "P6": true,
     "P7": true,
-    "P8": true
+    "P8": true,
+    "P11": true,
+    "P12": true
    },
    "problems": [],
-   "states": 5327390,
+   "states": 8855600,
+   "version": "2.7.1"
+  }
+ },
+ {
+  "tag": "setup2_camwrong",
+  "setup": 2,
+  "faults": "camwrong",
+  "vars": 45,
+  "commands": 376,
+  "smv": "cell_setup2_camwrong.smv",
+  "states": 17046483,
+  "edges": 81938512,
+  "seconds": 567.564,
+  "deadlocks": 0,
+  "deadlock": null,
+  "unreached": {
+   "R1": [],
+   "CONV": [],
+   "R2": [
+    "E6"
+   ],
+   "SUP": []
+  },
+  "props": [
+   {
+    "id": "P1",
+    "text": "No robot is at the conveyor while the belt moves",
+    "kind": "never",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P2",
+    "text": "CYCLE START only with the door closed and the guard locked",
+    "kind": "start",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P3",
+    "text": "Robot 1 is inside the CNC only with the door open and the spindle stopped",
+    "kind": "never",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P4",
+    "text": "The door is opened only after the cycle, with the guard lock released",
+    "kind": "start",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P5",
+    "text": "A part is placed on the conveyor only at a free entry of a stopped belt",
+    "kind": "start",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P6",
+    "text": "Robot 2 places a part only on an output pallet that is in place and not full",
+    "kind": "start",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P7",
+    "text": "An undersized part never reaches the output pallet",
+    "kind": "start",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P8",
+    "text": "No CYCLE START during a quality hold",
+    "kind": "start",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P9",
+    "text": "Three mismatches in the window always stop the line",
+    "kind": "never",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P10",
+    "text": "A camera fault always stops the line",
+    "kind": "never",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P11",
+    "text": "Robot 2 loads the gauge nest (part or master cube) only when it is empty",
+    "kind": "start",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P12",
+    "text": "A part is measured only after a passed master check",
+    "kind": "start",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "L1",
+    "text": "A new CNC cycle can always be started again",
+    "kind": "eventually",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "L2",
+    "text": "Robot 2 can always deliver a part again",
+    "kind": "eventually",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "L3",
+    "text": "After any stop the supervisor can return to NORMAL",
+    "kind": "eventually",
+    "ok": true,
+    "trace": null,
+    "state": null
+   }
+  ],
+  "expect": {
+   "P1": true,
+   "P2": true,
+   "P3": true,
+   "P4": true,
+   "P5": true,
+   "P6": true,
+   "P7": true,
+   "P8": true,
+   "P9": true,
+   "P10": true,
+   "P11": true,
+   "P12": true,
+   "L1": true,
+   "L2": true,
+   "L3": true,
+   "no_deadlock": true,
+   "unreachable_R1_B0": false,
+   "unreachable_R1_B1": false,
+   "unreachable_R1_B2": false,
+   "unreachable_R1_B3": false,
+   "unreachable_R1_B4": false,
+   "unreachable_R1_B5": false,
+   "unreachable_R1_B6": false,
+   "unreachable_R1_B7": false,
+   "unreachable_R1_W1": false,
+   "unreachable_R1_H": false,
+   "unreachable_R1_F": false,
+   "unreachable_CONV_C1": false,
+   "unreachable_CONV_C2": false,
+   "unreachable_CONV_C3": false,
+   "unreachable_CONV_C4": false,
+   "unreachable_CONV_C5": false,
+   "unreachable_CONV_H": false,
+   "unreachable_CONV_F": false,
+   "unreachable_R2_E0": false,
+   "unreachable_R2_E1": false,
+   "unreachable_R2_E2": false,
+   "unreachable_R2_E3": false,
+   "unreachable_R2_E4": false,
+   "unreachable_R2_E5": false,
+   "unreachable_R2_E6": true,
+   "unreachable_R2_E7": false,
+   "unreachable_R2_H": false,
+   "unreachable_R2_F": false,
+   "unreachable_SUP_X1": false,
+   "unreachable_SUP_X2": false,
+   "unreachable_SUP_X3": false,
+   "unreachable_SUP_X4": false
+  },
+  "nusmv": {
+   "seconds": 8090.084000000001,
+   "jobs": 8,
+   "parts": [
+    {
+     "name": "L1, L2, L3",
+     "seconds": 2895.015,
+     "problem": null
+    },
+    {
+     "name": "invariants",
+     "seconds": 5195.069,
+     "problem": null
+    }
+   ],
+   "verdict": {
+    "L1": true,
+    "L2": true,
+    "L3": true,
+    "P1": true,
+    "P3": true,
+    "P9": true,
+    "P10": true,
+    "no_deadlock": true,
+    "unreachable_R1_B0": false,
+    "unreachable_R1_B1": false,
+    "unreachable_R1_B2": false,
+    "unreachable_R1_B3": false,
+    "unreachable_R1_B4": false,
+    "unreachable_R1_B5": false,
+    "unreachable_R1_B6": false,
+    "unreachable_R1_B7": false,
+    "unreachable_R1_W1": false,
+    "unreachable_R1_H": false,
+    "unreachable_R1_F": false,
+    "unreachable_CONV_C1": false,
+    "unreachable_CONV_C2": false,
+    "unreachable_CONV_C3": false,
+    "unreachable_CONV_C4": false,
+    "unreachable_CONV_C5": false,
+    "unreachable_CONV_H": false,
+    "unreachable_CONV_F": false,
+    "unreachable_R2_E0": false,
+    "unreachable_R2_E1": false,
+    "unreachable_R2_E2": false,
+    "unreachable_R2_E3": false,
+    "unreachable_R2_E4": false,
+    "unreachable_R2_E5": false,
+    "unreachable_R2_E6": true,
+    "unreachable_R2_E7": false,
+    "unreachable_R2_H": false,
+    "unreachable_R2_F": false,
+    "unreachable_SUP_X1": false,
+    "unreachable_SUP_X2": false,
+    "unreachable_SUP_X3": false,
+    "unreachable_SUP_X4": false,
+    "P2": true,
+    "P4": true,
+    "P5": true,
+    "P6": true,
+    "P7": true,
+    "P8": true,
+    "P11": true,
+    "P12": true
+   },
+   "problems": [],
+   "states": 17046500,
+   "version": "2.7.1"
+  }
+ },
+ {
+  "tag": "setup2_sensor_camwrong",
+  "setup": 2,
+  "faults": "sensor_camwrong",
+  "vars": 45,
+  "commands": 405,
+  "smv": "cell_setup2_sensor_camwrong.smv",
+  "states": 79819587,
+  "edges": 402849626,
+  "seconds": 2972.864,
+  "deadlocks": 0,
+  "deadlock": null,
+  "unreached": {
+   "R1": [],
+   "CONV": [],
+   "R2": [
+    "E6"
+   ],
+   "SUP": []
+  },
+  "props": [
+   {
+    "id": "P1",
+    "text": "No robot is at the conveyor while the belt moves",
+    "kind": "never",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P2",
+    "text": "CYCLE START only with the door closed and the guard locked",
+    "kind": "start",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P3",
+    "text": "Robot 1 is inside the CNC only with the door open and the spindle stopped",
+    "kind": "never",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P4",
+    "text": "The door is opened only after the cycle, with the guard lock released",
+    "kind": "start",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P5",
+    "text": "A part is placed on the conveyor only at a free entry of a stopped belt",
+    "kind": "start",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P6",
+    "text": "Robot 2 places a part only on an output pallet that is in place and not full",
+    "kind": "start",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P7",
+    "text": "An undersized part never reaches the output pallet",
+    "kind": "start",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P8",
+    "text": "No CYCLE START during a quality hold",
+    "kind": "start",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P9",
+    "text": "Three mismatches in the window always stop the line",
+    "kind": "never",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P10",
+    "text": "A camera fault always stops the line",
+    "kind": "never",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P11",
+    "text": "Robot 2 loads the gauge nest (part or master cube) only when it is empty",
+    "kind": "start",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "P12",
+    "text": "A part is measured only after a passed master check",
+    "kind": "start",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "L1",
+    "text": "A new CNC cycle can always be started again",
+    "kind": "eventually",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "L2",
+    "text": "Robot 2 can always deliver a part again",
+    "kind": "eventually",
+    "ok": true,
+    "trace": null,
+    "state": null
+   },
+   {
+    "id": "L3",
+    "text": "After any stop the supervisor can return to NORMAL",
+    "kind": "eventually",
+    "ok": true,
+    "trace": null,
+    "state": null
+   }
+  ],
+  "expect": {
+   "P1": true,
+   "P2": true,
+   "P3": true,
+   "P4": true,
+   "P5": true,
+   "P6": true,
+   "P7": true,
+   "P8": true,
+   "P9": true,
+   "P10": true,
+   "P11": true,
+   "P12": true,
+   "L1": true,
+   "L2": true,
+   "L3": true,
+   "no_deadlock": true,
+   "unreachable_R1_B0": false,
+   "unreachable_R1_B1": false,
+   "unreachable_R1_B2": false,
+   "unreachable_R1_B3": false,
+   "unreachable_R1_B4": false,
+   "unreachable_R1_B5": false,
+   "unreachable_R1_B6": false,
+   "unreachable_R1_B7": false,
+   "unreachable_R1_W1": false,
+   "unreachable_R1_H": false,
+   "unreachable_R1_F": false,
+   "unreachable_CONV_C1": false,
+   "unreachable_CONV_C2": false,
+   "unreachable_CONV_C3": false,
+   "unreachable_CONV_C4": false,
+   "unreachable_CONV_C5": false,
+   "unreachable_CONV_H": false,
+   "unreachable_CONV_F": false,
+   "unreachable_R2_E0": false,
+   "unreachable_R2_E1": false,
+   "unreachable_R2_E2": false,
+   "unreachable_R2_E3": false,
+   "unreachable_R2_E4": false,
+   "unreachable_R2_E5": false,
+   "unreachable_R2_E6": true,
+   "unreachable_R2_E7": false,
+   "unreachable_R2_H": false,
+   "unreachable_R2_F": false,
+   "unreachable_SUP_X1": false,
+   "unreachable_SUP_X2": false,
+   "unreachable_SUP_X3": false,
+   "unreachable_SUP_X4": false
+  },
+  "nusmv": {
+   "seconds": 77339.214,
+   "jobs": 8,
+   "parts": [
+    {
+     "name": "L1, L2, L3",
+     "seconds": 34141.222,
+     "problem": null
+    },
+    {
+     "name": "invariants",
+     "seconds": 43197.992,
+     "problem": "stopped after 12.0 h"
+    }
+   ],
+   "verdict": {
+    "L1": true,
+    "L2": true,
+    "L3": true,
+    "P1": true,
+    "P3": true,
+    "P9": true,
+    "P10": true,
+    "no_deadlock": true,
+    "unreachable_R1_B0": false,
+    "unreachable_R1_B1": false,
+    "unreachable_R1_B2": false,
+    "unreachable_R1_B3": false,
+    "unreachable_R1_B4": false,
+    "unreachable_R1_B5": false,
+    "unreachable_R1_B6": false,
+    "unreachable_R1_B7": false,
+    "unreachable_R1_W1": false,
+    "unreachable_R1_H": false,
+    "unreachable_R1_F": false,
+    "unreachable_CONV_C1": false,
+    "unreachable_CONV_C2": false,
+    "unreachable_CONV_C3": false,
+    "unreachable_CONV_C4": false,
+    "unreachable_CONV_C5": false,
+    "unreachable_CONV_H": false,
+    "unreachable_CONV_F": false,
+    "unreachable_R2_E0": false,
+    "unreachable_R2_E1": false,
+    "unreachable_R2_E2": false,
+    "unreachable_R2_E3": false,
+    "unreachable_R2_E4": false,
+    "unreachable_R2_E5": false,
+    "unreachable_R2_E6": true,
+    "unreachable_R2_E7": false,
+    "unreachable_R2_H": false,
+    "unreachable_R2_F": false,
+    "unreachable_SUP_X1": false,
+    "unreachable_SUP_X2": false,
+    "unreachable_SUP_X3": false,
+    "unreachable_SUP_X4": false,
+    "P2": true,
+    "P4": true,
+    "P5": true,
+    "P6": true,
+    "P7": true,
+    "P8": true
+   },
+   "problems": [
+    "invariants: stopped after 12.0 h"
+   ],
+   "states": 79819600,
    "version": "2.7.1"
   }
  }

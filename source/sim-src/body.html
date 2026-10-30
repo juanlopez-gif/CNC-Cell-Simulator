@@ -55,7 +55,7 @@
           <div class="wl"><span>Mismatches in the last 10 min: <b id="winCount">0 / 3</b></span><span>3 within 10 min → line stop</span></div>
           <div class="wbar" id="wbar"></div>
         </div>
-        <p class="rule">The camera and the proximity sensor must agree. If they disagree the camera value is used and the mismatch is logged. <em>Glitch</em> = one false reading. <em>Fault</em> = dirty or misaligned sensor that keeps missing the part.</p>
+        <p class="rule">The camera and the proximity sensor must agree. If they disagree the rule of the checkpoint gives the value (CP-1: camera; CP-2, CP-3, CP-4: absent; CP-5: present) and the mismatch is logged. <em>Glitch</em> = one false reading. <em>Fault</em> = dirty or misaligned sensor that keeps missing the part.</p>
       </div>
     </div>
   </section>
@@ -90,8 +90,10 @@
           <div class="bs">
             <button type="button" class="btn" id="btnGripMiss">Robot 1 misses a pick</button>
             <button type="button" class="btn" id="btnUnder">Next part undersized</button>
+            <button type="button" class="btn" id="btnBand">Next part in the guard band</button>
+            <button type="button" class="btn" id="btnMaster">Master check out of tolerance</button>
           </div>
-          <p id="underNote">The gauge measures every part; any dimension below 48.00 mm goes to the NOK chute. Two NOK parts in a row trigger a quality hold.</p>
+          <p id="underNote">The gauge measures every part; any dimension below 48.05 mm (limit 48.00 + guard band 0.05) goes to the NOK chute. Two NOK parts in a row trigger a quality hold.</p>
         </div>
         <div class="grp">
           <h3>Operator</h3>

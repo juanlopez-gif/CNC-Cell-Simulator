@@ -20,6 +20,7 @@ def main():
     t0 = time.time()
     sim, injected, actions = run_random(2, a.hours, faults=a.faults, seed=a.seed)
     k = sim.kpis()
+    m = sim.measures()
     errs, unvisited = conformance(sim)
     print(f"Setup 2, {a.hours:g} h simulated {'with' if a.faults else 'without'} disturbances (seed {a.seed}) in {time.time() - t0:.1f} s")
     rows = [
@@ -27,7 +28,10 @@ def main():
         ("CNC cycles", k["cnc_cycles"]),
         ("CNC utilization", f'{100 * k["cnc_utilization"]:.1f} %' if k["cnc_utilization"] is not None else "-"),
         ("mean CNC idle per part", f'{k["mean_cnc_idle_s"]:.2f} s (design {k["design_cnc_idle_s"]} s)' if k["mean_cnc_idle_s"] is not None else "-"),
-        ("parts per hour", f'{k["parts_per_hour"]:.1f}'),
+        ("parts per hour (from the mean idle)", f'{k["parts_per_hour"]:.1f}'),
+        ("parts / good parts per hour (run)", f'{m["parts_per_hour"]:.1f} / {m["good_parts_per_hour"]:.1f}'),
+        ("time not machining", f'{m["not_machining_s"] / 60:.1f} min'),
+        ("  by cause (min)", ", ".join(f"{c} {v / 60:.1f}" for c, v in m["lost_s"].items() if v > 0)),
         ("mismatches / line stops", f'{k["mismatches"]} / {k["line_stops"]}'),
         ("property violations", k["property_violations"]),
         ("transitions outside the model", len(errs)),

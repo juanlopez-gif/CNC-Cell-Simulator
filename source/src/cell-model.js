@@ -21,6 +21,8 @@
     beltStart: 0.3, beltStop: 0.3, zeroSpeed: 0.2,
     r2ToExit: 1.5, r2Pick: 1.0, r2ToPallet: 1.5, r2Place: 1.0, r2Home: 1.0,
     r2ToGauge: 1.5, r2LoadGauge: 1.5, measure: 1.0, r2Repick: 1.0, r2ToNok: 1.5, r2Drop: 0.5,
+    blowOff: 0.5,                            // air blow-off of nest and part before loading (A2.2)
+    r2Master: 6.0,                           // Robot 2 puts MST-60 in the nest, 3 readings, puts it back
   };
   // Names of the time components, used in the CNC idle build-up table.
   const TLABEL = {
@@ -33,8 +35,76 @@
     beltStart: 'Belt start', beltTravel: 'Transport', beltStop: 'Belt stop', zeroSpeed: 'Zero speed',
     r2ToExit: 'To conveyor exit', r2Pick: 'Grip and lift', r2ToPallet: 'To output pallet', r2Place: 'Place',
     r2Home: 'Home', r2ToGauge: 'To gauge', r2LoadGauge: 'Load gauge', measure: 'Measure', r2Repick: 'Re-pick',
-    r2ToNok: 'To NOK chute', r2Drop: 'Drop',
+    r2ToNok: 'To NOK chute', r2Drop: 'Drop', blowOff: 'Air blow-off', r2Master: 'Master cube check',
   };
+
+  // Source and interval of every time (step A2.3, approved by the author 2026-10-30).
+  // Each time has a kind; the kind gives the interval as factors of the nominal value. bound is a
+  // physical lower limit from a datasheet: the minimum is never below it, and the nominal must not
+  // be either. Robot moves: base turn between the stations of the layout (fig09; the drawing is not
+  // to scale, but the angles around each robot base are indicative) at the UR10e datasheet speed of
+  // the base joint, 120 °/s, without acceleration time, so a true lower limit.
+  const TKIND = {
+    robot: { f: [0.9, 1.3], text: 'UR10e move or RG2 gripper step: rarely faster than planned, often slower' },
+    actuator: { f: [0.5, 1.5], text: 'pneumatic or electromechanical actuator, I/O handshake' },
+    beltTravel: { f: [0.95, 1.1], text: 'transport at the set drive speed (speed accuracy, slip, load)' },
+    beltRamp: { f: [0.5, 1.5], text: 'drive ramp or zero-speed window, set at commissioning' },
+    sensing: { f: [0.8, 1.5], text: 'settle + sensor reading + PLC compare' },
+    cnc: { f: [0.95, 1.05], text: 'CNC program cycle' },
+  };
+  const UR = 'UR10e datasheet: base joint 120 °/s';
+  const RG2 = 'OnRobot RG2 datasheet: gripping time 0.06–0.21 s (8 mm stroke)';
+  const TSRC = {
+    cncCycle: { kind: 'cnc', src: 'Assignment: 120 s machining cycle of the block' },
+    unlock: { kind: 'actuator', src: 'Estimate: guard-lock solenoid release + ZS-33 confirmation' },
+    lock: { kind: 'actuator', src: 'Estimate: guard-lock solenoid + ZS-33 confirmation' },
+    cycleStart: { kind: 'actuator', src: 'Estimate: CYCLE START handshake over the CNC robot interface' },
+    doorToHome: { kind: 'robot', bound: 0.38, src: `Estimate; bound: base turn 45° (${UR})` },
+    park: { kind: 'robot', src: 'Estimate: short move to the park pose' },
+    doorOpen: { kind: 'robot', bound: 0.75, src: 'Estimate: grip handle, slide the door, release; bound: 0.75 m door travel (layout) at 1 m/s (UR10e typical TCP speed)' },
+    doorClose: { kind: 'robot', bound: 0.75, src: 'Estimate, as door open' },
+    enterCnc: { kind: 'robot', bound: 0.7, src: 'Estimate: linear move into the work area; bound: 0.7 m (layout) at 1 m/s (UR10e typical TCP speed)' },
+    exitCnc: { kind: 'robot', bound: 0.7, src: 'Estimate, as enter CNC' },
+    grip: { kind: 'robot', bound: 0.06, src: `Estimate: approach, close, confirm; ${RG2}` },
+    release: { kind: 'robot', bound: 0.06, src: `Estimate: open, confirm, retract; ${RG2}` },
+    viseOpen: { kind: 'actuator', src: 'Estimate: pneumatic vise stroke + ZS-34 (SMC D-M9 auto switch)' },
+    viseClamp: { kind: 'actuator', src: 'Estimate: pneumatic vise stroke + ZS-35 (SMC D-M9 auto switch)' },
+    lift: { kind: 'robot', src: 'Estimate: slow lift out of the jaws' },
+    placeInVise: { kind: 'robot', src: 'Estimate: lower into the jaws, push against the fixed jaw' },
+    seatCheck: { kind: 'sensing', src: 'Estimate: settle + PS-36 reading (SMC ISA3 gap sensor)' },
+    swapGripper: { kind: 'robot', bound: 1.0, src: 'Wrist 3 turn 180° at 180 °/s = 1.0 s (UR10e datasheet) + air blast of the vise (estimate)' },
+    doorToConv: { kind: 'robot', bound: 1.3, src: `Estimate; bound: base turn 156° (${UR})` },
+    placeConv: { kind: 'robot', bound: 0.06, src: `Estimate: lower, release, retract; ${RG2}` },
+    convToPallet: { kind: 'robot', bound: 0.81, src: `Estimate; bound: base turn 97° (${UR})` },
+    pickPallet: { kind: 'robot', bound: 0.06, src: `Estimate: approach at the CAM-1 position, grip, lift; ${RG2}` },
+    palletToDoor: { kind: 'robot', bound: 0.89, src: `Estimate; bound: base turn 107° (${UR})` },
+    check: { kind: 'sensing', bound: 0.32, src: 'Settle 0.3 s (RULES) + Cognex In-Sight 2800 acquisition (up to 45 Hz: 0.022 s) + processing and compare (estimate)' },
+    beltTravel: { kind: 'beltTravel', src: '2.0 m (layout) at 0.25 m/s set on the drive (design value)' },
+    beltStart: { kind: 'beltRamp', src: 'Estimate: drive acceleration ramp' },
+    beltStop: { kind: 'beltRamp', src: 'Estimate: drive deceleration ramp' },
+    zeroSpeed: { kind: 'beltRamp', src: 'Estimate: zero-speed window on ENC-43 (Koyo TRD-N600)' },
+    r2ToExit: { kind: 'robot', bound: 1.09, src: `Estimate; bound: base turn 131° from home (${UR})` },
+    r2Pick: { kind: 'robot', bound: 0.06, src: `Estimate: approach, grip, lift; ${RG2}` },
+    r2ToPallet: { kind: 'robot', bound: 0.28, src: `Estimate; bound: base turn 33° (${UR})` },
+    r2Place: { kind: 'robot', bound: 0.06, src: `Estimate: lower, release, retract; ${RG2}` },
+    r2Home: { kind: 'robot', bound: 0.81, src: `Estimate; bound: base turn 98° from the output pallet (${UR})` },
+    r2ToGauge: { kind: 'robot', bound: 0.99, src: `Estimate; bound: base turn 118° (${UR})` },
+    blowOff: { kind: 'actuator', src: 'Estimate (A2.2): SMC VQ110 valve (response 12–15 ms, distributor data) + air pulse' },
+    r2LoadGauge: { kind: 'robot', bound: 0.06, src: `Estimate: place in the tilted nest, push against the datums, release; ${RG2}` },
+    measure: { kind: 'sensing', bound: 0.13, src: 'Keyence IL-065: sampling 1 ms x average 128 = 0.13 s per reading (datasheet conditions, distributor data) + settle (estimate)' },
+    r2Repick: { kind: 'robot', bound: 0.06, src: `Estimate: grip and lift out of the nest; ${RG2}` },
+    r2ToNok: { kind: 'robot', bound: 1.26, src: `Estimate; bound: base turn 152° (${UR})` },
+    r2Drop: { kind: 'robot', bound: 0.06, src: `Estimate: open over the chute; ${RG2}` },
+    r2Master: { kind: 'robot', src: 'Estimate (A2.2): master cube from its stand to the nest and back, 3 readings' },
+  };
+  const r2 = (x) => Math.round(x * 100) / 100;
+  // [min, max] of every time; TMIN / TMAX are T with every value at its minimum / maximum.
+  const TRANGE = {}, TMIN = {}, TMAX = {};
+  Object.keys(T).forEach((k) => {
+    const src = TSRC[k] || {}, f = (TKIND[src.kind] || { f: [1, 1] }).f;
+    TRANGE[k] = [Math.max(r2(T[k] * f[0]), src.bound || 0), r2(T[k] * f[1])];
+    [TMIN[k], TMAX[k]] = TRANGE[k];
+  });
 
   // ---------------------------------------------------------------- rules
   const RULES = {
@@ -44,19 +114,30 @@
     debounce: 0.05,          // s  proximity input filter
     retrigger: 0.3,          // s  second camera image after an invalid one
     confirmTimeout: 1.0,     // s  a confirmation that does not arrive in time raises a FAULT
-    minSize: 48.0,           // mm acceptance limit (50 mm nominal - 2 mm)
+    minSize: 48.0,           // mm specified lower limit (50 mm nominal - 2 mm); no upper limit is specified
     nominal: 50.0,
+    // gauge (decided in step A2.2, 2026-10-28, verification/gauge_policy.md)
+    guardBand: 0.05,         // mm U (k = 2) of the station: accept only from minSize + guardBand (ISO 14253-1)
+    masterTol: 0.010,        // mm a master check passes if every axis reads nominal ± masterTol
+    masterEvery: 4 * 3600,   // s  master check interval (also at start-up and after a gauge FAULT)
+    validRange: [45, 52],    // mm a size outside this range is a bad reading, not a part size
+    masterDist: 80.0,        // mm distance of the lasers to the master cube face (IL-065 mid-range)
     consecutiveNokHold: 2,   // consecutive NOK parts that hold the CNC
     palletSlots: 12,         // 3 x 4 positions, input and output pallets
   };
 
   // ---------------------------------------------------------------- checkpoints
+  // rule: the value used when the proximity sensor and the camera disagree (the mismatch is counted
+  // in every case): camera | prox | present | absent (that value) | ask (line stop, the operator
+  // looks and the check is repeated). Decided in step A2.1 (2026-10-28, verification/camera_policy.md):
+  // where a wrong answer can cause damage the safe value is used (CP-4 pallet absent, CP-5 nest
+  // occupied); elsewhere the cheapest safe rule.
   const CHECKPOINTS = [
-    { id: 'CP-1', where: 'Input pallet', prox: 'PX-11', cam: 'CAM-1', roi: 'ROI-A', fact: 'Input pallet present and seated' },
-    { id: 'CP-2', where: 'Conveyor entry', prox: 'PE-41', cam: 'CAM-1', roi: 'ROI-B', fact: 'Part at conveyor entry' },
-    { id: 'CP-3', where: 'Conveyor exit', prox: 'PE-42', cam: 'CAM-2', roi: 'ROI-C', fact: 'Part at the end stop' },
-    { id: 'CP-4', where: 'Output pallet', prox: 'PX-52', cam: 'CAM-2', roi: 'ROI-D', fact: 'Output pallet present' },
-    { id: 'CP-5', where: 'Gauge nest', prox: 'PX-64', cam: 'CAM-2', roi: 'ROI-E', fact: 'Part in gauge nest' },
+    { id: 'CP-1', where: 'Input pallet', prox: 'PX-11', cam: 'CAM-1', roi: 'ROI-A', fact: 'Input pallet present and seated', rule: 'camera' },
+    { id: 'CP-2', where: 'Conveyor entry', prox: 'PE-41', cam: 'CAM-1', roi: 'ROI-B', fact: 'Part at conveyor entry', rule: 'absent' },
+    { id: 'CP-3', where: 'Conveyor exit', prox: 'PE-42', cam: 'CAM-2', roi: 'ROI-C', fact: 'Part at the end stop', rule: 'absent' },
+    { id: 'CP-4', where: 'Output pallet', prox: 'PX-52', cam: 'CAM-2', roi: 'ROI-D', fact: 'Output pallet present', rule: 'absent' },
+    { id: 'CP-5', where: 'Gauge nest', prox: 'PX-64', cam: 'CAM-2', roi: 'ROI-E', fact: 'Part in gauge nest', rule: 'present' },
   ];
 
   // ---------------------------------------------------------------- sensors / signals
@@ -166,7 +247,7 @@
     { tag: 'LS-61 / 62 / 63', zone: 'Gauge station', kind: 'laser',
       type: 'Laser displacement sensors (triangulation), one per axis',
       where: 'Gauge nest, facing the three free faces (length X, width Y, height Z)',
-      confirms: 'Length, width and height of every part; reject if any value < 48.00 mm',
+      confirms: 'Length, width and height of every part; accept only if all ≥ 48.05 mm (48.00 + guard band 0.05)',
       example: 'Keyence IL-065 (55-105 mm range, 2 um repeatability) + IL amplifiers' },
     { tag: 'PX-64', zone: 'Gauge station', kind: 'prox',
       type: 'IR diffuse photoelectric proximity sensor',
@@ -181,8 +262,13 @@
     { tag: 'MST-60', zone: 'Gauge station', kind: 'ctrl',
       type: 'Certified 50.000 mm master cube + holder',
       where: 'Next to the gauge, reachable by Robot 2',
-      confirms: 'Zero-setting of LS-61/62/63 at start-up and after every sensor verification',
+      confirms: 'Master check of LS-61/62/63 (50.000 ± 0.010 mm) at start-up, every 4 h, after a gauge FAULT and in every sensor verification',
       example: 'Gauge block / master cube with calibration certificate' },
+    { tag: 'YV-66', zone: 'Gauge station', kind: 'ctrl',
+      type: 'Solenoid valve + air nozzles at the nest',
+      where: 'Gauge nest, nozzles at the three datum faces',
+      confirms: 'Blows chips and coolant off the nest and the part before every loading (seating error)',
+      example: 'SMC VQ110 valve + flat nozzles' },
   ];
 
   // ================================================================ STATE MACHINES AS DATA
@@ -198,7 +284,8 @@
   // value ({TAG} sensor, [CP-n] checkpoint, *bold*). kind tells where the value comes from:
   //   sensor   a device signal; the simulation reads its plant, the verifier an abstract plant
   //   check    fused result of the last camera + proximity check made by the machine that reads it
-  //            (the camera decides; one machine never reads another machine's check)
+  //            (the rule of the checkpoint decides when they disagree; one machine never reads
+  //            another machine's check)
   //   var      PLC variable written by the steps of the machines
   //   input    operator or technician input (HMI button)
   //   derived  defined by an expression over other names (def)
@@ -254,9 +341,10 @@
     'PALLET.full': { kind: 'derived', def: 'outCount>=slots', on: 'count = 12', off: 'count < 12', ask: ['Output pallet', 'full?'] },
     'PALLET.empty': { kind: 'derived', def: 'outCount=0', on: 'count = 0' },
     // gauge (Setup 2)
-    'GAUGE.zeroed': { kind: 'sensor', on: 'gauge verified', tags: ['MST-60'] },
-    'GAUGE.valid': { kind: 'sensor', on: '3 valid readings', tags: ['LS-61', 'LS-62', 'LS-63'] },
-    'GAUGE.ok': { kind: 'sensor', on: 'OK part', off: 'undersized', ask: ['L, W and H', '≥ 48.00 mm?'], tags: ['LS-61', 'LS-62', 'LS-63'] },
+    'GAUGE.zeroed': { kind: 'sensor', on: 'master check passed', off: 'no valid master check', tags: ['MST-60'] },
+    'GAUGE.due': { kind: 'sensor', on: '4 h since the last master check', off: 'master check in date', tags: ['MST-60'] },
+    'GAUGE.valid': { kind: 'sensor', on: '3 valid readings (45–52 mm)', tags: ['LS-61', 'LS-62', 'LS-63'] },
+    'GAUGE.ok': { kind: 'sensor', on: 'OK part', off: 'NOK (undersized or in the guard band)', ask: ['L, W and H', '≥ 48.05 mm?'], tags: ['LS-61', 'LS-62', 'LS-63'] },
     'PE-65': { kind: 'sensor', on: '{PE-65} part dropped' },
     // PLC variables
     // handshakes: the sender sets them only after its own check confirmed the fact
@@ -281,6 +369,7 @@
     'TRUE.entryPart': { kind: 'truth', on: 'a part is at the conveyor entry' },
     'TRUE.outPallet': { kind: 'truth', on: 'the output pallet is in place' },
     'TRUE.r2Nok': { kind: 'truth', on: 'Robot 2 holds an undersized part' },
+    'TRUE.nestPart': { kind: 'truth', on: 'a part is in the gauge nest' },
   };
   const CONST = { limit: RULES.mismatchLimit, slots: RULES.palletSlots, nokHold: RULES.consecutiveNokHold };
 
@@ -305,6 +394,8 @@
     { id: 'P8', text: 'No CYCLE START during a quality hold', start: ['CNC.start'], require: '!QH' },
     { id: 'P9', text: 'Three mismatches in the window always stop the line', never: 'mismatches>=limit & !lineStop' },
     { id: 'P10', text: 'A camera fault always stops the line', never: 'CAM_FAULT & !lineStop' },
+    { id: 'P11', text: 'Robot 2 loads the gauge nest (part or master cube) only when it is empty', start: ['R2.loadGauge', 'GAUGE.master'], require: '!TRUE.nestPart' },
+    { id: 'P12', text: 'A part is measured only after a passed master check', start: ['GAUGE.measure'], require: 'GAUGE.zeroed' },
     { id: 'L1', text: 'A new CNC cycle can always be started again', eventually: 'R1.job=CNC.start' },
     { id: 'L2', text: 'Robot 2 can always deliver a part again', eventually: 'R2.job=R2.placePallet' },
     { id: 'L3', text: 'After any stop the supervisor can return to NORMAL', eventually: 'SUP=X1' },
@@ -342,11 +433,11 @@
     'R2.park': { robot: 'R2', time: ['park'], zone: 'free', at: 'home', text: 'park at home' },
     'R2.pickConv': { robot: 'R2', time: ['r2ToExit', 'r2Pick'], zone: 'conv', move: ['exit', 'r2S'], text: 'pick from the conveyor' },
     'R2.placePallet': { robot: 'R2', time: ['r2ToPallet', 'r2Place'], zone: 'pallet', move: ['r2S', 'out'], text: 'place on the output pallet' },
-    'R2.loadGauge': { robot: 'R2', time: ['r2ToGauge', 'r2LoadGauge'], zone: 'gauge', move: ['r2S', 'nest'], text: 'load the gauge nest' },
+    'R2.loadGauge': { robot: 'R2', time: ['r2ToGauge', 'blowOff', 'r2LoadGauge'], zone: 'gauge', move: ['r2S', 'nest'], tags: ['YV-66'], text: 'blow off and load the gauge nest' },
     'R2.repick': { robot: 'R2', time: ['r2Repick'], zone: 'gauge', move: ['nest', 'r2S'], text: 're-pick from the nest' },
     'R2.dropNok': { robot: 'R2', time: ['r2ToNok', 'r2Drop'], zone: 'nok', move: ['r2S', 'nok'], text: 'drop into the NOK chute' },
     'GAUGE.measure': { robot: null, time: ['measure'], set: { measured: true }, tags: ['LS-61', 'LS-62', 'LS-63'], text: 'measure L, W, H' },
-    'GAUGE.master': { robot: null, time: [], set: { zeroed: true }, tags: ['MST-60', 'LS-61', 'LS-62', 'LS-63'], text: 'master cube check' },
+    'GAUGE.master': { robot: 'R2', time: ['r2Master'], zone: 'gauge', set: { zeroed: true, due: false }, tags: ['MST-60', 'LS-61', 'LS-62', 'LS-63'], text: 'master cube check' },
   };
 
   // Machine format
@@ -370,7 +461,8 @@
   //   at a transition (then the pending state follows), while waiting (then the state is entered
   //   again), or at once after a camera fault (then the same check is repeated). F is entered when a
   //   confirmation is missing or a timer expires; after `exit` (the operator clears it) the state
-  //   is repeated.
+  //   is repeated. Therefore a step that moves a part carries a `when` on the gripper (GR-21B, GR-51)
+  //   so that repeating the state never repeats a place, pick or load that was already done (A2.1).
   //   view: diagram layout only (main column order, side states next to an anchor, or a grid).
   const HOLD_NOTE = [
     '*F FAULT* and *H HOLD* can be entered from any state. FAULT = a confirmation is missing or a timeout',
@@ -400,7 +492,7 @@
   const PICK_CONV = {
     name: 'PICK FROM CONVEYOR', short: 'pick',
     desc: ['Move to the {CAM-2} pick pose · grip ·', 'lift · retract · [CP-3] exit clear'],
-    do: [{ job: 'R2.pickConv' }, { check: 'CP-3', quick: true }, { set: { partPicked: true, pickAllowed: false }, when: 'GR-51 & !CP-3' }],
+    do: [{ job: 'R2.pickConv', when: '!GR-51' }, { check: 'CP-3', quick: true }, { set: { partPicked: true, pickAllowed: false }, when: 'GR-51 & !CP-3' }],
   };
 
   const MACHINES = {
@@ -442,8 +534,8 @@
         Q_B6: { choice: 'GR-21B', yes: 'B7', no: 'B1', yesText: 'finished part in B', noText: 'first cycle, B is empty' },
         B7: { name: 'PLACE ON CONVEYOR (B)', band: 'run', short: 'to belt',
           desc: ['Wait for {ENC-43} = 0 and [CP-2] entry clear', '· place the finished part · release'],
-          do: [{ job: 'R1.toConveyorB' }, { await: 'BELT.free' }, { check: 'CP-2', quick: true, confirm: '!CP-2' },
-            { job: 'R1.placeConvB' }, { check: 'CP-2' }, { set: { partPlaced: true }, when: 'CP-2' }],
+          do: [{ job: 'R1.toConveyorB' }, { await: 'BELT.free' }, { check: 'CP-2', quick: true, confirm: '!CP-2', when: 'GR-21B' },
+            { job: 'R1.placeConvB', when: 'GR-21B' }, { check: 'CP-2' }, { set: { partPlaced: true }, when: 'CP-2' }],
           next: [{ to: 'B1', when: 'CP-2 & R1.clearConv' }] },
         W1: W1('B1'),
       },
@@ -453,12 +545,12 @@
       slot: 'CONV', setup: 0,
       title: 'State diagram: Conveyor',
       sub: 'Robots pick or place at the belt only when it is stopped ({ENC-43} = 0); the belt starts only when both robots are clear.',
-      initial: { to: 'C1', do: [{ check: 'CP-2', quick: true }, { check: 'CP-3', quick: true }], when: '!CP-2 & !CP-3', text: 'Start-up:' },
+      initial: { to: 'C1', do: [{ check: 'CP-2', quick: true, until: '!CP-2' }, { check: 'CP-3', quick: true, until: '!CP-3' }], when: '!CP-2 & !CP-3', text: 'Start-up:' },
       hold: { desc: ['A running transport finishes at', 'the stop; no new transport starts'], exit: '!HOLD.req' },
       fault: { desc: ['Missing confirmation or a', 'transport timer expired (belt /', 'drive fault, jam, lost part)'], exit: 'HMI.clear' },
       note: [
         '*Stop logic:* stopping uses *OR* ({PE-42} or {CAM-2}) because stopping is the safe direction;',
-        'confirming the part for the pick uses the cross-check [CP-3] (both must agree, otherwise the camera decides).',
+        'confirming the part for the pick uses the cross-check [CP-3] (if they disagree: no part, the pick waits).',
       ],
       view: { main: ['C1', 'C2', 'C3', 'C4', 'C5'] },
       states: {
@@ -487,7 +579,7 @@
     R2S2: {
       slot: 'R2', setup: 2,
       title: 'State diagram: Robot 2 + gauge + sorting (Setup 2)',
-      sub: 'Every part is measured. Accept only if length, width and height are all ≥ 48.00 mm (50 mm nominal − 2 mm).',
+      sub: 'Every part is measured. Accept only if length, width and height are all ≥ 48.05 mm (limit 48.00 + guard band 0.05).',
       initial: { to: 'E0', when: 'HMI.auto' },
       ...ROBOT_FH('R2'),
       note: [
@@ -497,19 +589,23 @@
       ],
       view: { main: ['E0', 'E1', 'E2', 'E3', 'E4', 'Q_E4', 'E5', 'Q_E5'], side: { E6: 'Q_E4', E7: 'Q_E5' } },
       states: {
-        E0: { name: 'START-UP CHECKS', desc: ['Home · [CP-4] pallet · [CP-5] nest empty ·', 'master cube check of the 3 lasers'],
-          do: [{ job: 'R2.home', when: '!R2.home' }, { check: 'CP-4' }, { check: 'CP-5', quick: true }, { job: 'GAUGE.master' }],
+        E0: { name: 'START-UP CHECKS', desc: ['Home · [CP-4] pallet · [CP-5] nest empty ·', '{MST-60} master check 50.000 ± 0.010 mm'],
+          do: [{ job: 'R2.home', when: '!R2.home' }, { check: 'CP-4' }, { check: 'CP-5', quick: true },
+            { job: 'GAUGE.master', when: '!CP-5', confirm: 'GAUGE.zeroed' }, { job: 'R2.home', when: '!R2.home' }],
           next: [{ to: 'E1', when: 'R2.home & CP-4 & !CP-5 & GAUGE.zeroed' }] },
-        E1: { name: 'WAIT FOR PART', wait: true, desc: ['Move home, clear of the conveyor'],
-          do: [{ job: 'R2.home', when: '!R2.home' }],
-          next: [{ to: 'E2', when: 'CONV=C5 & pickAllowed & !ENC-43' }] },
+        E1: { name: 'WAIT FOR PART', wait: true,
+          desc: ['First, if 4 h have passed: [CP-5] nest empty ·', '{MST-60} master check (else gauge FAULT) ·', 'move home, clear of the conveyor'],
+          do: [{ check: 'CP-5', quick: true, when: 'GAUGE.due | !GAUGE.zeroed' },
+            { job: 'GAUGE.master', when: '(GAUGE.due | !GAUGE.zeroed) & !CP-5', confirm: 'GAUGE.zeroed' },
+            { job: 'R2.home', when: '!R2.home' }],
+          next: [{ to: 'E2', when: 'CONV=C5 & pickAllowed & !ENC-43 & GAUGE.zeroed' }] },
         E2: Object.assign({}, PICK_CONV, { next: [{ to: 'E3', when: 'GR-51 & !CP-3 & R2.clearConv' }] }),
         E3: { name: 'LOAD GAUGE', short: 'gauge',
-          desc: ['Place in the corner nest · push against the', '3 datums (force control) · release · retract'],
-          do: [{ job: 'R2.loadGauge' }, { check: 'CP-5' }],
+          desc: ['{YV-66} blow-off · place in the tilted corner', 'nest · push against the 3 datums · release'],
+          do: [{ job: 'R2.loadGauge', when: 'GR-51' }, { check: 'CP-5' }],
           next: [{ to: 'E4', when: 'CP-5 & R2.clearGauge' }] },
         E4: { name: 'MEASURE L, W, H', short: 'measure',
-          desc: ['{LS-61}/{LS-62}/{LS-63}: average of 10 samples', 'size = 50.000 + (d master − d part)'],
+          desc: ['{LS-61}/{LS-62}/{LS-63}: average of 10 samples', 'size = 50.000 + (d master − d part), 45–52 mm'],
           do: [{ job: 'GAUGE.measure' }],
           next: [{ to: 'Q_E4', when: 'GAUGE.valid' }] },
         Q_E4: { choice: 'GAUGE.ok', yes: 'E5', no: 'E6' },
@@ -536,7 +632,7 @@
       states: {
         X1: { name: 'NORMAL', kind: 'ok', wait: true, desc: ['All checkpoints agree', 'stack light {LT-01} green'],
           next: [{ to: 'X3', when: 'CAM_FAULT' }, { to: 'X2', when: 'mismatches>0' }] },
-        X2: { name: 'MISMATCH WARNING', kind: 'warn', wait: true, desc: ['1–2 mismatches in the last 10 min', 'camera value used · amber flashing'],
+        X2: { name: 'MISMATCH WARNING', kind: 'warn', wait: true, desc: ['1–2 mismatches in the last 10 min', 'rule of the CP used · amber flashing'],
           next: [{ to: 'X3', when: 'mismatches>=limit | CAM_FAULT' }, { to: 'X1', when: 'mismatches=0' }] },
         X3: { name: 'LINE STOP', kind: 'stop', wait: true, desc: ['Controlled stop: robots finish the step', 'and park, belt stops · red light'],
           log: 'LINE STOP: controlled stop · the CNC finishes its part, the robots finish the step and park, no new transport',
@@ -692,30 +788,32 @@
   const r1 = (x) => Math.round(x * 10) / 10;
   const jobTime = (j) => JOBS[j].time.reduce((s, k) => s + T[k], 0);
   // Nominal step times of a state: every step runs, checks take T.check unless quick.
-  function stateSteps(mk, id) {
+  function stateSteps(mk, id, tt = T) {
     const s = MACHINES[mk].states[id], rows = [];
     (s.do || []).forEach((st) => {
-      if (st.job) JOBS[st.job].time.forEach((k) => rows.push([(JOBS[st.job].labels || {})[k] || TLABEL[k] || k, T[k]]));
-      else if (st.check && !st.quick) rows.push([`Check ${st.check}`, T.check]);
+      if (st.job) JOBS[st.job].time.forEach((k) => rows.push([(JOBS[st.job].labels || {})[k] || TLABEL[k] || k, tt[k]]));
+      else if (st.check && !st.quick) rows.push([`Check ${st.check}`, tt.check]);
     });
-    (s.time || []).forEach((k) => rows.push([TLABEL[k] || k, T[k]]));
-    (s.next || []).forEach((tr) => { if (tr.for) rows.push([TLABEL[tr.for] || tr.for, T[tr.for]]); });
+    (s.time || []).forEach((k) => rows.push([TLABEL[k] || k, tt[k]]));
+    (s.next || []).forEach((tr) => { if (tr.for) rows.push([TLABEL[tr.for] || tr.for, tt[tr.for]]); });
     return rows;
   }
   const stateTime = (mk, id) => r1(stateSteps(mk, id).reduce((a, x) => a + x[1], 0));
   // CNC idle per cycle = from "cycle complete" to the next "cycle start": the door unlock of the
   // CNC plus every state of the Robot 1 machine in the idle band.
-  function idleList(setup) {
+  function idleList(setup, tt = T) {
     const mk = IDLE_MACHINE[setup], m = MACHINES[mk];
-    let rows = [[TLABEL.unlock, T.unlock]];
-    m.view.main.forEach((id) => { if (m.states[id].band === 'idle') rows = rows.concat(stateSteps(mk, id)); });
+    let rows = [[TLABEL.unlock, tt.unlock]];
+    m.view.main.forEach((id) => { if (m.states[id].band === 'idle') rows = rows.concat(stateSteps(mk, id, tt)); });
     return rows;
   }
   const idleSetup2 = idleList(2);
   const sum = (a) => r1(a.reduce((s, x) => s + x[1], 0));
   const KPI = (() => {
     const i2 = sum(idleSetup2), c2 = T.cncCycle + i2;
-    return { idle2: i2, cycle2: c2, util2: T.cncCycle / c2, pph2: 3600 / c2 };
+    // idle2Range: every time at its minimum / at its maximum at once (extremes, not a distribution)
+    return { idle2: i2, cycle2: c2, util2: T.cncCycle / c2, pph2: 3600 / c2,
+      idle2Range: [sum(idleList(2, TMIN)), sum(idleList(2, TMAX))] };
   })();
   // Reference for the comparison: Setup 1 (single gripper), computed by this model before Setup 1 was
   // removed. Fixed numbers, not derived from the current machines.
@@ -726,6 +824,14 @@
   // Returns a list of problems; empty = the model is consistent.
   function lint() {
     const errs = [];
+    Object.keys(T).forEach((k) => {
+      const src = TSRC[k];
+      if (!src) { errs.push(`T.${k}: no source in TSRC`); return; }
+      if (!TKIND[src.kind]) errs.push(`T.${k}: unknown kind ${src.kind}`);
+      if (src.bound > T[k]) errs.push(`T.${k}: nominal ${T[k]} s below its physical bound ${src.bound} s`);
+      if (!(TRANGE[k][0] <= T[k] && T[k] <= TRANGE[k][1])) errs.push(`T.${k}: nominal outside [${TRANGE[k]}]`);
+    });
+    Object.keys(TSRC).forEach((k) => { if (!(k in T)) errs.push(`TSRC.${k}: no such time`); });
     const allStates = {};
     Object.keys(SLOTS).forEach((s) => { allStates[s] = new Set(['H', 'F']); });
     Object.values(MACHINES).forEach((m) => Object.keys(m.states).forEach((id) => allStates[m.slot].add(id)));
@@ -820,7 +926,7 @@
   }
 
   const MODEL = {
-    T, TLABEL, KPI, BASELINE, RULES, CHECKPOINTS, SENSORS, STATES, idleSetup2,
+    T, TLABEL, TKIND, TSRC, TRANGE, TMIN, TMAX, KPI, BASELINE, RULES, CHECKPOINTS, SENSORS, STATES, idleSetup2,
     SLOTS, SIGNALS, CONST, OUTPUTS, RUNGS, PROPERTIES, JOBS, MACHINES, SETUP_MACHINES, IDLE_MACHINE,
     expr: { parse, evaluate, names, terms, label, plain, visible, constVal },
     jobTime, stateSteps, stateTime, lint,

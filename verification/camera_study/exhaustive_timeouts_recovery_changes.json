@@ -1,0 +1,415 @@
+{
+ "date": "2026-10-28",
+ "runs": [
+  {
+   "cp": "CP-1",
+   "rule": "camera",
+   "faults": [
+    "mismatch",
+    "camwrong",
+    "timeout"
+   ],
+   "states": 5645275,
+   "seconds": 121.329,
+   "deadlocks": 0,
+   "deadlock": null,
+   "failed": []
+  },
+  {
+   "cp": "CP-1",
+   "rule": "prox",
+   "faults": [
+    "mismatch",
+    "camwrong",
+    "timeout"
+   ],
+   "states": 5645275,
+   "seconds": 123.098,
+   "deadlocks": 0,
+   "deadlock": null,
+   "failed": []
+  },
+  {
+   "cp": "CP-1",
+   "rule": "present",
+   "faults": [
+    "mismatch",
+    "camwrong",
+    "timeout"
+   ],
+   "states": 3819041,
+   "seconds": 78.542,
+   "deadlocks": 0,
+   "deadlock": null,
+   "failed": []
+  },
+  {
+   "cp": "CP-1",
+   "rule": "absent",
+   "faults": [
+    "mismatch",
+    "camwrong",
+    "timeout"
+   ],
+   "states": 4116856,
+   "seconds": 86.896,
+   "deadlocks": 0,
+   "deadlock": null,
+   "failed": []
+  },
+  {
+   "cp": "CP-1",
+   "rule": "ask",
+   "faults": [
+    "mismatch",
+    "camwrong",
+    "timeout"
+   ],
+   "states": 1118193,
+   "seconds": 24.513,
+   "deadlocks": 0,
+   "deadlock": null,
+   "failed": []
+  },
+  {
+   "cp": "CP-2",
+   "rule": "camera",
+   "faults": [
+    "mismatch",
+    "camwrong",
+    "timeout"
+   ],
+   "states": 2857967,
+   "seconds": 57.574,
+   "deadlocks": 0,
+   "deadlock": null,
+   "failed": []
+  },
+  {
+   "cp": "CP-2",
+   "rule": "prox",
+   "faults": [
+    "mismatch",
+    "camwrong",
+    "timeout"
+   ],
+   "states": 2857967,
+   "seconds": 58.801,
+   "deadlocks": 0,
+   "deadlock": null,
+   "failed": []
+  },
+  {
+   "cp": "CP-2",
+   "rule": "present",
+   "faults": [
+    "mismatch",
+    "camwrong",
+    "timeout"
+   ],
+   "states": 2013185,
+   "seconds": 36.89,
+   "deadlocks": 0,
+   "deadlock": null,
+   "failed": []
+  },
+  {
+   "cp": "CP-2",
+   "rule": "absent",
+   "faults": [
+    "mismatch",
+    "camwrong",
+    "timeout"
+   ],
+   "states": 2535746,
+   "seconds": 46.801,
+   "deadlocks": 0,
+   "deadlock": null,
+   "failed": []
+  },
+  {
+   "cp": "CP-2",
+   "rule": "ask",
+   "faults": [
+    "mismatch",
+    "camwrong",
+    "timeout"
+   ],
+   "states": 710612,
+   "seconds": 13.381,
+   "deadlocks": 0,
+   "deadlock": null,
+   "failed": []
+  },
+  {
+   "cp": "CP-3",
+   "rule": "camera",
+   "faults": [
+    "mismatch",
+    "camwrong",
+    "timeout"
+   ],
+   "states": 4917920,
+   "seconds": 99.156,
+   "deadlocks": 0,
+   "deadlock": null,
+   "failed": []
+  },
+  {
+   "cp": "CP-3",
+   "rule": "prox",
+   "faults": [
+    "mismatch",
+    "camwrong",
+    "timeout"
+   ],
+   "states": 4917920,
+   "seconds": 101.863,
+   "deadlocks": 0,
+   "deadlock": null,
+   "failed": []
+  },
+  {
+   "cp": "CP-3",
+   "rule": "present",
+   "faults": [
+    "mismatch",
+    "camwrong",
+    "timeout"
+   ],
+   "states": 3499706,
+   "seconds": 63.178,
+   "deadlocks": 0,
+   "deadlock": null,
+   "failed": []
+  },
+  {
+   "cp": "CP-3",
+   "rule": "absent",
+   "faults": [
+    "mismatch",
+    "camwrong",
+    "timeout"
+   ],
+   "states": 2739557,
+   "seconds": 53.852,
+   "deadlocks": 0,
+   "deadlock": null,
+   "failed": []
+  },
+  {
+   "cp": "CP-3",
+   "rule": "ask",
+   "faults": [
+    "mismatch",
+    "camwrong",
+    "timeout"
+   ],
+   "states": 1380662,
+   "seconds": 28.255,
+   "deadlocks": 0,
+   "deadlock": null,
+   "failed": []
+  },
+  {
+   "cp": "CP-4",
+   "rule": "camera",
+   "faults": [
+    "mismatch",
+    "camwrong",
+    "timeout"
+   ],
+   "states": 8148193,
+   "seconds": 173.148,
+   "deadlocks": 0,
+   "deadlock": null,
+   "failed": [
+    {
+     "id": "P6",
+     "text": "Robot 2 places a part only on an output pallet that is in place and not full",
+     "at": "E5: CP-4 camera false positive",
+     "trace": [
+      "E7 → E1",
+      "E1 → E2",
+      "E2: R2.pickConv done",
+      "E2: CP-3 agree",
+      "E2 → E3",
+      "E3: R2.loadGauge done",
+      "E3: CP-5 agree",
+      "E3 → E4",
+      "E4: GAUGE.measure done",
+      "E4 → Q_E4",
+      "E5: R2.repick done",
+      "E5: CP-4 camera false positive"
+     ]
+    }
+   ]
+  },
+  {
+   "cp": "CP-4",
+   "rule": "prox",
+   "faults": [
+    "mismatch",
+    "camwrong",
+    "timeout"
+   ],
+   "states": 8148193,
+   "seconds": 173.549,
+   "deadlocks": 0,
+   "deadlock": null,
+   "failed": [
+    {
+     "id": "P6",
+     "text": "Robot 2 places a part only on an output pallet that is in place and not full",
+     "at": "E5: CP-4 mismatch",
+     "trace": [
+      "E7 → E1",
+      "E1 → E2",
+      "E2: R2.pickConv done",
+      "E2: CP-3 agree",
+      "E2 → E3",
+      "E3: R2.loadGauge done",
+      "E3: CP-5 agree",
+      "E3 → E4",
+      "E4: GAUGE.measure done",
+      "E4 → Q_E4",
+      "E5: R2.repick done",
+      "E5: CP-4 mismatch"
+     ]
+    }
+   ]
+  },
+  {
+   "cp": "CP-4",
+   "rule": "present",
+   "faults": [
+    "mismatch",
+    "camwrong",
+    "timeout"
+   ],
+   "states": 4182026,
+   "seconds": 85.91,
+   "deadlocks": 0,
+   "deadlock": null,
+   "failed": [
+    {
+     "id": "P6",
+     "text": "Robot 2 places a part only on an output pallet that is in place and not full",
+     "at": "E5: CP-4 mismatch",
+     "trace": [
+      "E7 → E1",
+      "E1 → E2",
+      "E2: R2.pickConv done",
+      "E2: CP-3 agree",
+      "E2 → E3",
+      "E3: R2.loadGauge done",
+      "E3: CP-5 agree",
+      "E3 → E4",
+      "E4: GAUGE.measure done",
+      "E4 → Q_E4",
+      "E5: R2.repick done",
+      "E5: CP-4 mismatch"
+     ]
+    }
+   ]
+  },
+  {
+   "cp": "CP-4",
+   "rule": "absent",
+   "faults": [
+    "mismatch",
+    "camwrong",
+    "timeout"
+   ],
+   "states": 5282508,
+   "seconds": 101.949,
+   "deadlocks": 0,
+   "deadlock": null,
+   "failed": []
+  },
+  {
+   "cp": "CP-4",
+   "rule": "ask",
+   "faults": [
+    "mismatch",
+    "camwrong",
+    "timeout"
+   ],
+   "states": 1417330,
+   "seconds": 28.339,
+   "deadlocks": 0,
+   "deadlock": null,
+   "failed": []
+  },
+  {
+   "cp": "CP-5",
+   "rule": "camera",
+   "faults": [
+    "mismatch",
+    "camwrong",
+    "timeout"
+   ],
+   "states": 8281500,
+   "seconds": 169.414,
+   "deadlocks": 0,
+   "deadlock": null,
+   "failed": []
+  },
+  {
+   "cp": "CP-5",
+   "rule": "prox",
+   "faults": [
+    "mismatch",
+    "camwrong",
+    "timeout"
+   ],
+   "states": 8281500,
+   "seconds": 169.423,
+   "deadlocks": 0,
+   "deadlock": null,
+   "failed": []
+  },
+  {
+   "cp": "CP-5",
+   "rule": "present",
+   "faults": [
+    "mismatch",
+    "camwrong",
+    "timeout"
+   ],
+   "states": 4239111,
+   "seconds": 76.529,
+   "deadlocks": 0,
+   "deadlock": null,
+   "failed": []
+  },
+  {
+   "cp": "CP-5",
+   "rule": "absent",
+   "faults": [
+    "mismatch",
+    "camwrong",
+    "timeout"
+   ],
+   "states": 4957540,
+   "seconds": 104.127,
+   "deadlocks": 0,
+   "deadlock": null,
+   "failed": []
+  },
+  {
+   "cp": "CP-5",
+   "rule": "ask",
+   "faults": [
+    "mismatch",
+    "camwrong",
+    "timeout"
+   ],
+   "states": 1264998,
+   "seconds": 24.462,
+   "deadlocks": 0,
+   "deadlock": null,
+   "failed": []
+  }
+ ]
+}

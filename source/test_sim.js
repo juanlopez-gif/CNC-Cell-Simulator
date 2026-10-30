@@ -74,10 +74,17 @@ function conformance(trace, setup) {
     if (mode === 'fault') {
       await sleep(3000);
       await page.click('#cpTable tr[data-cp="CP-2"] button[data-inj="fault"]');
-      for (let i = 0; i < 16; i++) { await sleep(2500); const s = await state(page); console.log(s.clock, '|', s.status, '|', s.banner, '|', s.chips.join(' / ')); if (s.banner.startsWith('Line stopped')) break; }
+      // CP-2 rule "absent": PE-41 misses the part placed, Robot 1 goes to FAULT, the operator clears it;
+      // the third mismatch stops the line
+      for (let i = 0; i < 24; i++) {
+        await sleep(2500); const s = await state(page); console.log(s.clock, '|', s.status, '|', s.banner, '|', s.chips.join(' / '));
+        if (s.banner.startsWith('Line stopped')) break;
+        const clear = await page.$('#bnActions button[data-act="clear"]:not([disabled])'); if (clear) await clear.click();
+      }
       await page.select('#selSpeed', '10');
       await sleep(1500);
       await page.screenshot({ path: shot('shot_stop.png'), fullPage: true });
+      const clearStop = await page.$('#bnActions button[data-act="clear"]'); if (clearStop) { await clearStop.click(); await sleep(1500); }
       await page.click('#bnActions button[data-act="verify"]');
       for (let i = 0; i < 40; i++) { await sleep(500); if (await page.$('#bnActions button[data-act="resume"]:not([disabled])')) break; }
       await page.screenshot({ path: shot('shot_verify.png'), fullPage: false });
@@ -106,32 +113,44 @@ function conformance(trace, setup) {
     if (mode === 'engine') {
       // the Python engine (engine/) must give the same state changes at the same instants
       await page.click('#btnRun');
-      for (const [setup, scenario] of [[2, 'nominal'], [2, 'cp2fault']]) {
+      for (const [setup, scenario] of [[2, 'nominal'], [2, 'cp2fault'], [2, 'camwrong']]) {
+        const errsBefore = errors.length;
         const js = await page.evaluate((setup, scenario) => {
           const C = window.CellSim;
           C.instantVerify = true;
           C.newSim(setup);
           C.S.running = false;
+          // camwrong: t (s) -> [injection, checkpoint]; the same table is in engine/trace.py
+          const CAMWRONG = { 300: ['camwrong', 'CP-4'], 600: ['stale', 'CP-2'], 900: ['camwrong', 'CP-3'], 1200: ['camwrong', 'CP-5'],
+            1500: ['camwrong', 'CP-1'], 1800: ['stale', 'CP-4'], 2100: ['camwrong', 'CP-2'], 2400: ['glitch', 'CP-3'] };
           for (let t = 0; t < 3600; t += 10) {
             if (scenario === 'cp2fault' && t === 300) document.querySelector('#cpTable tr[data-cp="CP-2"] button[data-inj="fault"]').click();
+            if (scenario === 'camwrong' && CAMWRONG[t]) document.querySelector(`#cpTable tr[data-cp="${CAMWRONG[t][1]}"] button[data-inj="${CAMWRONG[t][0]}"]`).click();
             C.advance(10);
-            if (scenario === 'cp2fault') {
+            if ((scenario === 'cp2fault' || scenario === 'camwrong') && Object.keys(C.S.faults).some((k) => C.S.faults[k])) C.press('clear');
+            if (scenario === 'cp2fault' || scenario === 'camwrong') {
               if (C.MCH.SUP.state === 'X3' && !C.S.inputs.verify) C.press('verify');
               if (C.MCH.SUP.state === 'X4' && C.S.verify && C.S.verify.done && !C.S.inputs.reset) C.press('resume');
             }
           }
-          return C.TRACE.map((e) => [e.t, e.slot, e.from, e.to]);
+          return { trace: C.TRACE.map((e) => [e.t, e.slot, e.from, e.to]), violations: C.W.stats.violations };
         }, setup, scenario);
         let py;
         try {
           py = JSON.parse(require('child_process').execFileSync(process.env.PYTHON || 'python', ['trace.py', String(setup), '3600', scenario], { cwd: path.join(__dirname, '..', 'engine'), encoding: 'utf8', maxBuffer: 1 << 26 }));
         } catch (e) { console.log(`[engine] Python not available or failed: ${e.message.split('\n')[0]}`); failed = true; break; }
-        const n = Math.min(js.length, py.trace.length);
+        const tr = js.trace, n = Math.min(tr.length, py.trace.length);
         let first = -1;
-        for (let i = 0; i < n && first < 0; i++) if (js[i][1] !== py.trace[i][1] || js[i][2] !== py.trace[i][2] || js[i][3] !== py.trace[i][3] || Math.abs(js[i][0] - py.trace[i][0]) > 1e-6) first = i;
-        const same = first < 0 && js.length === py.trace.length && !py.errors.length;
-        console.log(`[engine] Setup ${setup} ${scenario}: browser ${js.length} / Python ${py.trace.length} state changes → ${same ? 'identical' : 'DIFFERENT at ' + (first < 0 ? n : first)}`);
+        for (let i = 0; i < n && first < 0; i++) if (tr[i][1] !== py.trace[i][1] || tr[i][2] !== py.trace[i][2] || tr[i][3] !== py.trace[i][3] || Math.abs(tr[i][0] - py.trace[i][0]) > 1e-6) first = i;
+        // camwrong: the camera errors of the current rules may violate properties; both must see the same ones
+        const pyViol = py.errors.filter((e) => e.startsWith('property ')).length, other = py.errors.length - pyViol;
+        const okErr = scenario === 'camwrong' ? !other && pyViol === js.violations : !py.errors.length;
+        const same = first < 0 && tr.length === py.trace.length && okErr;
+        console.log(`[engine] Setup ${setup} ${scenario}: browser ${tr.length} / Python ${py.trace.length} state changes → ${same ? 'identical' : 'DIFFERENT at ' + (first < 0 ? n : first)}` +
+          (scenario === 'camwrong' ? ` · property violations: browser ${js.violations} / Python ${pyViol}` : ''));
         if (!same) failed = true;
+        // the violations of the camwrong scenario are expected and compared above, not console errors
+        if (scenario === 'camwrong') errors.splice(errsBefore, errors.length - errsBefore, ...errors.slice(errsBefore).filter((e) => !/PROPERTY P\d+ VIOLATED/.test(e)));
       }
     }
     if (mode === 'conform') {
@@ -164,7 +183,8 @@ function conformance(trace, setup) {
               else if (k < 0.6) { document.querySelector('#btnBadFrame').click(); inj('bad frame'); }
               else if (k < 0.7) { document.querySelector('#btnCamFail').click(); inj('camera failure'); }
               else if (k < 0.85) { document.querySelector('#btnGripMiss').click(); inj('grip miss'); }
-              else { document.querySelector('#btnUnder').click(); inj('undersized part'); }
+              else if (k < 0.95) { document.querySelector('#btnUnder').click(); inj('undersized part'); }
+              else { document.querySelector('#btnMaster').click(); inj('master check out of tolerance'); }
             }
             // the operator is sometimes away: the input pallet runs empty (Robot 1 waits in W1)
             if (run.faults && rnd() < 0.003) { S.autoOp = !S.autoOp; inj(S.autoOp ? 'operator back' : 'operator away'); }

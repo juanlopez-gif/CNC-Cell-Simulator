@@ -39,7 +39,410 @@
   "measure": 1,
   "r2Repick": 1,
   "r2ToNok": 1.5,
-  "r2Drop": 0.5
+  "r2Drop": 0.5,
+  "blowOff": 0.5,
+  "r2Master": 6
+ },
+ "TKIND": {
+  "robot": {
+   "f": [
+    0.9,
+    1.3
+   ],
+   "text": "UR10e move or RG2 gripper step: rarely faster than planned, often slower"
+  },
+  "actuator": {
+   "f": [
+    0.5,
+    1.5
+   ],
+   "text": "pneumatic or electromechanical actuator, I/O handshake"
+  },
+  "beltTravel": {
+   "f": [
+    0.95,
+    1.1
+   ],
+   "text": "transport at the set drive speed (speed accuracy, slip, load)"
+  },
+  "beltRamp": {
+   "f": [
+    0.5,
+    1.5
+   ],
+   "text": "drive ramp or zero-speed window, set at commissioning"
+  },
+  "sensing": {
+   "f": [
+    0.8,
+    1.5
+   ],
+   "text": "settle + sensor reading + PLC compare"
+  },
+  "cnc": {
+   "f": [
+    0.95,
+    1.05
+   ],
+   "text": "CNC program cycle"
+  }
+ },
+ "TSRC": {
+  "cncCycle": {
+   "kind": "cnc",
+   "src": "Assignment: 120 s machining cycle of the block"
+  },
+  "unlock": {
+   "kind": "actuator",
+   "src": "Estimate: guard-lock solenoid release + ZS-33 confirmation"
+  },
+  "lock": {
+   "kind": "actuator",
+   "src": "Estimate: guard-lock solenoid + ZS-33 confirmation"
+  },
+  "cycleStart": {
+   "kind": "actuator",
+   "src": "Estimate: CYCLE START handshake over the CNC robot interface"
+  },
+  "doorToHome": {
+   "kind": "robot",
+   "bound": 0.38,
+   "src": "Estimate; bound: base turn 45° (UR10e datasheet: base joint 120 °/s)"
+  },
+  "park": {
+   "kind": "robot",
+   "src": "Estimate: short move to the park pose"
+  },
+  "doorOpen": {
+   "kind": "robot",
+   "bound": 0.75,
+   "src": "Estimate: grip handle, slide the door, release; bound: 0.75 m door travel (layout) at 1 m/s (UR10e typical TCP speed)"
+  },
+  "doorClose": {
+   "kind": "robot",
+   "bound": 0.75,
+   "src": "Estimate, as door open"
+  },
+  "enterCnc": {
+   "kind": "robot",
+   "bound": 0.7,
+   "src": "Estimate: linear move into the work area; bound: 0.7 m (layout) at 1 m/s (UR10e typical TCP speed)"
+  },
+  "exitCnc": {
+   "kind": "robot",
+   "bound": 0.7,
+   "src": "Estimate, as enter CNC"
+  },
+  "grip": {
+   "kind": "robot",
+   "bound": 0.06,
+   "src": "Estimate: approach, close, confirm; OnRobot RG2 datasheet: gripping time 0.06–0.21 s (8 mm stroke)"
+  },
+  "release": {
+   "kind": "robot",
+   "bound": 0.06,
+   "src": "Estimate: open, confirm, retract; OnRobot RG2 datasheet: gripping time 0.06–0.21 s (8 mm stroke)"
+  },
+  "viseOpen": {
+   "kind": "actuator",
+   "src": "Estimate: pneumatic vise stroke + ZS-34 (SMC D-M9 auto switch)"
+  },
+  "viseClamp": {
+   "kind": "actuator",
+   "src": "Estimate: pneumatic vise stroke + ZS-35 (SMC D-M9 auto switch)"
+  },
+  "lift": {
+   "kind": "robot",
+   "src": "Estimate: slow lift out of the jaws"
+  },
+  "placeInVise": {
+   "kind": "robot",
+   "src": "Estimate: lower into the jaws, push against the fixed jaw"
+  },
+  "seatCheck": {
+   "kind": "sensing",
+   "src": "Estimate: settle + PS-36 reading (SMC ISA3 gap sensor)"
+  },
+  "swapGripper": {
+   "kind": "robot",
+   "bound": 1,
+   "src": "Wrist 3 turn 180° at 180 °/s = 1.0 s (UR10e datasheet) + air blast of the vise (estimate)"
+  },
+  "doorToConv": {
+   "kind": "robot",
+   "bound": 1.3,
+   "src": "Estimate; bound: base turn 156° (UR10e datasheet: base joint 120 °/s)"
+  },
+  "placeConv": {
+   "kind": "robot",
+   "bound": 0.06,
+   "src": "Estimate: lower, release, retract; OnRobot RG2 datasheet: gripping time 0.06–0.21 s (8 mm stroke)"
+  },
+  "convToPallet": {
+   "kind": "robot",
+   "bound": 0.81,
+   "src": "Estimate; bound: base turn 97° (UR10e datasheet: base joint 120 °/s)"
+  },
+  "pickPallet": {
+   "kind": "robot",
+   "bound": 0.06,
+   "src": "Estimate: approach at the CAM-1 position, grip, lift; OnRobot RG2 datasheet: gripping time 0.06–0.21 s (8 mm stroke)"
+  },
+  "palletToDoor": {
+   "kind": "robot",
+   "bound": 0.89,
+   "src": "Estimate; bound: base turn 107° (UR10e datasheet: base joint 120 °/s)"
+  },
+  "check": {
+   "kind": "sensing",
+   "bound": 0.32,
+   "src": "Settle 0.3 s (RULES) + Cognex In-Sight 2800 acquisition (up to 45 Hz: 0.022 s) + processing and compare (estimate)"
+  },
+  "beltTravel": {
+   "kind": "beltTravel",
+   "src": "2.0 m (layout) at 0.25 m/s set on the drive (design value)"
+  },
+  "beltStart": {
+   "kind": "beltRamp",
+   "src": "Estimate: drive acceleration ramp"
+  },
+  "beltStop": {
+   "kind": "beltRamp",
+   "src": "Estimate: drive deceleration ramp"
+  },
+  "zeroSpeed": {
+   "kind": "beltRamp",
+   "src": "Estimate: zero-speed window on ENC-43 (Koyo TRD-N600)"
+  },
+  "r2ToExit": {
+   "kind": "robot",
+   "bound": 1.09,
+   "src": "Estimate; bound: base turn 131° from home (UR10e datasheet: base joint 120 °/s)"
+  },
+  "r2Pick": {
+   "kind": "robot",
+   "bound": 0.06,
+   "src": "Estimate: approach, grip, lift; OnRobot RG2 datasheet: gripping time 0.06–0.21 s (8 mm stroke)"
+  },
+  "r2ToPallet": {
+   "kind": "robot",
+   "bound": 0.28,
+   "src": "Estimate; bound: base turn 33° (UR10e datasheet: base joint 120 °/s)"
+  },
+  "r2Place": {
+   "kind": "robot",
+   "bound": 0.06,
+   "src": "Estimate: lower, release, retract; OnRobot RG2 datasheet: gripping time 0.06–0.21 s (8 mm stroke)"
+  },
+  "r2Home": {
+   "kind": "robot",
+   "bound": 0.81,
+   "src": "Estimate; bound: base turn 98° from the output pallet (UR10e datasheet: base joint 120 °/s)"
+  },
+  "r2ToGauge": {
+   "kind": "robot",
+   "bound": 0.99,
+   "src": "Estimate; bound: base turn 118° (UR10e datasheet: base joint 120 °/s)"
+  },
+  "blowOff": {
+   "kind": "actuator",
+   "src": "Estimate (A2.2): SMC VQ110 valve (response 12–15 ms, distributor data) + air pulse"
+  },
+  "r2LoadGauge": {
+   "kind": "robot",
+   "bound": 0.06,
+   "src": "Estimate: place in the tilted nest, push against the datums, release; OnRobot RG2 datasheet: gripping time 0.06–0.21 s (8 mm stroke)"
+  },
+  "measure": {
+   "kind": "sensing",
+   "bound": 0.13,
+   "src": "Keyence IL-065: sampling 1 ms x average 128 = 0.13 s per reading (datasheet conditions, distributor data) + settle (estimate)"
+  },
+  "r2Repick": {
+   "kind": "robot",
+   "bound": 0.06,
+   "src": "Estimate: grip and lift out of the nest; OnRobot RG2 datasheet: gripping time 0.06–0.21 s (8 mm stroke)"
+  },
+  "r2ToNok": {
+   "kind": "robot",
+   "bound": 1.26,
+   "src": "Estimate; bound: base turn 152° (UR10e datasheet: base joint 120 °/s)"
+  },
+  "r2Drop": {
+   "kind": "robot",
+   "bound": 0.06,
+   "src": "Estimate: open over the chute; OnRobot RG2 datasheet: gripping time 0.06–0.21 s (8 mm stroke)"
+  },
+  "r2Master": {
+   "kind": "robot",
+   "src": "Estimate (A2.2): master cube from its stand to the nest and back, 3 readings"
+  }
+ },
+ "TRANGE": {
+  "cncCycle": [
+   114,
+   126
+  ],
+  "unlock": [
+   0.25,
+   0.75
+  ],
+  "lock": [
+   0.25,
+   0.75
+  ],
+  "cycleStart": [
+   0.25,
+   0.75
+  ],
+  "doorToHome": [
+   1.35,
+   1.95
+  ],
+  "park": [
+   1.35,
+   1.95
+  ],
+  "doorOpen": [
+   3.6,
+   5.2
+  ],
+  "doorClose": [
+   3.6,
+   5.2
+  ],
+  "enterCnc": [
+   1.8,
+   2.6
+  ],
+  "exitCnc": [
+   1.8,
+   2.6
+  ],
+  "grip": [
+   0.45,
+   0.65
+  ],
+  "release": [
+   0.45,
+   0.65
+  ],
+  "viseOpen": [
+   0.5,
+   1.5
+  ],
+  "viseClamp": [
+   0.5,
+   1.5
+  ],
+  "lift": [
+   0.9,
+   1.3
+  ],
+  "placeInVise": [
+   0.9,
+   1.3
+  ],
+  "seatCheck": [
+   0.4,
+   0.75
+  ],
+  "swapGripper": [
+   1.35,
+   1.95
+  ],
+  "doorToConv": [
+   2.25,
+   3.25
+  ],
+  "placeConv": [
+   1.8,
+   2.6
+  ],
+  "convToPallet": [
+   1.8,
+   2.6
+  ],
+  "pickPallet": [
+   1.8,
+   2.6
+  ],
+  "palletToDoor": [
+   2.25,
+   3.25
+  ],
+  "check": [
+   0.4,
+   0.75
+  ],
+  "beltTravel": [
+   7.6,
+   8.8
+  ],
+  "beltStart": [
+   0.15,
+   0.45
+  ],
+  "beltStop": [
+   0.15,
+   0.45
+  ],
+  "zeroSpeed": [
+   0.1,
+   0.3
+  ],
+  "r2ToExit": [
+   1.35,
+   1.95
+  ],
+  "r2Pick": [
+   0.9,
+   1.3
+  ],
+  "r2ToPallet": [
+   1.35,
+   1.95
+  ],
+  "r2Place": [
+   0.9,
+   1.3
+  ],
+  "r2Home": [
+   0.9,
+   1.3
+  ],
+  "r2ToGauge": [
+   1.35,
+   1.95
+  ],
+  "r2LoadGauge": [
+   1.35,
+   1.95
+  ],
+  "measure": [
+   0.8,
+   1.5
+  ],
+  "r2Repick": [
+   0.9,
+   1.3
+  ],
+  "r2ToNok": [
+   1.35,
+   1.95
+  ],
+  "r2Drop": [
+   0.45,
+   0.65
+  ],
+  "blowOff": [
+   0.25,
+   0.75
+  ],
+  "r2Master": [
+   5.4,
+   7.8
+  ]
  },
  "RULES": {
   "mismatchWindow": 600,
@@ -50,6 +453,14 @@
   "confirmTimeout": 1,
   "minSize": 48,
   "nominal": 50,
+  "guardBand": 0.05,
+  "masterTol": 0.01,
+  "masterEvery": 14400,
+  "validRange": [
+   45,
+   52
+  ],
+  "masterDist": 80,
   "consecutiveNokHold": 2,
   "palletSlots": 12
  },
@@ -60,7 +471,8 @@
    "prox": "PX-11",
    "cam": "CAM-1",
    "roi": "ROI-A",
-   "fact": "Input pallet present and seated"
+   "fact": "Input pallet present and seated",
+   "rule": "camera"
   },
   {
    "id": "CP-2",
@@ -68,7 +480,8 @@
    "prox": "PE-41",
    "cam": "CAM-1",
    "roi": "ROI-B",
-   "fact": "Part at conveyor entry"
+   "fact": "Part at conveyor entry",
+   "rule": "absent"
   },
   {
    "id": "CP-3",
@@ -76,7 +489,8 @@
    "prox": "PE-42",
    "cam": "CAM-2",
    "roi": "ROI-C",
-   "fact": "Part at the end stop"
+   "fact": "Part at the end stop",
+   "rule": "absent"
   },
   {
    "id": "CP-4",
@@ -84,7 +498,8 @@
    "prox": "PX-52",
    "cam": "CAM-2",
    "roi": "ROI-D",
-   "fact": "Output pallet present"
+   "fact": "Output pallet present",
+   "rule": "absent"
   },
   {
    "id": "CP-5",
@@ -92,7 +507,8 @@
    "prox": "PX-64",
    "cam": "CAM-2",
    "roi": "ROI-E",
-   "fact": "Part in gauge nest"
+   "fact": "Part in gauge nest",
+   "rule": "present"
   }
  ],
  "SLOTS": {
@@ -337,14 +753,23 @@
   },
   "GAUGE.zeroed": {
    "kind": "sensor",
-   "on": "gauge verified",
+   "on": "master check passed",
+   "off": "no valid master check",
+   "tags": [
+    "MST-60"
+   ]
+  },
+  "GAUGE.due": {
+   "kind": "sensor",
+   "on": "4 h since the last master check",
+   "off": "master check in date",
    "tags": [
     "MST-60"
    ]
   },
   "GAUGE.valid": {
    "kind": "sensor",
-   "on": "3 valid readings",
+   "on": "3 valid readings (45–52 mm)",
    "tags": [
     "LS-61",
     "LS-62",
@@ -354,10 +779,10 @@
   "GAUGE.ok": {
    "kind": "sensor",
    "on": "OK part",
-   "off": "undersized",
+   "off": "NOK (undersized or in the guard band)",
    "ask": [
     "L, W and H",
-    "≥ 48.00 mm?"
+    "≥ 48.05 mm?"
    ],
    "tags": [
     "LS-61",
@@ -449,6 +874,10 @@
   "TRUE.r2Nok": {
    "kind": "truth",
    "on": "Robot 2 holds an undersized part"
+  },
+  "TRUE.nestPart": {
+   "kind": "truth",
+   "on": "a part is in the gauge nest"
   }
  },
  "CONST": {
@@ -534,6 +963,23 @@
    "id": "P10",
    "text": "A camera fault always stops the line",
    "never": "CAM_FAULT & !lineStop"
+  },
+  {
+   "id": "P11",
+   "text": "Robot 2 loads the gauge nest (part or master cube) only when it is empty",
+   "start": [
+    "R2.loadGauge",
+    "GAUGE.master"
+   ],
+   "require": "!TRUE.nestPart"
+  },
+  {
+   "id": "P12",
+   "text": "A part is measured only after a passed master check",
+   "start": [
+    "GAUGE.measure"
+   ],
+   "require": "GAUGE.zeroed"
   },
   {
    "id": "L1",
@@ -778,6 +1224,7 @@
    "robot": "R2",
    "time": [
     "r2ToGauge",
+    "blowOff",
     "r2LoadGauge"
    ],
    "zone": "gauge",
@@ -785,7 +1232,10 @@
     "r2S",
     "nest"
    ],
-   "text": "load the gauge nest"
+   "tags": [
+    "YV-66"
+   ],
+   "text": "blow off and load the gauge nest"
   },
   "R2.repick": {
    "robot": "R2",
@@ -828,10 +1278,14 @@
    "text": "measure L, W, H"
   },
   "GAUGE.master": {
-   "robot": null,
-   "time": [],
+   "robot": "R2",
+   "time": [
+    "r2Master"
+   ],
+   "zone": "gauge",
    "set": {
-    "zeroed": true
+    "zeroed": true,
+    "due": false
    },
    "tags": [
     "MST-60",
@@ -1080,10 +1534,12 @@
       {
        "check": "CP-2",
        "quick": true,
-       "confirm": "!CP-2"
+       "confirm": "!CP-2",
+       "when": "GR-21B"
       },
       {
-       "job": "R1.placeConvB"
+       "job": "R1.placeConvB",
+       "when": "GR-21B"
       },
       {
        "check": "CP-2"
@@ -1142,11 +1598,13 @@
     "do": [
      {
       "check": "CP-2",
-      "quick": true
+      "quick": true,
+      "until": "!CP-2"
      },
      {
       "check": "CP-3",
-      "quick": true
+      "quick": true,
+      "until": "!CP-3"
      }
     ],
     "when": "!CP-2 & !CP-3",
@@ -1169,7 +1627,7 @@
    },
    "note": [
     "*Stop logic:* stopping uses *OR* ({PE-42} or {CAM-2}) because stopping is the safe direction;",
-    "confirming the part for the pick uses the cross-check [CP-3] (both must agree, otherwise the camera decides)."
+    "confirming the part for the pick uses the cross-check [CP-3] (if they disagree: no part, the pick waits)."
    ],
    "view": {
     "main": [
@@ -1324,7 +1782,7 @@
    "slot": "R2",
    "setup": 2,
    "title": "State diagram: Robot 2 + gauge + sorting (Setup 2)",
-   "sub": "Every part is measured. Accept only if length, width and height are all ≥ 48.00 mm (50 mm nominal − 2 mm).",
+   "sub": "Every part is measured. Accept only if length, width and height are all ≥ 48.05 mm (limit 48.00 + guard band 0.05).",
    "initial": {
     "to": "E0",
     "when": "HMI.auto"
@@ -1374,7 +1832,7 @@
      "name": "START-UP CHECKS",
      "desc": [
       "Home · [CP-4] pallet · [CP-5] nest empty ·",
-      "master cube check of the 3 lasers"
+      "{MST-60} master check 50.000 ± 0.010 mm"
      ],
      "do": [
       {
@@ -1389,7 +1847,13 @@
        "quick": true
       },
       {
-       "job": "GAUGE.master"
+       "job": "GAUGE.master",
+       "when": "!CP-5",
+       "confirm": "GAUGE.zeroed"
+      },
+      {
+       "job": "R2.home",
+       "when": "!R2.home"
       }
      ],
      "next": [
@@ -1403,9 +1867,21 @@
      "name": "WAIT FOR PART",
      "wait": true,
      "desc": [
-      "Move home, clear of the conveyor"
+      "First, if 4 h have passed: [CP-5] nest empty ·",
+      "{MST-60} master check (else gauge FAULT) ·",
+      "move home, clear of the conveyor"
      ],
      "do": [
+      {
+       "check": "CP-5",
+       "quick": true,
+       "when": "GAUGE.due | !GAUGE.zeroed"
+      },
+      {
+       "job": "GAUGE.master",
+       "when": "(GAUGE.due | !GAUGE.zeroed) & !CP-5",
+       "confirm": "GAUGE.zeroed"
+      },
       {
        "job": "R2.home",
        "when": "!R2.home"
@@ -1414,7 +1890,7 @@
      "next": [
       {
        "to": "E2",
-       "when": "CONV=C5 & pickAllowed & !ENC-43"
+       "when": "CONV=C5 & pickAllowed & !ENC-43 & GAUGE.zeroed"
       }
      ]
     },
@@ -1427,7 +1903,8 @@
      ],
      "do": [
       {
-       "job": "R2.pickConv"
+       "job": "R2.pickConv",
+       "when": "!GR-51"
       },
       {
        "check": "CP-3",
@@ -1452,12 +1929,13 @@
      "name": "LOAD GAUGE",
      "short": "gauge",
      "desc": [
-      "Place in the corner nest · push against the",
-      "3 datums (force control) · release · retract"
+      "{YV-66} blow-off · place in the tilted corner",
+      "nest · push against the 3 datums · release"
      ],
      "do": [
       {
-       "job": "R2.loadGauge"
+       "job": "R2.loadGauge",
+       "when": "GR-51"
       },
       {
        "check": "CP-5"
@@ -1475,7 +1953,7 @@
      "short": "measure",
      "desc": [
       "{LS-61}/{LS-62}/{LS-63}: average of 10 samples",
-      "size = 50.000 + (d master − d part)"
+      "size = 50.000 + (d master − d part), 45–52 mm"
      ],
      "do": [
       {
@@ -1662,7 +2140,7 @@
      "wait": true,
      "desc": [
       "1–2 mismatches in the last 10 min",
-      "camera value used · amber flashing"
+      "rule of the CP used · amber flashing"
      ],
      "next": [
       {
@@ -1750,6 +2228,17 @@
   "idle2": 20.5,
   "cycle2": 140.5,
   "util2": 0.8540925266903915,
-  "pph2": 25.622775800711743
+  "pph2": 25.622775800711743,
+  "idle2Range": [
+   17,
+   27.5
+  ]
+ },
+ "BASELINE": {
+  "idle": 36.5,
+  "cycle": 156.5,
+  "util": 0.7667731629392971,
+  "pph": 23.003194888178914,
+  "text": "Setup 1, single gripper (branch legacy-setup1-setup2, commit 1f4b8ad)"
  }
 }
