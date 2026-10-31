@@ -133,7 +133,7 @@
     const out = (lvl, s) => L.push('  '.repeat(lvl) + s);
     const enter = (to) => `${S} := ${C[to]}; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;`;
     const goH = (res, step) => `hRes := ${res}; hStep := ${step}; ${S} := ${H}; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;`;
-    const stopOut = () => [hasJobs ? `${id(slot)}_Start := FALSE;` : '', ...chans.map((cp) => `${ch(cp, 'Trig')} := FALSE;`)].filter(Boolean).join(' ');
+    const stopOut = () => [hasJobs ? `${id(slot)}_Start := FALSE; ${id(slot)}_JobNo := 0;` : '', ...chans.map((cp) => `${ch(cp, 'Trig')} := FALSE;`)].filter(Boolean).join(' ');
     const goF = (code, text) => {
       faults.push([code, text]);
       return `fRes := ${S}; ${id(slot)}_fault := ${code}; ${stopOut()} ${faultExitInputs.size ? [...faultExitInputs].map((n) => `clr_${id(n)} := FALSE;`).join(' ') : ''} ${S} := ${F}; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;`.replace(/ +/g, ' ');
@@ -157,7 +157,7 @@
           out(3, 'ELSIF ph = 1 THEN');
           out(4, `IF COMM_LOST THEN ${goF(code * 100 + 31 + k, `${sid}: communication lost during ${st.job}`)}`);
           out(4, `ELSIF ${J}_Done THEN`);
-          out(5, `${J}_Start := FALSE;`);
+          out(5, `${J}_Start := FALSE; ${J}_JobNo := 0;`);  // JobNo 0 = no job: a master that writes Start before JobNo never shows an old number
           const tr = timerFor(st.job); if (tr) out(5, tr);
           if (st.confirm) {
             const c = code * 100 + k + 1;
@@ -330,7 +330,7 @@
       const m = MACHINES[mk], slot = id(m.slot);
       const hasJobs = [m.initial.do, m.hold && m.hold.do, ...Object.values(m.states).map((s) => s.do)].some((l) => (l || []).some((st) => st.job));
       if (hasJobs) {
-        add(`${slot}_JobNo`, 'INT', 'out', 'job number (order of M.JOBS, from 1)', { k: 'jobNo', slot: m.slot });
+        add(`${slot}_JobNo`, 'INT', 'out', 'job number (order of M.JOBS, from 1; 0 = no job)', { k: 'jobNo', slot: m.slot });
         add(`${slot}_Start`, 'BOOL', 'out', 'job start (handshake: Start, Done, Start low, Done low)', { k: 'jobStart', slot: m.slot });
         add(`${slot}_Done`, 'BOOL', 'in', 'job done, held until Start is low', { k: 'jobDone', slot: m.slot });
       }

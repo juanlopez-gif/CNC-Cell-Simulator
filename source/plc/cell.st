@@ -195,9 +195,9 @@ FUNCTION_BLOCK FB_R1S2
           ELSIF NOT COMM_LOST AND NOT R1_Done THEN R1_JobNo := 1; R1_Start := TRUE; ph := 1;
           END_IF;
         ELSIF ph = 1 THEN
-          IF COMM_LOST THEN fRes := R1_state; R1_fault := 131; R1_Start := FALSE; R1_CP_1_Trig := FALSE; R1_CP_2_Trig := FALSE; clr_HMI_clear := FALSE; R1_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
+          IF COMM_LOST THEN fRes := R1_state; R1_fault := 131; R1_Start := FALSE; R1_JobNo := 0; R1_CP_1_Trig := FALSE; R1_CP_2_Trig := FALSE; clr_HMI_clear := FALSE; R1_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
           ELSIF R1_Done THEN
-            R1_Start := FALSE;
+            R1_Start := FALSE; R1_JobNo := 0;
             ph := 2;
           END_IF;
         ELSIF ph = 2 AND NOT R1_Done THEN ph := 0; stp := 1;
@@ -206,7 +206,7 @@ FUNCTION_BLOCK FB_R1S2
       IF stp = 1 AND NOT moved THEN
         tWait(IN := TRUE, PT := T#24h);
         IF (R1_home AND CNC_ready AND ZS_32) THEN IF (((SUP_state = 3) OR (SUP_state = 4)) OR CAM_FAULT) THEN hRes := 2; hStep := 0; R1_state := 98; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; ELSE R1_state := 2; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; END_IF; (* to B1 *)
-        ELSIF tWait.ET >= T#1000ms THEN fRes := R1_state; R1_fault := 199; R1_Start := FALSE; R1_CP_1_Trig := FALSE; R1_CP_2_Trig := FALSE; clr_HMI_clear := FALSE; R1_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
+        ELSIF tWait.ET >= T#1000ms THEN fRes := R1_state; R1_fault := 199; R1_Start := FALSE; R1_JobNo := 0; R1_CP_1_Trig := FALSE; R1_CP_2_Trig := FALSE; clr_HMI_clear := FALSE; R1_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
         END_IF;
       END_IF;
     2: (* B1 PICK RAW PART (A) *)
@@ -237,9 +237,9 @@ FUNCTION_BLOCK FB_R1S2
           ELSIF NOT COMM_LOST AND NOT R1_Done THEN R1_JobNo := 5; R1_Start := TRUE; ph := 1;
           END_IF;
         ELSIF ph = 1 THEN
-          IF COMM_LOST THEN fRes := R1_state; R1_fault := 232; R1_Start := FALSE; R1_CP_1_Trig := FALSE; R1_CP_2_Trig := FALSE; clr_HMI_clear := FALSE; R1_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
+          IF COMM_LOST THEN fRes := R1_state; R1_fault := 232; R1_Start := FALSE; R1_JobNo := 0; R1_CP_1_Trig := FALSE; R1_CP_2_Trig := FALSE; clr_HMI_clear := FALSE; R1_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
           ELSIF R1_Done THEN
-            R1_Start := FALSE;
+            R1_Start := FALSE; R1_JobNo := 0;
             ph := 2;
           END_IF;
         ELSIF ph = 2 AND NOT R1_Done THEN ph := 0; stp := 2;
@@ -249,7 +249,7 @@ FUNCTION_BLOCK FB_R1S2
         tWait(IN := TRUE, PT := T#24h);
         IF GR_21A THEN IF (((SUP_state = 3) OR (SUP_state = 4)) OR CAM_FAULT) THEN hRes := 3; hStep := 0; R1_state := 98; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; ELSE R1_state := 3; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; END_IF; (* to B2 *)
         ELSIF (NOT (res_CP_1) OR NOT (res_CAM_1_part)) THEN IF (((SUP_state = 3) OR (SUP_state = 4)) OR CAM_FAULT) THEN hRes := 10; hStep := 0; R1_state := 98; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; ELSE R1_state := 10; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; END_IF; (* to W1 *)
-        ELSIF tWait.ET >= T#1000ms THEN fRes := R1_state; R1_fault := 299; R1_Start := FALSE; R1_CP_1_Trig := FALSE; R1_CP_2_Trig := FALSE; clr_HMI_clear := FALSE; R1_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
+        ELSIF tWait.ET >= T#1000ms THEN fRes := R1_state; R1_fault := 299; R1_Start := FALSE; R1_JobNo := 0; R1_CP_1_Trig := FALSE; R1_CP_2_Trig := FALSE; clr_HMI_clear := FALSE; R1_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
         END_IF;
       END_IF;
     3: (* B2 WAIT AT CNC DOOR - waiting *)
@@ -258,9 +258,9 @@ FUNCTION_BLOCK FB_R1S2
           IF NOT COMM_LOST AND NOT R1_Done THEN R1_JobNo := 6; R1_Start := TRUE; ph := 1;
           END_IF;
         ELSIF ph = 1 THEN
-          IF COMM_LOST THEN fRes := R1_state; R1_fault := 331; R1_Start := FALSE; R1_CP_1_Trig := FALSE; R1_CP_2_Trig := FALSE; clr_HMI_clear := FALSE; R1_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
+          IF COMM_LOST THEN fRes := R1_state; R1_fault := 331; R1_Start := FALSE; R1_JobNo := 0; R1_CP_1_Trig := FALSE; R1_CP_2_Trig := FALSE; clr_HMI_clear := FALSE; R1_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
           ELSIF R1_Done THEN
-            R1_Start := FALSE;
+            R1_Start := FALSE; R1_JobNo := 0;
             ph := 2;
           END_IF;
         ELSIF ph = 2 AND NOT R1_Done THEN ph := 0; stp := 1;
@@ -278,9 +278,9 @@ FUNCTION_BLOCK FB_R1S2
           IF NOT COMM_LOST AND NOT R1_Done THEN R1_JobNo := 3; R1_Start := TRUE; ph := 1;
           END_IF;
         ELSIF ph = 1 THEN
-          IF COMM_LOST THEN fRes := R1_state; R1_fault := 431; R1_Start := FALSE; R1_CP_1_Trig := FALSE; R1_CP_2_Trig := FALSE; clr_HMI_clear := FALSE; R1_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
+          IF COMM_LOST THEN fRes := R1_state; R1_fault := 431; R1_Start := FALSE; R1_JobNo := 0; R1_CP_1_Trig := FALSE; R1_CP_2_Trig := FALSE; clr_HMI_clear := FALSE; R1_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
           ELSIF R1_Done THEN
-            R1_Start := FALSE;
+            R1_Start := FALSE; R1_JobNo := 0;
             ph := 2;
           END_IF;
         ELSIF ph = 2 AND NOT R1_Done THEN ph := 0; stp := 1;
@@ -289,7 +289,7 @@ FUNCTION_BLOCK FB_R1S2
       IF stp = 1 AND NOT moved THEN
         tWait(IN := TRUE, PT := T#24h);
         IF (ZS_31 AND NOT (ZS_32)) THEN IF (((SUP_state = 3) OR (SUP_state = 4)) OR CAM_FAULT) THEN hRes := 5; hStep := 0; R1_state := 98; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; ELSE R1_state := 5; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; END_IF; (* to B4 *)
-        ELSIF tWait.ET >= T#1000ms THEN fRes := R1_state; R1_fault := 499; R1_Start := FALSE; R1_CP_1_Trig := FALSE; R1_CP_2_Trig := FALSE; clr_HMI_clear := FALSE; R1_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
+        ELSIF tWait.ET >= T#1000ms THEN fRes := R1_state; R1_fault := 499; R1_Start := FALSE; R1_JobNo := 0; R1_CP_1_Trig := FALSE; R1_CP_2_Trig := FALSE; clr_HMI_clear := FALSE; R1_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
         END_IF;
       END_IF;
     5: (* B4 EXCHANGE PARTS *)
@@ -298,9 +298,9 @@ FUNCTION_BLOCK FB_R1S2
           IF NOT COMM_LOST AND NOT R1_Done THEN R1_JobNo := 7; R1_Start := TRUE; ph := 1;
           END_IF;
         ELSIF ph = 1 THEN
-          IF COMM_LOST THEN fRes := R1_state; R1_fault := 531; R1_Start := FALSE; R1_CP_1_Trig := FALSE; R1_CP_2_Trig := FALSE; clr_HMI_clear := FALSE; R1_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
+          IF COMM_LOST THEN fRes := R1_state; R1_fault := 531; R1_Start := FALSE; R1_JobNo := 0; R1_CP_1_Trig := FALSE; R1_CP_2_Trig := FALSE; clr_HMI_clear := FALSE; R1_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
           ELSIF R1_Done THEN
-            R1_Start := FALSE;
+            R1_Start := FALSE; R1_JobNo := 0;
             ph := 2;
           END_IF;
         ELSIF ph = 2 AND NOT R1_Done THEN ph := 0; stp := 1;
@@ -312,10 +312,10 @@ FUNCTION_BLOCK FB_R1S2
           ELSIF NOT COMM_LOST AND NOT R1_Done THEN R1_JobNo := 8; R1_Start := TRUE; ph := 1;
           END_IF;
         ELSIF ph = 1 THEN
-          IF COMM_LOST THEN fRes := R1_state; R1_fault := 532; R1_Start := FALSE; R1_CP_1_Trig := FALSE; R1_CP_2_Trig := FALSE; clr_HMI_clear := FALSE; R1_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
+          IF COMM_LOST THEN fRes := R1_state; R1_fault := 532; R1_Start := FALSE; R1_JobNo := 0; R1_CP_1_Trig := FALSE; R1_CP_2_Trig := FALSE; clr_HMI_clear := FALSE; R1_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
           ELSIF R1_Done THEN
-            R1_Start := FALSE;
-            IF NOT ((GR_21B AND ZS_34 AND NOT (PS_36))) THEN fRes := R1_state; R1_fault := 502; R1_Start := FALSE; R1_CP_1_Trig := FALSE; R1_CP_2_Trig := FALSE; clr_HMI_clear := FALSE; R1_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
+            R1_Start := FALSE; R1_JobNo := 0;
+            IF NOT ((GR_21B AND ZS_34 AND NOT (PS_36))) THEN fRes := R1_state; R1_fault := 502; R1_Start := FALSE; R1_JobNo := 0; R1_CP_1_Trig := FALSE; R1_CP_2_Trig := FALSE; clr_HMI_clear := FALSE; R1_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
             ELSE ph := 2; END_IF;
           END_IF;
         ELSIF ph = 2 AND NOT R1_Done THEN ph := 0; stp := 2;
@@ -326,9 +326,9 @@ FUNCTION_BLOCK FB_R1S2
           IF NOT COMM_LOST AND NOT R1_Done THEN R1_JobNo := 9; R1_Start := TRUE; ph := 1;
           END_IF;
         ELSIF ph = 1 THEN
-          IF COMM_LOST THEN fRes := R1_state; R1_fault := 533; R1_Start := FALSE; R1_CP_1_Trig := FALSE; R1_CP_2_Trig := FALSE; clr_HMI_clear := FALSE; R1_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
+          IF COMM_LOST THEN fRes := R1_state; R1_fault := 533; R1_Start := FALSE; R1_JobNo := 0; R1_CP_1_Trig := FALSE; R1_CP_2_Trig := FALSE; clr_HMI_clear := FALSE; R1_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
           ELSIF R1_Done THEN
-            R1_Start := FALSE;
+            R1_Start := FALSE; R1_JobNo := 0;
             ph := 2;
           END_IF;
         ELSIF ph = 2 AND NOT R1_Done THEN ph := 0; stp := 3;
@@ -337,7 +337,7 @@ FUNCTION_BLOCK FB_R1S2
       IF stp = 3 AND NOT moved THEN
         tWait(IN := TRUE, PT := T#24h);
         IF (ZS_35 AND PS_36 AND NOT (GR_21A) AND R1_clearCnc) THEN IF (((SUP_state = 3) OR (SUP_state = 4)) OR CAM_FAULT) THEN hRes := 6; hStep := 0; R1_state := 98; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; ELSE R1_state := 6; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; END_IF; (* to B5 *)
-        ELSIF tWait.ET >= T#1000ms THEN fRes := R1_state; R1_fault := 599; R1_Start := FALSE; R1_CP_1_Trig := FALSE; R1_CP_2_Trig := FALSE; clr_HMI_clear := FALSE; R1_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
+        ELSIF tWait.ET >= T#1000ms THEN fRes := R1_state; R1_fault := 599; R1_Start := FALSE; R1_JobNo := 0; R1_CP_1_Trig := FALSE; R1_CP_2_Trig := FALSE; clr_HMI_clear := FALSE; R1_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
         END_IF;
       END_IF;
     6: (* B5 CLOSE DOOR (A) *)
@@ -346,9 +346,9 @@ FUNCTION_BLOCK FB_R1S2
           IF NOT COMM_LOST AND NOT R1_Done THEN R1_JobNo := 4; R1_Start := TRUE; ph := 1;
           END_IF;
         ELSIF ph = 1 THEN
-          IF COMM_LOST THEN fRes := R1_state; R1_fault := 631; R1_Start := FALSE; R1_CP_1_Trig := FALSE; R1_CP_2_Trig := FALSE; clr_HMI_clear := FALSE; R1_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
+          IF COMM_LOST THEN fRes := R1_state; R1_fault := 631; R1_Start := FALSE; R1_JobNo := 0; R1_CP_1_Trig := FALSE; R1_CP_2_Trig := FALSE; clr_HMI_clear := FALSE; R1_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
           ELSIF R1_Done THEN
-            R1_Start := FALSE;
+            R1_Start := FALSE; R1_JobNo := 0;
             ph := 2;
           END_IF;
         ELSIF ph = 2 AND NOT R1_Done THEN ph := 0; stp := 1;
@@ -359,9 +359,9 @@ FUNCTION_BLOCK FB_R1S2
           IF NOT COMM_LOST AND NOT R1_Done THEN R1_JobNo := 12; R1_Start := TRUE; ph := 1;
           END_IF;
         ELSIF ph = 1 THEN
-          IF COMM_LOST THEN fRes := R1_state; R1_fault := 632; R1_Start := FALSE; R1_CP_1_Trig := FALSE; R1_CP_2_Trig := FALSE; clr_HMI_clear := FALSE; R1_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
+          IF COMM_LOST THEN fRes := R1_state; R1_fault := 632; R1_Start := FALSE; R1_JobNo := 0; R1_CP_1_Trig := FALSE; R1_CP_2_Trig := FALSE; clr_HMI_clear := FALSE; R1_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
           ELSIF R1_Done THEN
-            R1_Start := FALSE;
+            R1_Start := FALSE; R1_JobNo := 0;
             ph := 2;
           END_IF;
         ELSIF ph = 2 AND NOT R1_Done THEN ph := 0; stp := 2;
@@ -370,7 +370,7 @@ FUNCTION_BLOCK FB_R1S2
       IF stp = 2 AND NOT moved THEN
         tWait(IN := TRUE, PT := T#24h);
         IF (ZS_32 AND ZS_33) THEN IF (((SUP_state = 3) OR (SUP_state = 4)) OR CAM_FAULT) THEN hRes := 7; hStep := 0; R1_state := 98; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; ELSE R1_state := 7; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; END_IF; (* to B6 *)
-        ELSIF tWait.ET >= T#1000ms THEN fRes := R1_state; R1_fault := 699; R1_Start := FALSE; R1_CP_1_Trig := FALSE; R1_CP_2_Trig := FALSE; clr_HMI_clear := FALSE; R1_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
+        ELSIF tWait.ET >= T#1000ms THEN fRes := R1_state; R1_fault := 699; R1_Start := FALSE; R1_JobNo := 0; R1_CP_1_Trig := FALSE; R1_CP_2_Trig := FALSE; clr_HMI_clear := FALSE; R1_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
         END_IF;
       END_IF;
     7: (* B6 START CYCLE *)
@@ -384,9 +384,9 @@ FUNCTION_BLOCK FB_R1S2
           IF NOT COMM_LOST AND NOT R1_Done THEN R1_JobNo := 13; R1_Start := TRUE; ph := 1;
           END_IF;
         ELSIF ph = 1 THEN
-          IF COMM_LOST THEN fRes := R1_state; R1_fault := 732; R1_Start := FALSE; R1_CP_1_Trig := FALSE; R1_CP_2_Trig := FALSE; clr_HMI_clear := FALSE; R1_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
+          IF COMM_LOST THEN fRes := R1_state; R1_fault := 732; R1_Start := FALSE; R1_JobNo := 0; R1_CP_1_Trig := FALSE; R1_CP_2_Trig := FALSE; clr_HMI_clear := FALSE; R1_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
           ELSIF R1_Done THEN
-            R1_Start := FALSE;
+            R1_Start := FALSE; R1_JobNo := 0;
             ph := 2;
           END_IF;
         ELSIF ph = 2 AND NOT R1_Done THEN ph := 0; stp := 2;
@@ -395,7 +395,7 @@ FUNCTION_BLOCK FB_R1S2
       IF stp = 2 AND NOT moved THEN
         tWait(IN := TRUE, PT := T#24h);
         IF (CNC_run OR CNC_done) THEN IF (((SUP_state = 3) OR (SUP_state = 4)) OR CAM_FAULT) THEN hRes := 8; hStep := 0; R1_state := 98; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; ELSE R1_state := 8; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; END_IF; (* to Q_B6 *)
-        ELSIF tWait.ET >= T#1000ms THEN fRes := R1_state; R1_fault := 799; R1_Start := FALSE; R1_CP_1_Trig := FALSE; R1_CP_2_Trig := FALSE; clr_HMI_clear := FALSE; R1_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
+        ELSIF tWait.ET >= T#1000ms THEN fRes := R1_state; R1_fault := 799; R1_Start := FALSE; R1_JobNo := 0; R1_CP_1_Trig := FALSE; R1_CP_2_Trig := FALSE; clr_HMI_clear := FALSE; R1_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
         END_IF;
       END_IF;
     9: (* B7 PLACE ON CONVEYOR (B) *)
@@ -404,9 +404,9 @@ FUNCTION_BLOCK FB_R1S2
           IF NOT COMM_LOST AND NOT R1_Done THEN R1_JobNo := 10; R1_Start := TRUE; ph := 1;
           END_IF;
         ELSIF ph = 1 THEN
-          IF COMM_LOST THEN fRes := R1_state; R1_fault := 931; R1_Start := FALSE; R1_CP_1_Trig := FALSE; R1_CP_2_Trig := FALSE; clr_HMI_clear := FALSE; R1_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
+          IF COMM_LOST THEN fRes := R1_state; R1_fault := 931; R1_Start := FALSE; R1_JobNo := 0; R1_CP_1_Trig := FALSE; R1_CP_2_Trig := FALSE; clr_HMI_clear := FALSE; R1_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
           ELSIF R1_Done THEN
-            R1_Start := FALSE;
+            R1_Start := FALSE; R1_JobNo := 0;
             ph := 2;
           END_IF;
         ELSIF ph = 2 AND NOT R1_Done THEN ph := 0; stp := 1;
@@ -433,7 +433,7 @@ FUNCTION_BLOCK FB_R1S2
         END_IF;
         IF ph = 4 AND NOT moved AND NOT R1_CP_2_Done THEN tStep(IN := TRUE, PT := T#300ms); IF tStep.Q THEN tStep(IN := FALSE); ph := 2; END_IF; END_IF; (* re-trigger *)
         IF ph = 5 AND NOT moved THEN
-          IF NOT (NOT (res_CP_2)) THEN fRes := R1_state; R1_fault := 903; R1_Start := FALSE; R1_CP_1_Trig := FALSE; R1_CP_2_Trig := FALSE; clr_HMI_clear := FALSE; R1_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
+          IF NOT (NOT (res_CP_2)) THEN fRes := R1_state; R1_fault := 903; R1_Start := FALSE; R1_JobNo := 0; R1_CP_1_Trig := FALSE; R1_CP_2_Trig := FALSE; clr_HMI_clear := FALSE; R1_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
           ELSE stp := 3; ph := 0; END_IF;
         END_IF;
       END_IF;
@@ -443,9 +443,9 @@ FUNCTION_BLOCK FB_R1S2
           ELSIF NOT COMM_LOST AND NOT R1_Done THEN R1_JobNo := 11; R1_Start := TRUE; ph := 1;
           END_IF;
         ELSIF ph = 1 THEN
-          IF COMM_LOST THEN fRes := R1_state; R1_fault := 934; R1_Start := FALSE; R1_CP_1_Trig := FALSE; R1_CP_2_Trig := FALSE; clr_HMI_clear := FALSE; R1_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
+          IF COMM_LOST THEN fRes := R1_state; R1_fault := 934; R1_Start := FALSE; R1_JobNo := 0; R1_CP_1_Trig := FALSE; R1_CP_2_Trig := FALSE; clr_HMI_clear := FALSE; R1_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
           ELSIF R1_Done THEN
-            R1_Start := FALSE;
+            R1_Start := FALSE; R1_JobNo := 0;
             ph := 2;
           END_IF;
         ELSIF ph = 2 AND NOT R1_Done THEN ph := 0; stp := 4;
@@ -478,7 +478,7 @@ FUNCTION_BLOCK FB_R1S2
       IF stp = 6 AND NOT moved THEN
         tWait(IN := TRUE, PT := T#24h);
         IF (res_CP_2 AND R1_clearConv) THEN IF (((SUP_state = 3) OR (SUP_state = 4)) OR CAM_FAULT) THEN hRes := 2; hStep := 0; R1_state := 98; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; ELSE R1_state := 2; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; END_IF; (* to B1 *)
-        ELSIF tWait.ET >= T#1000ms THEN fRes := R1_state; R1_fault := 999; R1_Start := FALSE; R1_CP_1_Trig := FALSE; R1_CP_2_Trig := FALSE; clr_HMI_clear := FALSE; R1_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
+        ELSIF tWait.ET >= T#1000ms THEN fRes := R1_state; R1_fault := 999; R1_Start := FALSE; R1_JobNo := 0; R1_CP_1_Trig := FALSE; R1_CP_2_Trig := FALSE; clr_HMI_clear := FALSE; R1_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
         END_IF;
       END_IF;
     10: (* W1 WAIT FOR INPUT PALLET - waiting *)
@@ -488,9 +488,9 @@ FUNCTION_BLOCK FB_R1S2
           ELSIF NOT COMM_LOST AND NOT R1_Done THEN R1_JobNo := 2; R1_Start := TRUE; ph := 1;
           END_IF;
         ELSIF ph = 1 THEN
-          IF COMM_LOST THEN fRes := R1_state; R1_fault := 1031; R1_Start := FALSE; R1_CP_1_Trig := FALSE; R1_CP_2_Trig := FALSE; clr_HMI_clear := FALSE; R1_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
+          IF COMM_LOST THEN fRes := R1_state; R1_fault := 1031; R1_Start := FALSE; R1_JobNo := 0; R1_CP_1_Trig := FALSE; R1_CP_2_Trig := FALSE; clr_HMI_clear := FALSE; R1_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
           ELSIF R1_Done THEN
-            R1_Start := FALSE;
+            R1_Start := FALSE; R1_JobNo := 0;
             ph := 2;
           END_IF;
         ELSIF ph = 2 AND NOT R1_Done THEN ph := 0; stp := 1;
@@ -508,9 +508,9 @@ FUNCTION_BLOCK FB_R1S2
           IF NOT COMM_LOST AND NOT R1_Done THEN R1_JobNo := 2; R1_Start := TRUE; ph := 1;
           END_IF;
         ELSIF ph = 1 THEN
-          IF COMM_LOST THEN fRes := R1_state; R1_fault := 9831; R1_Start := FALSE; R1_CP_1_Trig := FALSE; R1_CP_2_Trig := FALSE; clr_HMI_clear := FALSE; R1_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
+          IF COMM_LOST THEN fRes := R1_state; R1_fault := 9831; R1_Start := FALSE; R1_JobNo := 0; R1_CP_1_Trig := FALSE; R1_CP_2_Trig := FALSE; clr_HMI_clear := FALSE; R1_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
           ELSIF R1_Done THEN
-            R1_Start := FALSE;
+            R1_Start := FALSE; R1_JobNo := 0;
             ph := 2;
           END_IF;
         ELSIF ph = 2 AND NOT R1_Done THEN ph := 0; stp := 1;
@@ -1039,9 +1039,9 @@ FUNCTION_BLOCK FB_R2S2
           ELSIF NOT COMM_LOST AND NOT R2_Done THEN R2_JobNo := 14; R2_Start := TRUE; ph := 1;
           END_IF;
         ELSIF ph = 1 THEN
-          IF COMM_LOST THEN fRes := R2_state; R2_fault := 131; R2_Start := FALSE; R2_CP_4_Trig := FALSE; R2_CP_5_Trig := FALSE; R2_CP_3_Trig := FALSE; clr_HMI_clear := FALSE; R2_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
+          IF COMM_LOST THEN fRes := R2_state; R2_fault := 131; R2_Start := FALSE; R2_JobNo := 0; R2_CP_4_Trig := FALSE; R2_CP_5_Trig := FALSE; R2_CP_3_Trig := FALSE; clr_HMI_clear := FALSE; R2_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
           ELSIF R2_Done THEN
-            R2_Start := FALSE;
+            R2_Start := FALSE; R2_JobNo := 0;
             ph := 2;
           END_IF;
         ELSIF ph = 2 AND NOT R2_Done THEN ph := 0; stp := 1;
@@ -1092,11 +1092,11 @@ FUNCTION_BLOCK FB_R2S2
           ELSIF NOT COMM_LOST AND NOT R2_Done THEN R2_JobNo := 22; R2_Start := TRUE; ph := 1;
           END_IF;
         ELSIF ph = 1 THEN
-          IF COMM_LOST THEN fRes := R2_state; R2_fault := 134; R2_Start := FALSE; R2_CP_4_Trig := FALSE; R2_CP_5_Trig := FALSE; R2_CP_3_Trig := FALSE; clr_HMI_clear := FALSE; R2_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
+          IF COMM_LOST THEN fRes := R2_state; R2_fault := 134; R2_Start := FALSE; R2_JobNo := 0; R2_CP_4_Trig := FALSE; R2_CP_5_Trig := FALSE; R2_CP_3_Trig := FALSE; clr_HMI_clear := FALSE; R2_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
           ELSIF R2_Done THEN
-            R2_Start := FALSE;
+            R2_Start := FALSE; R2_JobNo := 0;
             IF GAUGE_zeroed THEN GAUGE_due_restart := TRUE; END_IF;
-            IF NOT (GAUGE_zeroed) THEN fRes := R2_state; R2_fault := 104; R2_Start := FALSE; R2_CP_4_Trig := FALSE; R2_CP_5_Trig := FALSE; R2_CP_3_Trig := FALSE; clr_HMI_clear := FALSE; R2_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
+            IF NOT (GAUGE_zeroed) THEN fRes := R2_state; R2_fault := 104; R2_Start := FALSE; R2_JobNo := 0; R2_CP_4_Trig := FALSE; R2_CP_5_Trig := FALSE; R2_CP_3_Trig := FALSE; clr_HMI_clear := FALSE; R2_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
             ELSE ph := 2; END_IF;
           END_IF;
         ELSIF ph = 2 AND NOT R2_Done THEN ph := 0; stp := 4;
@@ -1108,9 +1108,9 @@ FUNCTION_BLOCK FB_R2S2
           ELSIF NOT COMM_LOST AND NOT R2_Done THEN R2_JobNo := 14; R2_Start := TRUE; ph := 1;
           END_IF;
         ELSIF ph = 1 THEN
-          IF COMM_LOST THEN fRes := R2_state; R2_fault := 135; R2_Start := FALSE; R2_CP_4_Trig := FALSE; R2_CP_5_Trig := FALSE; R2_CP_3_Trig := FALSE; clr_HMI_clear := FALSE; R2_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
+          IF COMM_LOST THEN fRes := R2_state; R2_fault := 135; R2_Start := FALSE; R2_JobNo := 0; R2_CP_4_Trig := FALSE; R2_CP_5_Trig := FALSE; R2_CP_3_Trig := FALSE; clr_HMI_clear := FALSE; R2_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
           ELSIF R2_Done THEN
-            R2_Start := FALSE;
+            R2_Start := FALSE; R2_JobNo := 0;
             ph := 2;
           END_IF;
         ELSIF ph = 2 AND NOT R2_Done THEN ph := 0; stp := 5;
@@ -1119,7 +1119,7 @@ FUNCTION_BLOCK FB_R2S2
       IF stp = 5 AND NOT moved THEN
         tWait(IN := TRUE, PT := T#24h);
         IF (R2_home AND res_CP_4 AND NOT (res_CP_5) AND GAUGE_zeroed) THEN IF (((SUP_state = 3) OR (SUP_state = 4)) OR CAM_FAULT) THEN hRes := 2; hStep := 0; R2_state := 98; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; ELSE R2_state := 2; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; END_IF; (* to E1 *)
-        ELSIF tWait.ET >= T#1000ms THEN fRes := R2_state; R2_fault := 199; R2_Start := FALSE; R2_CP_4_Trig := FALSE; R2_CP_5_Trig := FALSE; R2_CP_3_Trig := FALSE; clr_HMI_clear := FALSE; R2_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
+        ELSIF tWait.ET >= T#1000ms THEN fRes := R2_state; R2_fault := 199; R2_Start := FALSE; R2_JobNo := 0; R2_CP_4_Trig := FALSE; R2_CP_5_Trig := FALSE; R2_CP_3_Trig := FALSE; clr_HMI_clear := FALSE; R2_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
         END_IF;
       END_IF;
     2: (* E1 WAIT FOR PART - waiting *)
@@ -1148,11 +1148,11 @@ FUNCTION_BLOCK FB_R2S2
           ELSIF NOT COMM_LOST AND NOT R2_Done THEN R2_JobNo := 22; R2_Start := TRUE; ph := 1;
           END_IF;
         ELSIF ph = 1 THEN
-          IF COMM_LOST THEN fRes := R2_state; R2_fault := 232; R2_Start := FALSE; R2_CP_4_Trig := FALSE; R2_CP_5_Trig := FALSE; R2_CP_3_Trig := FALSE; clr_HMI_clear := FALSE; R2_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
+          IF COMM_LOST THEN fRes := R2_state; R2_fault := 232; R2_Start := FALSE; R2_JobNo := 0; R2_CP_4_Trig := FALSE; R2_CP_5_Trig := FALSE; R2_CP_3_Trig := FALSE; clr_HMI_clear := FALSE; R2_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
           ELSIF R2_Done THEN
-            R2_Start := FALSE;
+            R2_Start := FALSE; R2_JobNo := 0;
             IF GAUGE_zeroed THEN GAUGE_due_restart := TRUE; END_IF;
-            IF NOT (GAUGE_zeroed) THEN fRes := R2_state; R2_fault := 202; R2_Start := FALSE; R2_CP_4_Trig := FALSE; R2_CP_5_Trig := FALSE; R2_CP_3_Trig := FALSE; clr_HMI_clear := FALSE; R2_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
+            IF NOT (GAUGE_zeroed) THEN fRes := R2_state; R2_fault := 202; R2_Start := FALSE; R2_JobNo := 0; R2_CP_4_Trig := FALSE; R2_CP_5_Trig := FALSE; R2_CP_3_Trig := FALSE; clr_HMI_clear := FALSE; R2_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
             ELSE ph := 2; END_IF;
           END_IF;
         ELSIF ph = 2 AND NOT R2_Done THEN ph := 0; stp := 2;
@@ -1164,9 +1164,9 @@ FUNCTION_BLOCK FB_R2S2
           ELSIF NOT COMM_LOST AND NOT R2_Done THEN R2_JobNo := 14; R2_Start := TRUE; ph := 1;
           END_IF;
         ELSIF ph = 1 THEN
-          IF COMM_LOST THEN fRes := R2_state; R2_fault := 233; R2_Start := FALSE; R2_CP_4_Trig := FALSE; R2_CP_5_Trig := FALSE; R2_CP_3_Trig := FALSE; clr_HMI_clear := FALSE; R2_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
+          IF COMM_LOST THEN fRes := R2_state; R2_fault := 233; R2_Start := FALSE; R2_JobNo := 0; R2_CP_4_Trig := FALSE; R2_CP_5_Trig := FALSE; R2_CP_3_Trig := FALSE; clr_HMI_clear := FALSE; R2_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
           ELSIF R2_Done THEN
-            R2_Start := FALSE;
+            R2_Start := FALSE; R2_JobNo := 0;
             ph := 2;
           END_IF;
         ELSIF ph = 2 AND NOT R2_Done THEN ph := 0; stp := 3;
@@ -1185,9 +1185,9 @@ FUNCTION_BLOCK FB_R2S2
           ELSIF NOT COMM_LOST AND NOT R2_Done THEN R2_JobNo := 16; R2_Start := TRUE; ph := 1;
           END_IF;
         ELSIF ph = 1 THEN
-          IF COMM_LOST THEN fRes := R2_state; R2_fault := 331; R2_Start := FALSE; R2_CP_4_Trig := FALSE; R2_CP_5_Trig := FALSE; R2_CP_3_Trig := FALSE; clr_HMI_clear := FALSE; R2_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
+          IF COMM_LOST THEN fRes := R2_state; R2_fault := 331; R2_Start := FALSE; R2_JobNo := 0; R2_CP_4_Trig := FALSE; R2_CP_5_Trig := FALSE; R2_CP_3_Trig := FALSE; clr_HMI_clear := FALSE; R2_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
           ELSIF R2_Done THEN
-            R2_Start := FALSE;
+            R2_Start := FALSE; R2_JobNo := 0;
             ph := 2;
           END_IF;
         ELSIF ph = 2 AND NOT R2_Done THEN ph := 0; stp := 1;
@@ -1219,7 +1219,7 @@ FUNCTION_BLOCK FB_R2S2
       IF stp = 3 AND NOT moved THEN
         tWait(IN := TRUE, PT := T#24h);
         IF (GR_51 AND NOT (res_CP_3) AND R2_clearConv) THEN IF (((SUP_state = 3) OR (SUP_state = 4)) OR CAM_FAULT) THEN hRes := 4; hStep := 0; R2_state := 98; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; ELSE R2_state := 4; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; END_IF; (* to E3 *)
-        ELSIF tWait.ET >= T#1000ms THEN fRes := R2_state; R2_fault := 399; R2_Start := FALSE; R2_CP_4_Trig := FALSE; R2_CP_5_Trig := FALSE; R2_CP_3_Trig := FALSE; clr_HMI_clear := FALSE; R2_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
+        ELSIF tWait.ET >= T#1000ms THEN fRes := R2_state; R2_fault := 399; R2_Start := FALSE; R2_JobNo := 0; R2_CP_4_Trig := FALSE; R2_CP_5_Trig := FALSE; R2_CP_3_Trig := FALSE; clr_HMI_clear := FALSE; R2_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
         END_IF;
       END_IF;
     4: (* E3 LOAD GAUGE *)
@@ -1229,9 +1229,9 @@ FUNCTION_BLOCK FB_R2S2
           ELSIF NOT COMM_LOST AND NOT R2_Done THEN R2_JobNo := 18; R2_Start := TRUE; ph := 1;
           END_IF;
         ELSIF ph = 1 THEN
-          IF COMM_LOST THEN fRes := R2_state; R2_fault := 431; R2_Start := FALSE; R2_CP_4_Trig := FALSE; R2_CP_5_Trig := FALSE; R2_CP_3_Trig := FALSE; clr_HMI_clear := FALSE; R2_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
+          IF COMM_LOST THEN fRes := R2_state; R2_fault := 431; R2_Start := FALSE; R2_JobNo := 0; R2_CP_4_Trig := FALSE; R2_CP_5_Trig := FALSE; R2_CP_3_Trig := FALSE; clr_HMI_clear := FALSE; R2_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
           ELSIF R2_Done THEN
-            R2_Start := FALSE;
+            R2_Start := FALSE; R2_JobNo := 0;
             ph := 2;
           END_IF;
         ELSIF ph = 2 AND NOT R2_Done THEN ph := 0; stp := 1;
@@ -1260,7 +1260,7 @@ FUNCTION_BLOCK FB_R2S2
       IF stp = 2 AND NOT moved THEN
         tWait(IN := TRUE, PT := T#24h);
         IF (res_CP_5 AND R2_clearGauge) THEN IF (((SUP_state = 3) OR (SUP_state = 4)) OR CAM_FAULT) THEN hRes := 5; hStep := 0; R2_state := 98; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; ELSE R2_state := 5; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; END_IF; (* to E4 *)
-        ELSIF tWait.ET >= T#1000ms THEN fRes := R2_state; R2_fault := 499; R2_Start := FALSE; R2_CP_4_Trig := FALSE; R2_CP_5_Trig := FALSE; R2_CP_3_Trig := FALSE; clr_HMI_clear := FALSE; R2_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
+        ELSIF tWait.ET >= T#1000ms THEN fRes := R2_state; R2_fault := 499; R2_Start := FALSE; R2_JobNo := 0; R2_CP_4_Trig := FALSE; R2_CP_5_Trig := FALSE; R2_CP_3_Trig := FALSE; clr_HMI_clear := FALSE; R2_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
         END_IF;
       END_IF;
     5: (* E4 MEASURE L, W, H *)
@@ -1269,9 +1269,9 @@ FUNCTION_BLOCK FB_R2S2
           IF NOT COMM_LOST AND NOT R2_Done THEN R2_JobNo := 21; R2_Start := TRUE; ph := 1;
           END_IF;
         ELSIF ph = 1 THEN
-          IF COMM_LOST THEN fRes := R2_state; R2_fault := 531; R2_Start := FALSE; R2_CP_4_Trig := FALSE; R2_CP_5_Trig := FALSE; R2_CP_3_Trig := FALSE; clr_HMI_clear := FALSE; R2_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
+          IF COMM_LOST THEN fRes := R2_state; R2_fault := 531; R2_Start := FALSE; R2_JobNo := 0; R2_CP_4_Trig := FALSE; R2_CP_5_Trig := FALSE; R2_CP_3_Trig := FALSE; clr_HMI_clear := FALSE; R2_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
           ELSIF R2_Done THEN
-            R2_Start := FALSE;
+            R2_Start := FALSE; R2_JobNo := 0;
             ph := 2;
           END_IF;
         ELSIF ph = 2 AND NOT R2_Done THEN ph := 0; stp := 1;
@@ -1280,7 +1280,7 @@ FUNCTION_BLOCK FB_R2S2
       IF stp = 1 AND NOT moved THEN
         tWait(IN := TRUE, PT := T#24h);
         IF GAUGE_valid THEN IF (((SUP_state = 3) OR (SUP_state = 4)) OR CAM_FAULT) THEN hRes := 6; hStep := 0; R2_state := 98; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; ELSE R2_state := 6; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; END_IF; (* to Q_E4 *)
-        ELSIF tWait.ET >= T#1000ms THEN fRes := R2_state; R2_fault := 599; R2_Start := FALSE; R2_CP_4_Trig := FALSE; R2_CP_5_Trig := FALSE; R2_CP_3_Trig := FALSE; clr_HMI_clear := FALSE; R2_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
+        ELSIF tWait.ET >= T#1000ms THEN fRes := R2_state; R2_fault := 599; R2_Start := FALSE; R2_JobNo := 0; R2_CP_4_Trig := FALSE; R2_CP_5_Trig := FALSE; R2_CP_3_Trig := FALSE; clr_HMI_clear := FALSE; R2_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
         END_IF;
       END_IF;
     7: (* E5 PLACE OK PART ON PALLET *)
@@ -1293,9 +1293,9 @@ FUNCTION_BLOCK FB_R2S2
           IF NOT COMM_LOST AND NOT R2_Done THEN R2_JobNo := 19; R2_Start := TRUE; ph := 1;
           END_IF;
         ELSIF ph = 1 THEN
-          IF COMM_LOST THEN fRes := R2_state; R2_fault := 732; R2_Start := FALSE; R2_CP_4_Trig := FALSE; R2_CP_5_Trig := FALSE; R2_CP_3_Trig := FALSE; clr_HMI_clear := FALSE; R2_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
+          IF COMM_LOST THEN fRes := R2_state; R2_fault := 732; R2_Start := FALSE; R2_JobNo := 0; R2_CP_4_Trig := FALSE; R2_CP_5_Trig := FALSE; R2_CP_3_Trig := FALSE; clr_HMI_clear := FALSE; R2_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
           ELSIF R2_Done THEN
-            R2_Start := FALSE;
+            R2_Start := FALSE; R2_JobNo := 0;
             ph := 2;
           END_IF;
         ELSIF ph = 2 AND NOT R2_Done THEN ph := 0; stp := 2;
@@ -1318,7 +1318,7 @@ FUNCTION_BLOCK FB_R2S2
         END_IF;
         IF ph = 4 AND NOT moved AND NOT R2_CP_4_Done THEN tStep(IN := TRUE, PT := T#300ms); IF tStep.Q THEN tStep(IN := FALSE); ph := 2; END_IF; END_IF; (* re-trigger *)
         IF ph = 5 AND NOT moved THEN
-          IF NOT (res_CP_4) THEN fRes := R2_state; R2_fault := 703; R2_Start := FALSE; R2_CP_4_Trig := FALSE; R2_CP_5_Trig := FALSE; R2_CP_3_Trig := FALSE; clr_HMI_clear := FALSE; R2_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
+          IF NOT (res_CP_4) THEN fRes := R2_state; R2_fault := 703; R2_Start := FALSE; R2_JobNo := 0; R2_CP_4_Trig := FALSE; R2_CP_5_Trig := FALSE; R2_CP_3_Trig := FALSE; clr_HMI_clear := FALSE; R2_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
           ELSE stp := 3; ph := 0; END_IF;
         END_IF;
       END_IF;
@@ -1327,9 +1327,9 @@ FUNCTION_BLOCK FB_R2S2
           IF NOT COMM_LOST AND NOT R2_Done THEN R2_JobNo := 17; R2_Start := TRUE; ph := 1;
           END_IF;
         ELSIF ph = 1 THEN
-          IF COMM_LOST THEN fRes := R2_state; R2_fault := 734; R2_Start := FALSE; R2_CP_4_Trig := FALSE; R2_CP_5_Trig := FALSE; R2_CP_3_Trig := FALSE; clr_HMI_clear := FALSE; R2_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
+          IF COMM_LOST THEN fRes := R2_state; R2_fault := 734; R2_Start := FALSE; R2_JobNo := 0; R2_CP_4_Trig := FALSE; R2_CP_5_Trig := FALSE; R2_CP_3_Trig := FALSE; clr_HMI_clear := FALSE; R2_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
           ELSIF R2_Done THEN
-            R2_Start := FALSE;
+            R2_Start := FALSE; R2_JobNo := 0;
             ph := 2;
           END_IF;
         ELSIF ph = 2 AND NOT R2_Done THEN ph := 0; stp := 4;
@@ -1338,7 +1338,7 @@ FUNCTION_BLOCK FB_R2S2
       IF stp = 4 AND NOT moved THEN
         tWait(IN := TRUE, PT := T#24h);
         IF (CAM_2_slot AND NOT (GR_51)) THEN IF (((SUP_state = 3) OR (SUP_state = 4)) OR CAM_FAULT) THEN hRes := 8; hStep := 0; R2_state := 98; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; ELSE R2_state := 8; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; END_IF; (* to Q_E5 *)
-        ELSIF tWait.ET >= T#1000ms THEN fRes := R2_state; R2_fault := 799; R2_Start := FALSE; R2_CP_4_Trig := FALSE; R2_CP_5_Trig := FALSE; R2_CP_3_Trig := FALSE; clr_HMI_clear := FALSE; R2_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
+        ELSIF tWait.ET >= T#1000ms THEN fRes := R2_state; R2_fault := 799; R2_Start := FALSE; R2_JobNo := 0; R2_CP_4_Trig := FALSE; R2_CP_5_Trig := FALSE; R2_CP_3_Trig := FALSE; clr_HMI_clear := FALSE; R2_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
         END_IF;
       END_IF;
     9: (* E6 PLACE IN NOK CHUTE *)
@@ -1347,9 +1347,9 @@ FUNCTION_BLOCK FB_R2S2
           IF NOT COMM_LOST AND NOT R2_Done THEN R2_JobNo := 19; R2_Start := TRUE; ph := 1;
           END_IF;
         ELSIF ph = 1 THEN
-          IF COMM_LOST THEN fRes := R2_state; R2_fault := 931; R2_Start := FALSE; R2_CP_4_Trig := FALSE; R2_CP_5_Trig := FALSE; R2_CP_3_Trig := FALSE; clr_HMI_clear := FALSE; R2_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
+          IF COMM_LOST THEN fRes := R2_state; R2_fault := 931; R2_Start := FALSE; R2_JobNo := 0; R2_CP_4_Trig := FALSE; R2_CP_5_Trig := FALSE; R2_CP_3_Trig := FALSE; clr_HMI_clear := FALSE; R2_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
           ELSIF R2_Done THEN
-            R2_Start := FALSE;
+            R2_Start := FALSE; R2_JobNo := 0;
             ph := 2;
           END_IF;
         ELSIF ph = 2 AND NOT R2_Done THEN ph := 0; stp := 1;
@@ -1360,9 +1360,9 @@ FUNCTION_BLOCK FB_R2S2
           IF NOT COMM_LOST AND NOT R2_Done THEN R2_JobNo := 20; R2_Start := TRUE; ph := 1;
           END_IF;
         ELSIF ph = 1 THEN
-          IF COMM_LOST THEN fRes := R2_state; R2_fault := 932; R2_Start := FALSE; R2_CP_4_Trig := FALSE; R2_CP_5_Trig := FALSE; R2_CP_3_Trig := FALSE; clr_HMI_clear := FALSE; R2_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
+          IF COMM_LOST THEN fRes := R2_state; R2_fault := 932; R2_Start := FALSE; R2_JobNo := 0; R2_CP_4_Trig := FALSE; R2_CP_5_Trig := FALSE; R2_CP_3_Trig := FALSE; clr_HMI_clear := FALSE; R2_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
           ELSIF R2_Done THEN
-            R2_Start := FALSE;
+            R2_Start := FALSE; R2_JobNo := 0;
             ph := 2;
           END_IF;
         ELSIF ph = 2 AND NOT R2_Done THEN ph := 0; stp := 2;
@@ -1379,7 +1379,7 @@ FUNCTION_BLOCK FB_R2S2
       IF stp = 4 AND NOT moved THEN
         tWait(IN := TRUE, PT := T#24h);
         IF PE_65 THEN PE_65 := FALSE; IF (((SUP_state = 3) OR (SUP_state = 4)) OR CAM_FAULT) THEN hRes := 2; hStep := 0; R2_state := 98; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; ELSE R2_state := 2; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; END_IF; (* to E1 *)
-        ELSIF tWait.ET >= T#1000ms THEN fRes := R2_state; R2_fault := 999; R2_Start := FALSE; R2_CP_4_Trig := FALSE; R2_CP_5_Trig := FALSE; R2_CP_3_Trig := FALSE; clr_HMI_clear := FALSE; R2_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
+        ELSIF tWait.ET >= T#1000ms THEN fRes := R2_state; R2_fault := 999; R2_Start := FALSE; R2_JobNo := 0; R2_CP_4_Trig := FALSE; R2_CP_5_Trig := FALSE; R2_CP_3_Trig := FALSE; clr_HMI_clear := FALSE; R2_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
         END_IF;
       END_IF;
     10: (* E7 WAIT FOR PALLET SWAP - waiting *)
@@ -1389,9 +1389,9 @@ FUNCTION_BLOCK FB_R2S2
           ELSIF NOT COMM_LOST AND NOT R2_Done THEN R2_JobNo := 14; R2_Start := TRUE; ph := 1;
           END_IF;
         ELSIF ph = 1 THEN
-          IF COMM_LOST THEN fRes := R2_state; R2_fault := 1031; R2_Start := FALSE; R2_CP_4_Trig := FALSE; R2_CP_5_Trig := FALSE; R2_CP_3_Trig := FALSE; clr_HMI_clear := FALSE; R2_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
+          IF COMM_LOST THEN fRes := R2_state; R2_fault := 1031; R2_Start := FALSE; R2_JobNo := 0; R2_CP_4_Trig := FALSE; R2_CP_5_Trig := FALSE; R2_CP_3_Trig := FALSE; clr_HMI_clear := FALSE; R2_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
           ELSIF R2_Done THEN
-            R2_Start := FALSE;
+            R2_Start := FALSE; R2_JobNo := 0;
             ph := 2;
           END_IF;
         ELSIF ph = 2 AND NOT R2_Done THEN ph := 0; stp := 1;
@@ -1439,9 +1439,9 @@ FUNCTION_BLOCK FB_R2S2
           IF NOT COMM_LOST AND NOT R2_Done THEN R2_JobNo := 15; R2_Start := TRUE; ph := 1;
           END_IF;
         ELSIF ph = 1 THEN
-          IF COMM_LOST THEN fRes := R2_state; R2_fault := 9831; R2_Start := FALSE; R2_CP_4_Trig := FALSE; R2_CP_5_Trig := FALSE; R2_CP_3_Trig := FALSE; clr_HMI_clear := FALSE; R2_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
+          IF COMM_LOST THEN fRes := R2_state; R2_fault := 9831; R2_Start := FALSE; R2_JobNo := 0; R2_CP_4_Trig := FALSE; R2_CP_5_Trig := FALSE; R2_CP_3_Trig := FALSE; clr_HMI_clear := FALSE; R2_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
           ELSIF R2_Done THEN
-            R2_Start := FALSE;
+            R2_Start := FALSE; R2_JobNo := 0;
             ph := 2;
           END_IF;
         ELSIF ph = 2 AND NOT R2_Done THEN ph := 0; stp := 1;
@@ -1966,13 +1966,13 @@ CONFIGURATION Config0
     R2_state AT %QW104 : INT; (* state of R2 (codes in FB_R2S2) *)
     R2_fault AT %QW105 : INT; (* fault code of R2, 0 = none *)
     SUP_state AT %QW106 : INT; (* state of SUP (codes in FB_SUP) *)
-    R1_JobNo AT %QW107 : INT; (* job number (order of M.JOBS, from 1) *)
+    R1_JobNo AT %QW107 : INT; (* job number (order of M.JOBS, from 1; 0 = no job) *)
     R1_Start AT %QX100.0 : BOOL; (* job start (handshake: Start, Done, Start low, Done low) *)
     R1_CP_1_Trig AT %QX100.1 : BOOL; (* camera trigger for CP-1 *)
     R1_CP_2_Trig AT %QX100.2 : BOOL; (* camera trigger for CP-2 *)
     CONV_CP_2_Trig AT %QX100.3 : BOOL; (* camera trigger for CP-2 *)
     CONV_CP_3_Trig AT %QX100.4 : BOOL; (* camera trigger for CP-3 *)
-    R2_JobNo AT %QW108 : INT; (* job number (order of M.JOBS, from 1) *)
+    R2_JobNo AT %QW108 : INT; (* job number (order of M.JOBS, from 1; 0 = no job) *)
     R2_Start AT %QX100.5 : BOOL; (* job start (handshake: Start, Done, Start low, Done low) *)
     R2_CP_4_Trig AT %QX100.6 : BOOL; (* camera trigger for CP-4 *)
     R2_CP_5_Trig AT %QX100.7 : BOOL; (* camera trigger for CP-5 *)

@@ -92,13 +92,16 @@ class Bridge:
                 sim.ext["vars"][e["name"]] = v
             elif e["k"] == "jobStart":
                 j = self.job.setdefault(e["slot"], {"start": False, "running": False, "done": False, "ready_at": None})
-                if v and not j["start"] and not j["running"] and not j["done"]:
+                # the master writes the coils before the registers: a job starts only when its number
+                # has arrived too (the PLC sets JobNo to 0 whenever it drops Start)
+                if v and not j["start"] and not j["running"] and not j["done"] and job_no[e["slot"]] > 0:
                     name = self.jobs[job_no[e["slot"]] - 1]
+                    sim.log("plc", f"{e['slot']} starts job {name}")
                     sim.ext_job(e["slot"], name)
                     j["running"] = True
                 if not v and j["done"]:
                     j["done"] = False
-                j["start"] = v
+                j["start"] = v and (j["running"] or j["done"])
             elif e["k"] == "camTrig":
                 c = self.cam.setdefault((e["slot"], e["cp"]), {"done": False, "valid": False, "cam": False, "also": False})
                 if v and not c["done"]:
