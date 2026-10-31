@@ -1,8 +1,9 @@
 // Regenerate the generated files of the repository from the model, or check that they are current.
-//   node build_all.js           write diagrams/ (SVG + PNG, needs Chrome), simulation/index.html and
-//                               engine/cellsim/cell_model.json
+//   node build_all.js           write diagrams/ (SVG + PNG, needs Chrome), simulation/index.html,
+//                               engine/cellsim/cell_model.json, source/plc/cell.st and io_map.json
 //   node build_all.js --check   exit 1 if a committed generated file is not what the sources give:
-//                               the SVG figures, the simulator page, the model JSON and the NuSMV models
+//                               the SVG figures, the simulator page, the model JSON, the PLC program and
+//                               the NuSMV models
 //                               in verification/ (PNG files and verification results are not compared)
 // The verification results take minutes to hours: npm run verify, then copy out/verification/* to
 // ../verification/.
@@ -14,10 +15,13 @@ const V = require('./src/cell-verify.js');
 const FIGS = require('./figures.js');
 const { buildSim } = require('./build_sim.js');
 const { modelJson, OUT: JSON_OUT } = require('./export_model.js');
+const ST = require('./src/cell-st.js');
 
 const ROOT = path.join(__dirname, '..');
 const DIAG = path.join(ROOT, 'diagrams');
 const SIM = path.join(ROOT, 'simulation', 'index.html');
+const PLC_ST = path.join(__dirname, 'plc', 'cell.st');
+const PLC_IO = path.join(__dirname, 'plc', 'io_map.json');
 const read = (f) => (fs.existsSync(f) ? fs.readFileSync(f, 'utf8').replace(/\r\n/g, '\n') : null);
 const rel = (f) => path.relative(ROOT, f).replace(/\\/g, '/');
 
@@ -29,6 +33,8 @@ const expected = [];
 FIGS.forEach(([name, fn]) => expected.push([path.join(DIAG, name + '.svg'), fn()]));
 expected.push([SIM, buildSim().index]);
 expected.push([JSON_OUT, modelJson()]);
+expected.push([PLC_ST, ST.toSt()]);
+expected.push([PLC_IO, ST.ioMap()]);
 Object.keys(V.RUNS).forEach((f) => {
   const ir = V.build(2, { faults: V.RUNS[f] });
   expected.push([path.join(ROOT, 'verification', `cell_setup2_${f}.smv`), V.toSmv(ir)]);
@@ -49,6 +55,6 @@ if (process.argv.includes('--check')) {
   FIGS.forEach(([n]) => ['svg', 'png'].forEach((ext) => fs.copyFileSync(path.join(tmp, `${n}.${ext}`), path.join(DIAG, `${n}.${ext}`))));
   stale.forEach((f) => { fs.unlinkSync(path.join(DIAG, f)); console.log('removed', 'diagrams/' + f); });
   expected.filter(([f]) => !f.startsWith(DIAG) && !f.endsWith('.smv')).forEach(([f, text]) => fs.writeFileSync(f, text));
-  console.log(`written: ${FIGS.length} figures, ${rel(SIM)}, ${rel(JSON_OUT)}`);
+  console.log(`written: ${FIGS.length} figures, ${rel(SIM)}, ${rel(JSON_OUT)}, ${rel(PLC_ST)}, ${rel(PLC_IO)}`);
   console.log('verification/*.smv are written by verify.js (npm run verify), not here');
 }

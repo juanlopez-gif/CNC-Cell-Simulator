@@ -54,6 +54,9 @@ violated property); it must stay empty.
 | `cellsim/cell_model.json` | The model, exported from `source/src/cell-model.js` (with the time sources and intervals `TSRC`, `TRANGE` of A2.3) |
 | `run.py` | Command line |
 | `kpi_report.py` | KPI measures of step A2.4 for nominal and faulty runs, written to `kpi_report.md` |
+| `cellsim/plc_bridge.py` | Step A3.3: Modbus slave between the OpenPLC runtime running `source/plc/cell.st` and the plant (`CellSim(external=True)`); used by `.github/workflows/plc-run.yml` (needs `pymodbus==3.6.9`) |
+| `PLC_DEMO.md` | How to install OpenPLC on a Windows PC (WSL 2), run the `demo` scenario with the web interface and record the demo of step A3 |
+| `cellsim/plc_compare.py` | Step A3.4: scenarios on events, reference run of the model (`ref`) and comparison with a PLC run (`compare`) |
 | `test_engine.py` | Tests |
 | `trace.py` | Trace of a scenario as JSON, for the comparison with the browser simulator |
 | `regress.py` | Fingerprints of fixed scenarios for the regression check (`source/regress.js`) |

@@ -49,3 +49,29 @@ jobs:
       - name: Regression against the Setup 2 reference
         working-directory: source
         run: npm run regress
+
+  plc:
+    # the generated Structured Text (source/plc/cell.st, step A3.2) must compile with matiec, the
+    # IEC 61131-3 compiler that OpenPLC uses
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build matiec
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y autoconf automake libtool flex bison g++ make
+          git clone --depth 1 https://github.com/beremiz/matiec.git "$RUNNER_TEMP/matiec"
+          cd "$RUNNER_TEMP/matiec"
+          git log -1 --format='matiec %H %cs'
+          autoreconf -i
+          ./configure
+          make -j4
+
+      - name: Compile the PLC program
+        working-directory: source/plc
+        run: |
+          mkdir -p "$RUNNER_TEMP/st_out"
+          "$RUNNER_TEMP/matiec/iec2c" -I "$RUNNER_TEMP/matiec/lib" -T "$RUNNER_TEMP/st_out" cell.st
+          ls -l "$RUNNER_TEMP/st_out"
