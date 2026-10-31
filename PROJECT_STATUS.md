@@ -26,7 +26,7 @@ reference behind it.
 
 | Check | Command | Result |
 |---|---|---|
-| Lint and generated files | `npm run check` | lint `[]`; 17 generated files identical to what the sources give |
+| Lint and generated files | `npm run check` | lint `[]`; 18 generated files identical to what the sources give (A3.2 adds `plc/cell.st`) |
 | Python engine tests | `python -m unittest test_engine` | 7 tests OK (new in A2.2: gauge policy; in A2.4: KPI measures) |
 | Browser tests | `npm test` (basic, fault, quality hold, phone width, 20 h conformance, Python parity in 3 scenarios) | all pass, no page errors, no property violation |
 | Regression | `npm run regress` | identical to `regression/setup2_reference.json` (recorded at the end of A2.2, unchanged by A2.3 and A2.4; the A2.1 reference kept as `regression/setup2_a21.json`); differences all intended (`regression/README.md`) |
@@ -47,7 +47,7 @@ reference behind it.
 | Time sources and intervals (§5.1.1) | Yes (A2.3, approved by the author 2026-10-30) | Yes (merged into `main` 2026-10-30): `TKIND`, `TSRC`, `TRANGE` in the model, checked by `lint()`; nominal values unchanged |
 | KPI definitions: five measures, time lost by cause (§5.15) | Yes (A2.4, 2026-10-30) | Yes (merged into `main` 2026-10-30): `CellSim.measures()` and `engine/kpi_report.py` |
 | Pallet capacity and combined faults (§9.1, `verification/pallet_capacity.md`) | Yes (A2.5, 2026-10-30) | Yes (merged into `main` 2026-10-30): `slots: 'any'` and the counter game in `cell-verify.js`, `verify_pallet.js`; `verify.js` still runs capacity 2 |
-| PLC execution semantics (§5.16) | Yes (A3.1, approved by the author 2026-10-30) | Being implemented in branch `a3-plc` (A3.2: generator `cell-st.js`) |
+| PLC execution semantics (§5.16) | Yes (A3.1, approved by the author 2026-10-30) | In branch `a3-plc`: generated Structured Text `source/plc/cell.st` (A3.2), compiled by matiec in CI; not yet run on a PLC (A3.3) |
 | Roadmap A1–A6, B, C (§15) | Yes | A0 and A1 done; A2 done and merged into `main` (2026-10-30); A3 in progress in branch `a3-plc`; progress table in §15 |
 
 ---
@@ -162,6 +162,8 @@ Week2_Sensors_Design/
     ├── src/cell-model.js            ★ THE MODEL (single source of truth)
     ├── src/cell-diagrams.js         SVG generator for all figures + cell layout
     ├── src/cell-verify.js           abstract model, explicit-state search, NuSMV export
+    ├── src/cell-st.js               step A3.2: IEC 61131-3 Structured Text generator (§5.16)
+    ├── plc/cell.st                  generated PLC program (function blocks, program, configuration)
     ├── sim-src/app.js               simulator: interpreter + plant + drawing + UI
     ├── sim-src/app.css, body.html   simulator style and markup
     ├── figures.js                   the list of figures (name → generator)
@@ -724,6 +726,32 @@ Decisions for the author: scan interval (10 ms), the supervisor after every mach
 state change per machine per scan (point 3), `GAUGE.due` as a PLC timer (point 5), the behaviour on
 loss of communication and the `RETAIN` set (point 9).
 
+**Implementation (A3.2, `src/cell-st.js` → `source/plc/cell.st`).** `toSt()` writes one function
+block per machine (`FB_R1S2`, `FB_CONV`, `FB_R2S2`, `FB_SUP`), the program `CellMain` (one scan)
+and the configuration (task of `M.PLC.scanMs`, global variables in four groups: inputs, outputs,
+internal, `RETAIN`). Only the model is read; what the simulators know by name is in the table
+`M.PLC` of the model (scan interval, heartbeat timeout, `RETAIN` set, pulse inputs, outputs forced
+off on loss of communication, the mismatch counter, the camera-fault flag, the extra answer of a
+check (`CP-1` → `CAM-1.part`) and `GAUGE.due` as a timer), checked by `lint()`. Details:
+
+- State codes: 0 = initial pseudo-state, 1.. in the order of the model, 98 = H, 99 = F; choice
+  states have a code too and are passed in the same call. The codes and the fault codes are listed
+  in a comment above each function block. Fault code = state code × 100 + n: n = step number for a
+  missing confirmation after a step, 30 + step for communication lost during a job, 50 + i for the
+  timed faults of the state, 99 for the confirmation timeout of the state.
+- Each machine has one job channel (`<slot>_JobNo`, `_Start`, `_Done`) and one camera channel per
+  checkpoint it checks (`<slot>_<CP>_Trig`, `_Done`, `_Valid`, `_Cam`, and `_Also` for CP-1). Job
+  numbers follow the order of `M.JOBS` from 1. The plant's `Busy` of point 6 is not needed by the
+  PLC and is not read.
+- Debounced inputs: the discrete field devices of `M.SENSORS` (kinds prox, door, safety, vise, enc,
+  grip). Controller signals (robots, CNC, gauge, camera answers) are taken as they come.
+  Consequence for A3.3: a job's `Done` must come at least `RULES.debounce` (0.05 s) after the last
+  sensor change it causes, otherwise its `confirm` reads the old value.
+- The mismatch window is three `TON`s of 600 s (one per event, `RULES.mismatchLimit`); a fourth
+  event replaces the oldest. Writing the counter (X4 → X1) clears them.
+- Compiled by matiec (the IEC compiler of OpenPLC) in CI (§11). Not yet run: the bridge and
+  OpenPLC are A3.3, the comparison with the model A3.4.
+
 ---
 
 ## 6. Browser simulator (`source/sim-src/app.js`)
@@ -937,7 +965,7 @@ branch `legacy-setup1-setup2`.
 
 | Command (from `source/` unless noted) | What it checks |
 |---|---|
-| `npm run check` | Lint (§5.13) and that every generated text file (10 SVG figures, the simulator page, the model JSON, the 3 `.smv` files) is exactly what the sources give; stale figure files; missing PNGs |
+| `npm run check` | Lint (§5.13) and that every generated text file (10 SVG figures, the simulator page, the model JSON, the PLC program `plc/cell.st`, the 5 `.smv` files) is exactly what the sources give; stale figure files; missing PNGs |
 | `node export_model.js --check` | The JSON read by Python matches `cell-model.js` (not that the Python interpreter is correct) |
 | `node test_sim.js basic` | Simulator loads, runs, no console errors |
 | `node test_sim.js fault` | Dead PE-41 (CP-2) → Robot 1 FAULT on the missing confirmation, cleared by the operator → third mismatch → line stop → clear the FAULT so that Robot 1 parks → verify → reset works |
@@ -952,7 +980,8 @@ branch `legacy-setup1-setup2`.
 
 **Continuous integration** (`.github/workflows/checks.yml`, Ubuntu, clean `npm ci`): `npm run
 check`, the Python tests, the nominal verification run, all browser tests and the regression, on
-every push and pull request. NuSMV and the two large verification runs are not in `checks` (about
+every push and pull request; a second job (`plc`) builds matiec from its repository and compiles
+`source/plc/cell.st` (step A3.2). NuSMV and the two large verification runs are not in `checks` (about
 an hour or more). They run in the workflow **`full verification`**
 (`.github/workflows/full-verification.yml`), started by hand from the Actions tab or with
 `gh workflow run full-verification.yml`: it downloads NuSMV 2.7.1 (checksum verified), runs `verify.js`
@@ -1115,7 +1144,7 @@ green. Effort figures are indicative only.
 | A0 Claims and assumptions stated | Done | `main` | 2026-10-23 |
 | A1 Base: Setup 2 only, CI, one build | Done | `a1-base` → `main` | 2026-10-23 |
 | A2 Design gaps: camera policy, gauge, times, KPIs, faults | Done: A2.1 (2026-10-28); A2.2 (2026-10-29); A2.3 times, A2.4 KPIs, A2.5 faults (2026-10-30). Merged into `main` 2026-10-30 | `a2-design-gaps` → `main` | 2026-10-30 |
-| A3 PLC demonstration | In progress: A3.1 execution semantics approved (2026-10-30); A3.2 generator next | `a3-plc` | |
+| A3 PLC demonstration | In progress: A3.1 execution semantics approved (2026-10-30); A3.2 generator done (2026-10-31); A3.3 OpenPLC and bridge next | `a3-plc` | |
 | A4 Timed verification (UPPAAL) | Not started | | |
 | A5 Studies with the Python engine | Not started | | |
 | A6 More realistic plant | Not started | | |
@@ -1475,3 +1504,4 @@ Newest last. Every change to the plan or to a design rule is written here first 
 | 2026-10-30 | **A2.5 accepted by the author** with Claude's three recommendations: (1) `faults: 'all'` stays out of reach and is not planned (sensor faults with undersized parts alone are about 1.2 × 10⁹ states; reaching it needs another technique, such as partial-order reduction or disk-based search); (2) `verify.js` keeps capacity 2 for now and moves to `slots: 'any'` at the next NuSMV re-run that a model change requires anyway (expected in A3), with a longer `NUSMV_TIMEOUT` to close P11 and P12 of `sensor_camwrong`; (3) `a2-design-gaps` merged into `main` after the full checks (`npm run check`, `npm test`, `npm run regress`, Python tests, all green) | The proof for any capacity is already in `verification/pallet_capacity.json`; changing the published models now costs a NuSMV cross-check of more than 12 h for no new result. The merge publishes the A2 simulator on GitHub Pages |
 | 2026-10-30 | **A3 started; A3.1 execution semantics proposed** (§5.16), pending the author's review. Proposed by Claude: one 10-ms cyclic task (read inputs, fixed order `SUP`, `R1S2`, `SUP`, `CONV`, `SUP`, `R2S2`, rungs, `SUP`, write outputs); the supervisor after every machine; one state change per machine per scan; a four-phase handshake for every job; `TON` timers, the mismatch window as a ring of event times, `GAUGE.due` as a PLC timer; latched pulse inputs; heartbeat with the bridge (0.5 s) and F on loss; cold restart to the initial states with `QH` and `consecNok` retained | A scan must be one of the interleavings the verifier explored for the verified properties to carry over to the PLC; calling the supervisor only at the end of the scan would break its `urgent` rule. A power cycle must not release a quality hold |
 | 2026-10-30 | **A3.1 approved by the author** as proposed (§5.16); A3.2 started | — |
+| 2026-10-31 | **A3.2 Structured Text generator** (`src/cell-st.js`, `source/plc/cell.st`, §5.16 implementation). Choices made by Claude within the approved semantics: a table `M.PLC` in the model for what the simulators know by name; debounce only for the discrete field devices; fault codes state × 100 + n; one job channel per machine and one camera channel per machine and checkpoint; `Busy` not read. Compiled by matiec in a new CI job | The generator must read only the model to serve the template of phase B. Debouncing controller signals would only add delay. With debounce on, the plant of A3.3 must raise `Done` 0.05 s after the last sensor change of a job |
