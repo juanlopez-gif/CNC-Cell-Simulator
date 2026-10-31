@@ -47,7 +47,7 @@ reference behind it.
 | Time sources and intervals (§5.1.1) | Yes (A2.3, approved by the author 2026-10-30) | Yes (merged into `main` 2026-10-30): `TKIND`, `TSRC`, `TRANGE` in the model, checked by `lint()`; nominal values unchanged |
 | KPI definitions: five measures, time lost by cause (§5.15) | Yes (A2.4, 2026-10-30) | Yes (merged into `main` 2026-10-30): `CellSim.measures()` and `engine/kpi_report.py` |
 | Pallet capacity and combined faults (§9.1, `verification/pallet_capacity.md`) | Yes (A2.5, 2026-10-30) | Yes (merged into `main` 2026-10-30): `slots: 'any'` and the counter game in `cell-verify.js`, `verify_pallet.js`; `verify.js` still runs capacity 2 |
-| PLC execution semantics (§5.16) | Yes (A3.1, approved by the author 2026-10-30) | In branch `a3-plc`: generated Structured Text `source/plc/cell.st` (A3.2), compiled by matiec in CI; not yet run on a PLC (A3.3) |
+| PLC execution semantics (§5.16) | Yes (A3.1, approved by the author 2026-10-30) | In branch `a3-plc`: generated Structured Text `source/plc/cell.st` (A3.2), compiled by matiec in CI; runs in OpenPLC in CI against the plant of the Python engine (A3.3); same state changes as the Python interpreter in 3 scenarios × 1 h, lags within the bound of §5.16 (A3.4) |
 | Roadmap A1–A6, B, C (§15) | Yes | A0 and A1 done; A2 done and merged into `main` (2026-10-30); A3 in progress in branch `a3-plc`; progress table in §15 |
 
 ---
@@ -82,6 +82,7 @@ formal verification are all generated from or interpret that file.
 |---|---|---|
 | The model is internally consistent | `lint()` | Structural only: names exist, states reachable, texts match the logic. Says nothing about whether the logic is right |
 | The browser and Python simulators run the same controller logic | Export check; identical traces in 3 deterministic scenarios (1 h each, one with camera errors) | Shows that the Python port reproduces the browser in those scenarios. Python is a line-by-line port, so an error in the original would be reproduced, not detected |
+| The generated PLC program behaves as the model (A3.4) | OpenPLC (software PLC, CI) against the Python plant: same sequence of state changes per machine as the Python interpreter in 3 scenarios × 1 h (nominal, stuck PE-41, camera errors and a glitch), every lag increment within its bound, every change a model transition | Shows that the generator and the PLC semantics of §5.16 reproduce the interpreter in those scenarios, with the delays explained by scan, polling and handshakes. A software PLC and a simulated plant: not industrial hardware, not real I/O timing |
 | Both simulators follow the model | Conformance runs, 20 h with random faults | Only with the simulated plant and the faults it can inject |
 | 15 properties hold and there is no deadlock | Exhaustive search of the abstract model, 5 runs (nominal, sensor faults, process faults, camera wrong, all sensor faults together; §9.3) | Untimed plant; one source wrong at a time (common mode not modelled); L1–L3 are AG EF: the goal can always still be reached, not that it will be reached |
 | The verdicts hold for an output pallet of any capacity (12 included) | Abstract count (empty / partly filled / full) with exactly the states of capacity 2 in all 5 runs; counter game for L1–L3 in 3 runs; capacity 3 compared in 3 runs (`verification/pallet_capacity.md`) | Rests on the logic reading the count only as `= 0`, `>= slots`, `< slots` (not checked by `lint()`). L1–L3 for any capacity not proved in `sensor` and `sensor_camwrong` (the game does not fit in memory) |
@@ -151,6 +152,8 @@ Week2_Sensors_Design/
 │   ├── cellsim/model.py             loads the JSON model; guard parser/evaluator/text
 │   ├── cellsim/sim.py               interpreter, scheduler, plant, property monitors
 │   ├── cellsim/scenarios.py         random long runs; conformance check
+│   ├── cellsim/plc_bridge.py        step A3.3: Modbus slave between OpenPLC and the plant (CellSim(external=True))
+│   ├── cellsim/plc_compare.py       step A3.4: scenarios, reference run of the model, comparison with the PLC run
 │   ├── cellsim/cell_model.json      the model exported from JS (generated, do not edit)
 │   ├── run.py                       command line
 │   ├── test_engine.py               5 unit tests
@@ -164,6 +167,7 @@ Week2_Sensors_Design/
     ├── src/cell-verify.js           abstract model, explicit-state search, NuSMV export
     ├── src/cell-st.js               step A3.2: IEC 61131-3 Structured Text generator (§5.16)
     ├── plc/cell.st                  generated PLC program (function blocks, program, configuration)
+    ├── plc/io_map.json              generated: Modbus address and meaning of every PLC I/O (read by the bridge)
     ├── sim-src/app.js               simulator: interpreter + plant + drawing + UI
     ├── sim-src/app.css, body.html   simulator style and markup
     ├── figures.js                   the list of figures (name → generator)
@@ -749,8 +753,66 @@ check (`CP-1` → `CAM-1.part`) and `GAUGE.due` as a timer), checked by `lint()`
   sensor change it causes, otherwise its `confirm` reads the old value.
 - The mismatch window is three `TON`s of 600 s (one per event, `RULES.mismatchLimit`); a fourth
   event replaces the oldest. Writing the counter (X4 → X1) clears them.
-- Compiled by matiec (the IEC compiler of OpenPLC) in CI (§11). Not yet run: the bridge and
-  OpenPLC are A3.3, the comparison with the model A3.4.
+- Compiled by matiec (the IEC compiler of OpenPLC) in CI (§11).
+- A ring of the last `M.PLC.traceDepth` (32) state changes (`TR_00`.., counter `TR_N`, entry = machine
+  number × 100 + state code) is written after every call of a machine, so that the bridge sees every
+  change, also a state that lasts one scan (A3.4).
+
+**Run in OpenPLC (A3.3, `.github/workflows/plc-run.yml`).** The OpenPLC v3 runtime (installed from
+its repository in CI, Ubuntu 22.04) compiles `cell.st` with its own scripts (`Config0`, `Res0`) and
+runs it every 10 ms. It is the Modbus TCP master; `engine/cellsim/plc_bridge.py` is the slave
+device (pymodbus 3.6.9, polled every 10 ms, `mbconfig.cfg` written by the bridge) and runs the plant
+of `CellSim(external=True)` in real time. The I/O are located globals: discrete inputs `%IX100.0`..,
+input registers `%IW100`.., coils `%QX100.0`.., holding registers `%QW100`.. (`source/plc/io_map.json`);
+the machine states, fault codes, the change ring and copies `V_*` of the PLC variables are outputs
+too, for the trace and the property monitors. Two implementation rules found in the first runs:
+
+- The master writes the coils before the registers in each poll, so `Start` can arrive before
+  `JobNo`. The PLC sets `JobNo := 0` whenever it drops `Start`, and the bridge starts a job only
+  with `Start` and a number other than 0. (The first run without this repeated the previous job
+  and Robot 1 went to FAULT in B4.)
+- The bridge raises `Done` `RULES.debounce` plus one scan after the job ended (consequence of the
+  debounce, above).
+
+First result (2026-10-31, 600 s nominal, seed 1): 4 CNC cycles, 3 parts out, no PLC fault, no plant
+error, no property violation; mean CNC idle 21.2 s against 20.5 s in the simulators (scan, polling
+and handshake delays). A software PLC controlling a simulated cell, not industrial hardware.
+
+**Comparison with the model (A3.4, `engine/cellsim/plc_compare.py`).** Each scenario is run twice
+with the same script (`Driver`): by the Python interpreter of the model (the reference, `ref`) and
+by the PLC against the plant (`plc_bridge.py --scenario`).
+
+- Scenarios: the three of the browser–Python parity test (§7; the "four" of the plan were two
+  setups × two scenarios). Disturbances act on **events**, not instants: "when Robot 1 enters B2 for
+  the n-th time" (n = 4, 6, …, 16, close to the 300 s, 600 s, … of `trace.py`), the glitch when the
+  conveyor enters C4 for the 17th time. The PLC run lags the model by a growing amount, so a
+  disturbance at a fixed instant could hit another check in each run. The operator reacts 5 s after
+  the state that calls for the operator (F: clear; X3: verification; X4 with the verification done: reset), once
+  per entry, in both runs.
+- Glitch: in the simulators a glitch is one wrong reading. A PLC filters a reading shorter than the
+  debounce, so the bridge holds the proximity input wrong from the injection until the PLC latches it
+  with the camera trigger (the C4 check waits 0.5 s to settle, longer than the debounce).
+- Criterion: for every machine the PLC makes the same sequence of state changes as the model. The lag
+  of a change (PLC instant minus model instant, both from the first change) may exceed the largest
+  lag of all earlier changes by at most **0.05 s + 0.15 s × (jobs and checks of the state left)**
+  (one scan, one poll and one bridge cycle per change; debounce, three scans and two polls per
+  handshake), and the PLC is never ahead of the model by more than one bridge cycle (0.02 s). The
+  changes of the reference up to the end of the PLC run minus its lag must all be there, every change
+  of both runs must be a model transition (`scenarios.conformance`), and the property monitors must
+  stay at zero.
+
+Result (2026-10-31, run 41162409422, 3600 s each, seed 1):
+
+| Scenario | Changes compared | Lag at 1 h | Largest increment (bound) | PLC faults (same in the model) |
+|---|---|---|---|---|
+| nominal | 440 | 20.6 s | 0.31 s (0.35 s, R2 E7 → E1) | none |
+| cp2fault (stuck PE-41) | 453 | 19.8 s | 0.30 s | R1 ×3, then line stop, verification, reset |
+| camwrong (camera wrong, stale image, glitch) | 459 | 20.6 s | 0.31 s | R2 (CP-4), CONV ×2 (CP-3 rule and glitch); one line stop |
+
+All three pass: same sequences, every increment within its bound, all changes model transitions, no
+plant error, no property violation, no ring overflow; 25 CNC cycles each, mean CNC idle 21.2 s
+against 20.5 s. The lag grows by about 0.8 s per CNC cycle (handshakes on the critical path), as
+expected from point 11. What this shows and does not show: §1.1.
 
 ---
 
@@ -804,6 +866,11 @@ sim.state("R2"); sim.kpis(); sim.measures(); sim.trace; sim.logs; sim.stats; sim
 ```
 
 - `run.py --hours H --faults --seed N --log N`; `kpi_report.py --hours H --seeds N` (A2.4, §5.15).
+- `CellSim(external=True)` (A3.3): the plant only. The machines run in a PLC; `ext_job(slot, job)` runs
+  a job it started, `ext_camera(cp)` answers a camera trigger, `ext_state(slot, state, fault)` mirrors
+  its states; outputs and PLC variables are mirrored in `ext`, so KPIs, logs and property monitors
+  work as usual. `plc_bridge.py` connects it to OpenPLC; `plc_compare.py` runs the scenarios of A3.4
+  and compares the two traces (§5.16).
 - `scenarios.run_random(setup, hours, faults, seed)` (about one disturbance every 14 min) and
   `scenarios.conformance(sim)` (every state change must be a model transition).
 - Tests (`test_engine.py`): export current; nominal idle = KPI every cycle; faulty CP-2 (dead
@@ -977,11 +1044,17 @@ branch `legacy-setup1-setup2`.
 | `npm run regress` | Setup 2 fingerprint identical to `regression/setup2_reference.json` (KPIs, state times, NuSMV models, figures, browser and Python traces, no page errors) |
 | `python -m unittest test_engine` (in `engine/`) | §7 |
 | `npm run verify` | §9 (and with `NUSMV=…` the NuSMV cross-check) |
+| `python -m cellsim.plc_compare compare ref.json plc_run.json` (in `engine/`) | A3.4: the PLC run has the same state changes as the reference, within the lag bound (§5.16) |
 
 **Continuous integration** (`.github/workflows/checks.yml`, Ubuntu, clean `npm ci`): `npm run
 check`, the Python tests, the nominal verification run, all browser tests and the regression, on
 every push and pull request; a second job (`plc`) builds matiec from its repository and compiles
-`source/plc/cell.st` (step A3.2). NuSMV and the two large verification runs are not in `checks` (about
+`source/plc/cell.st` (step A3.2). The workflow **`plc run`** (`.github/workflows/plc-run.yml`)
+installs OpenPLC, runs `cell.st` against the plant through the Modbus bridge in real time, runs the
+reference of the model and compares the two (A3.3, A3.4): by hand (`gh workflow run plc-run.yml -f
+seconds=3600`) the three scenarios in parallel, on a push to `a3-plc` that touches the PLC or the
+engine the nominal one for 900 s. It fails on a plant error, a property violation, a bridge problem,
+a PLC fault in the nominal scenario or a failed comparison. NuSMV and the two large verification runs are not in `checks` (about
 an hour or more). They run in the workflow **`full verification`**
 (`.github/workflows/full-verification.yml`), started by hand from the Actions tab or with
 `gh workflow run full-verification.yml`: it downloads NuSMV 2.7.1 (checksum verified), runs `verify.js`
@@ -1144,7 +1217,7 @@ green. Effort figures are indicative only.
 | A0 Claims and assumptions stated | Done | `main` | 2026-10-23 |
 | A1 Base: Setup 2 only, CI, one build | Done | `a1-base` → `main` | 2026-10-23 |
 | A2 Design gaps: camera policy, gauge, times, KPIs, faults | Done: A2.1 (2026-10-28); A2.2 (2026-10-29); A2.3 times, A2.4 KPIs, A2.5 faults (2026-10-30). Merged into `main` 2026-10-30 | `a2-design-gaps` → `main` | 2026-10-30 |
-| A3 PLC demonstration | In progress: A3.1 execution semantics approved (2026-10-30); A3.2 generator done (2026-10-31); A3.3 OpenPLC and bridge next | `a3-plc` | |
+| A3 PLC demonstration | In progress: A3.1 execution semantics approved (2026-10-30); A3.2 generator done (2026-10-31); A3.3 OpenPLC and bridge done, A3.4 comparison passed in 3 scenarios × 1 h (2026-10-31); recorded demo left | `a3-plc` | |
 | A4 Timed verification (UPPAAL) | Not started | | |
 | A5 Studies with the Python engine | Not started | | |
 | A6 More realistic plant | Not started | | |
@@ -1506,3 +1579,5 @@ Newest last. Every change to the plan or to a design rule is written here first 
 | 2026-10-30 | **A3.1 approved by the author** as proposed (§5.16); A3.2 started | — |
 | 2026-10-31 | **A3.2 Structured Text generator** (`src/cell-st.js`, `source/plc/cell.st`, §5.16 implementation). Choices made by Claude within the approved semantics: a table `M.PLC` in the model for what the simulators know by name; debounce only for the discrete field devices; fault codes state × 100 + n; one job channel per machine and one camera channel per machine and checkpoint; `Busy` not read. Compiled by matiec in a new CI job | The generator must read only the model to serve the template of phase B. Debouncing controller signals would only add delay. With debounce on, the plant of A3.3 must raise `Done` 0.05 s after the last sensor change of a job |
 | 2026-10-31 | **A3.3 OpenPLC run**, chosen by the author: OpenPLC in CI (Linux), not on the author's PC (that install is left for the recorded demo). Done by Claude: located I/O and `io_map.json` from the generator, `CellSim(external=True)` as the plant, `plc_bridge.py` as Modbus slave, workflow `plc run`. Fix found in the first run: `JobNo := 0` when `Start` drops, and the bridge starts a job only with a number (the master writes coils before registers). Result: 600 s nominal, 4 CNC cycles, no fault, no violation | No local install needed and the run is repeatable. The handshake race is a property of the OpenPLC Modbus master, not of the model |
+| 2026-10-31 | **A3.3 OpenPLC run**, chosen by the author: OpenPLC in CI (Linux), not on the author's PC (that install is left for the recorded demo). Done by Claude: located I/O and `io_map.json` from the generator, `CellSim(external=True)` as the plant, `plc_bridge.py` as Modbus slave, workflow `plc run`. Fix found in the first run: `JobNo := 0` when `Start` drops, and the bridge starts a job only with a number (the master writes coils before registers). Result: 600 s nominal, 4 CNC cycles, no fault, no violation | No local install needed and the run is repeatable. The handshake race is a property of the OpenPLC Modbus master, not of the model |
+| 2026-10-31 | **A3.4 comparison**, choices made by Claude: the three current parity scenarios stand for the plan's "four" (two setups × two scenarios before A1); disturbances and operator on events, not instants, run by the same `Driver` in the reference and the PLC run; a glitch in the PLC run is a wrong proximity input held until the PLC latches it; a ring of state changes in the PLC (`M.PLC.traceDepth`); bound per change 0.05 s + 0.15 s per job or check of the state left, on the lag above the largest earlier lag. Result: 3 scenarios × 1 h pass (largest increment 0.31 s, lag 20 s at 1 h). The A3.3 documentation is written in the same change (its first edit had added only the decision row) | Fixed instants would hit different checks once the PLC lags; a single-scan glitch would be removed by the debounce; a bound on absolute instants cannot hold because the lag accumulates (§5.16 point 11) |
