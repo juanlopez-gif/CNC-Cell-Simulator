@@ -87,7 +87,7 @@ class CellSim:
     """
 
     def __init__(self, setup=2, seed=None, model=None, auto_operator=True, instant_verify=False,
-                 verify_step_time=0.65, rules=None):
+                 verify_step_time=0.65, rules=None, external=False):
         if setup != 2:
             raise ValueError("only Setup 2 is simulated (Setup 1 is in the branch legacy-setup1-setup2)")
         self.M = model or load()
@@ -97,6 +97,11 @@ class CellSim:
         self.auto_operator = auto_operator
         self.instant_verify = instant_verify
         self.verify_step_time = verify_step_time
+        # external = True: the machines run in a PLC (step A3.3, plc_bridge.py); this object is then
+        # the plant only: it runs the jobs and answers the cameras the PLC asks for, and mirrors the
+        # PLC's states, variables and outputs (ext) so that logs, KPIs and property monitors still work
+        self.external = external
+        self.ext = {"out": {}, "vars": {}, "done": {}}
         self.t = 0.0
         self.logs = []                       # (t, category, message)
         self.trace = []                      # every state change: {t, slot, from, to}
@@ -150,11 +155,13 @@ class CellSim:
         self.JOB = self._job_table()
         self._check_signals()
         self.procs = []
-        self.spawn(self._run_machine("R1"), "R1")
+        if not external:
+            self.spawn(self._run_machine("R1"), "R1")
         self.spawn(self._cnc_proc(), "CNC")
-        self.spawn(self._run_machine("CONV"), "CONV")
-        self.spawn(self._run_machine("R2"), "R2")
-        self.spawn(self._run_machine("SUP"), "SUP")
+        if not external:
+            self.spawn(self._run_machine("CONV"), "CONV")
+            self.spawn(self._run_machine("R2"), "R2")
+            self.spawn(self._run_machine("SUP"), "SUP")
         self.spawn(self._operator_proc(), "operator")
         self.spawn(self._gauge_clock(), "gauge clock")
         self.log("info", f"Setup {setup} started · input pallet 9 raw parts · output pallet 8 of 12 · CNC empty")
@@ -244,6 +251,41 @@ class CellSim:
         self.inject["master"] = True
         self.log("info", "Test: the next master check will read outside ± 0.010 mm")
 
+    # ------------------------------------------------------------------ external controller (A3.3)
+    def ext_job(self, slot, name):
+        """Run a job the PLC started; ext["done"][slot] becomes the time it ended."""
+        self.ext["done"][slot] = None
+
+        def run():
+            yield from self._run_job(slot, name)
+            self.ext["done"][slot] = self.t
+        self.spawn(run(), "job " + name)
+
+    def ext_camera(self, cid):
+        """Answer of the camera to a trigger at checkpoint cid: (valid image, fact seen, extra answer)."""
+        cp = self.cps[cid]
+        frames = self.inject["frames"]
+        if frames[cp["cam"]] > 0:
+            frames[cp["cam"]] -= 1
+            return False, False, False
+        t = self._truth(cid)
+        cam = t
+        if cp["cam_wrong"]:
+            cam = not t
+            cp["cam_wrong"] = False
+        elif cp["stale"]:
+            cam = cp["last"]["cam"] if cp["last"] else t
+            cp["stale"] = False
+        prox = self._prox_live(cid)
+        cp["last"] = {"t": self.t, "prox": prox, "cam": cam, "agree": prox == cam}
+        return True, cam, cid == "CP-1" and self._first_raw() >= 0
+
+    def ext_state(self, slot, sid, fault=None):
+        """Mirror the state of a PLC machine (and its fault, None = none)."""
+        self.faults[slot] = fault
+        if sid:
+            self._set_state(slot, sid, "PLC")
+
     def kpis(self):
         st = self.stats
         util = st["run_time"] / (self.t - st["first_start"]) if st["first_start"] is not None and self.t > st["first_start"] else None
@@ -323,7 +365,7 @@ class CellSim:
                         p.done = True
                         break
             self.procs = [p for p in self.procs if not p.done]
-            if self._eval_rungs():
+            if not self.external and self._eval_rungs():
                 moved = True
             if not moved:
                 break
@@ -442,6 +484,8 @@ class CellSim:
         if kind == "check":
             return bool(self.cp_result.get(slot, {}).get(name))
         if kind == "var":
+            if self.external:
+                return self.ext["vars"].get(name, 0 if sig.get("num") else False)
             return len(self.events) if name == "mismatches" else self.vars[name]
         if kind == "input":
             return self._input(name, slot)
@@ -451,6 +495,8 @@ class CellSim:
         return self.M.compile(src)(lambda n: self.read(n, slot))
 
     def output(self, name):
+        if self.external:
+            return bool(self.ext["out"].get(name))
         return self.ev(self.M.OUTPUTS[name]["def"])
 
     def _check_signals(self):

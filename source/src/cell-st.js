@@ -320,47 +320,49 @@
   function globals() {
     if (GLOBALS) return GLOBALS;
     const g = [];                                 // [name, type, group, comment]
-    const add = (n, type, group, c) => { if (!g.some((x) => x[0] === n)) g.push([n, type, group, c || '']); };
+    const add = (n, type, group, c, meta) => { if (!g.some((x) => x[0] === n)) g.push([n, type, group, c || '', meta || null]); };
     MKS.forEach((mk) => {
       const slot = MACHINES[mk].slot;
-      add(`${id(slot)}_state`, 'INT', 'out', `state of ${slot} (codes in FB_${mk})`);
-      if (MACHINES[mk].fault) add(`${id(slot)}_fault`, 'INT', 'out', `fault code of ${slot}, 0 = none`);
+      add(`${id(slot)}_state`, 'INT', 'out', `state of ${slot} (codes in FB_${mk})`, { k: 'state', slot });
+      if (MACHINES[mk].fault) add(`${id(slot)}_fault`, 'INT', 'out', `fault code of ${slot}, 0 = none`, { k: 'fault', slot });
     });
     MKS.forEach((mk) => {
       const m = MACHINES[mk], slot = id(m.slot);
       const hasJobs = [m.initial.do, m.hold && m.hold.do, ...Object.values(m.states).map((s) => s.do)].some((l) => (l || []).some((st) => st.job));
       if (hasJobs) {
-        add(`${slot}_JobNo`, 'INT', 'out', 'job number (order of M.JOBS, from 1)');
-        add(`${slot}_Start`, 'BOOL', 'out', 'job start (handshake: Start, Done, Start low, Done low)');
-        add(`${slot}_Done`, 'BOOL', 'in', 'job done, held until Start is low');
+        add(`${slot}_JobNo`, 'INT', 'out', 'job number (order of M.JOBS, from 1)', { k: 'jobNo', slot: m.slot });
+        add(`${slot}_Start`, 'BOOL', 'out', 'job start (handshake: Start, Done, Start low, Done low)', { k: 'jobStart', slot: m.slot });
+        add(`${slot}_Done`, 'BOOL', 'in', 'job done, held until Start is low', { k: 'jobDone', slot: m.slot });
       }
       checkUse[mk].forEach((cp) => {
-        add(`${slot}_${id(cp)}_Trig`, 'BOOL', 'out', `camera trigger for ${cp}`);
-        add(`${slot}_${id(cp)}_Done`, 'BOOL', 'in', `camera answer for ${cp} ready, held until Trig is low`);
-        add(`${slot}_${id(cp)}_Valid`, 'BOOL', 'in', `${CP[cp].cam} image valid`);
-        add(`${slot}_${id(cp)}_Cam`, 'BOOL', 'in', `${CP[cp].cam} / ${CP[cp].roi}: ${CP[cp].fact}`);
-        if (PLC.checkAlso[cp]) add(`${slot}_${id(cp)}_Also`, 'BOOL', 'in', `${CP[cp].cam}: ${PLC.checkAlso[cp]}`);
+        add(`${slot}_${id(cp)}_Trig`, 'BOOL', 'out', `camera trigger for ${cp}`, { k: 'camTrig', slot: m.slot, cp });
+        add(`${slot}_${id(cp)}_Done`, 'BOOL', 'in', `camera answer for ${cp} ready, held until Trig is low`, { k: 'camDone', slot: m.slot, cp });
+        add(`${slot}_${id(cp)}_Valid`, 'BOOL', 'in', `${CP[cp].cam} image valid`, { k: 'camValid', slot: m.slot, cp });
+        add(`${slot}_${id(cp)}_Cam`, 'BOOL', 'in', `${CP[cp].cam} / ${CP[cp].roi}: ${CP[cp].fact}`, { k: 'cam', slot: m.slot, cp });
+        if (PLC.checkAlso[cp]) add(`${slot}_${id(cp)}_Also`, 'BOOL', 'in', `${CP[cp].cam}: ${PLC.checkAlso[cp]}`, { k: 'camAlso', slot: m.slot, cp, name: PLC.checkAlso[cp] });
       });
     });
     const sensors = [...used].filter((n) => SIGNALS[n] && SIGNALS[n].kind === 'sensor' && !SIGNALS[n].def).concat([...checkProx].filter((n) => !used.has(n)));
     sensors.forEach((n) => {
       const s = SIGNALS[n] || {};
       if (PLC.timers[n]) { add(id(n), 'BOOL', 'int', `PLC timer (M.PLC.timers)`); add(`${id(n)}_restart`, 'BOOL', 'int', `restart ${n}`); return; }
-      if (PLC.pulse.includes(n)) { add(`${id(n)}_in`, 'BOOL', 'in', `${n}, raw`); add(id(n), 'BOOL', 'int', `${n}, latched on the rising edge`); return; }
-      if (debounced(n)) { add(`${id(n)}_in`, 'BOOL', 'in', `${n}, raw`); add(id(n), 'BOOL', 'int', `${n}, debounced`); return; }
-      add(id(n), s.num ? 'INT' : 'BOOL', 'in', n);
+      if (PLC.pulse.includes(n)) { add(`${id(n)}_in`, 'BOOL', 'in', `${n}, raw`, { k: 'sensor', name: n }); add(id(n), 'BOOL', 'int', `${n}, latched on the rising edge`); return; }
+      if (debounced(n)) { add(`${id(n)}_in`, 'BOOL', 'in', `${n}, raw`, { k: 'sensor', name: n }); add(id(n), 'BOOL', 'int', `${n}, debounced`); return; }
+      add(id(n), s.num ? 'INT' : 'BOOL', 'in', n, { k: 'sensor', name: n });
     });
     [...used].filter((n) => SIGNALS[n] && SIGNALS[n].kind === 'input').forEach((n) => {
-      add(id(n), 'BOOL', 'in', `${n} (button)`);
+      add(id(n), 'BOOL', 'in', `${n} (button)`, { k: 'input', name: n });
       if (faultExitInputs.has(n)) add(`E_${id(n)}`, 'BOOL', 'int', `rising edge of ${n} in this scan`);
       else add(`L_${id(n)}`, 'BOOL', 'int', `${n}, latched until a transition reads it`);
     });
-    add('HB', 'BOOL', 'in', 'heartbeat, toggled by the bridge');
+    add('HB', 'BOOL', 'in', 'heartbeat, toggled by the bridge', { k: 'hb' });
     Object.keys(SIGNALS).filter((n) => SIGNALS[n].kind === 'var').forEach((n) => add(id(n), SIGNALS[n].num ? 'INT' : 'BOOL', PLC.retain.includes(n) ? 'retain' : 'int', n));
     add('COMM_LOST', 'BOOL', 'int', 'no heartbeat for M.PLC.heartbeatTimeout');
     add('mmPending', 'INT', 'int', 'mismatch events to add to the window');
     add('mmClear', 'BOOL', 'int', 'clear the mismatch window');
-    Object.keys(OUTPUTS).forEach((n) => add(id(n), 'BOOL', 'out', OUTPUTS[n].text));
+    Object.keys(OUTPUTS).forEach((n) => add(id(n), 'BOOL', 'out', OUTPUTS[n].text, { k: 'output', name: n }));
+    // copies of the PLC variables for the bridge (diagnostics, the comparison of A3.4)
+    Object.keys(SIGNALS).filter((n) => SIGNALS[n].kind === 'var').forEach((n) => add(`V_${id(n)}`, SIGNALS[n].num ? 'INT' : 'BOOL', 'out', `copy of ${n}`, { k: 'var', name: n }));
     GLOBALS = g;
     return g;
   }
@@ -420,24 +422,52 @@
     out('');
     out('(* 3. outputs *)');
     Object.entries(OUTPUTS).forEach(([n, o]) => out(`${id(n)} := ${ex(o.def, null)}${PLC.stopOnCommLoss.includes(n) ? ' AND NOT COMM_LOST' : ''};`));
+    g.filter(([, , , , x]) => x && x.k === 'var').forEach(([n, , , , x]) => out(`${n} := ${id(x.name)};`));
     return [...V, ...L, 'END_PROGRAM', ''].join('\n');
   }
 
+  // I/O addresses of the OpenPLC Modbus master: the slave device (the bridge) maps its discrete inputs
+  // to %IX100.0.., input registers to %IW100.., coils to %QX100.0.., holding registers to %QW100..
+  function addresses() {
+    const g = globals(), at = {}, n = { IX: 0, IW: 0, QX: 0, QW: 0 };
+    g.forEach(([name, type, grp]) => {
+      if (grp !== 'in' && grp !== 'out') return;
+      const a = (grp === 'in' ? 'I' : 'Q') + (type === 'BOOL' ? 'X' : 'W');
+      const i = n[a]++;
+      at[name] = { area: a, index: i, addr: type === 'BOOL' ? `%${a}${100 + Math.floor(i / 8)}.${i % 8}` : `%${a}${100 + i}` };
+    });
+    return at;
+  }
+
+  // what the bridge needs: every Modbus address with the meaning of its variable
+  function ioMap() {
+    GLOBALS = null;
+    const g = globals(), at = addresses();
+    const table = { IX: 'discreteInputs', IW: 'inputRegisters', QX: 'coils', QW: 'holdingRegisters' };
+    const map = { note: 'Generated by source/src/cell-st.js. Modbus addresses of source/plc/cell.st (OpenPLC master, the bridge is the slave device).',
+      scanMs: PLC.scanMs, heartbeatTimeout: PLC.heartbeatTimeout, debounce: RULES.debounce,
+      discreteInputs: [], inputRegisters: [], coils: [], holdingRegisters: [],
+      jobs: Object.keys(JOBS), states: {} };
+    g.forEach(([name, , , , meta]) => { const a = at[name]; if (a) map[table[a.area]][a.index] = Object.assign({ st: name, addr: a.addr }, meta); });
+    MKS.forEach((mk) => { const s = {}; Object.entries(CODES[mk]).forEach(([sid, c]) => { s[c] = sid; }); s[0] = ''; map.states[MACHINES[mk].slot] = s; });
+    return JSON.stringify(map, null, 1) + '\n';
+  }
+
   function configuration() {
-    const g = globals();
-    const C = ['CONFIGURATION Cell'];
+    const g = globals(), at = addresses();
+    const C = ['CONFIGURATION Config0'];
     const block = (grp, title, retain) => {
       const v = g.filter((x) => x[2] === grp);
       if (!v.length) return;
       C.push(`  VAR_GLOBAL${retain ? ' RETAIN' : ''} (* ${title} *)`);
-      v.forEach(([n, type, , c]) => C.push(`    ${n} : ${type};${c ? ` (* ${cm(c)} *)` : ''}`));
+      v.forEach(([n, type, , c]) => C.push(`    ${n}${at[n] ? ' AT ' + at[n].addr : ''} : ${type};${c ? ` (* ${cm(c)} *)` : ''}`));
       C.push('  END_VAR');
     };
     block('in', 'inputs from the plant (Modbus bridge, A3.3)');
     block('out', 'outputs to the plant');
     block('int', 'internal');
     block('retain', 'kept over a cold restart (M.PLC.retain)', true);
-    C.push('  RESOURCE PLC1 ON PLC');
+    C.push('  RESOURCE Res0 ON PLC');
     C.push(`    TASK MainTask (INTERVAL := T#${PLC.scanMs}ms, PRIORITY := 0);`);
     C.push('    PROGRAM Main WITH MainTask : CellMain;');
     C.push('  END_RESOURCE');
@@ -459,7 +489,7 @@
     ].join('\n').replace(/[^\n\x20-\x7e]/g, (c) => ASCII[c] || '?');   // texts of the model appear in comments only
   }
 
-  const API = { toSt, CODES, JOB_NO };
+  const API = { toSt, ioMap, CODES, JOB_NO };
   root.CellSt = API;
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
 })(typeof window !== 'undefined' ? window : globalThis);

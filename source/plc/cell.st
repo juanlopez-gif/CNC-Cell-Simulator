@@ -152,6 +152,13 @@ FUNCTION_BLOCK FB_R1S2
     LT_01_red : BOOL;
     LT_01_amber : BOOL;
     LT_01_green : BOOL;
+    V_partPlaced : BOOL;
+    V_pickAllowed : BOOL;
+    V_partPicked : BOOL;
+    V_consecNok : INT;
+    V_QH : BOOL;
+    V_mismatches : INT;
+    V_CAM_FAULT : BOOL;
   END_VAR
   VAR
     stp : INT := 0;        (* step of the state; = number of steps once they are done *)
@@ -651,6 +658,13 @@ FUNCTION_BLOCK FB_CONV
     LT_01_red : BOOL;
     LT_01_amber : BOOL;
     LT_01_green : BOOL;
+    V_partPlaced : BOOL;
+    V_pickAllowed : BOOL;
+    V_partPicked : BOOL;
+    V_consecNok : INT;
+    V_QH : BOOL;
+    V_mismatches : INT;
+    V_CAM_FAULT : BOOL;
   END_VAR
   VAR
     stp : INT := 0;        (* step of the state; = number of steps once they are done *)
@@ -982,6 +996,13 @@ FUNCTION_BLOCK FB_R2S2
     LT_01_red : BOOL;
     LT_01_amber : BOOL;
     LT_01_green : BOOL;
+    V_partPlaced : BOOL;
+    V_pickAllowed : BOOL;
+    V_partPicked : BOOL;
+    V_consecNok : INT;
+    V_QH : BOOL;
+    V_mismatches : INT;
+    V_CAM_FAULT : BOOL;
   END_VAR
   VAR
     stp : INT := 0;        (* step of the state; = number of steps once they are done *)
@@ -1565,6 +1586,13 @@ FUNCTION_BLOCK FB_SUP
     LT_01_red : BOOL;
     LT_01_amber : BOOL;
     LT_01_green : BOOL;
+    V_partPlaced : BOOL;
+    V_pickAllowed : BOOL;
+    V_partPicked : BOOL;
+    V_consecNok : INT;
+    V_QH : BOOL;
+    V_mismatches : INT;
+    V_CAM_FAULT : BOOL;
   END_VAR
   VAR
     stp : INT := 0;        (* step of the state; = number of steps once they are done *)
@@ -1745,6 +1773,13 @@ PROGRAM CellMain
     LT_01_red : BOOL;
     LT_01_amber : BOOL;
     LT_01_green : BOOL;
+    V_partPlaced : BOOL;
+    V_pickAllowed : BOOL;
+    V_partPicked : BOOL;
+    V_consecNok : INT;
+    V_QH : BOOL;
+    V_mismatches : INT;
+    V_CAM_FAULT : BOOL;
   END_VAR
   VAR
     fbR1S2 : FB_R1S2;
@@ -1846,100 +1881,114 @@ PROGRAM CellMain
   LT_01_red := (((SUP_state = 3) OR (SUP_state = 4)) OR ((R1_state = 99) OR (CONV_state = 99) OR (R2_state = 99)));
   LT_01_amber := (NOT (((SUP_state = 3) OR (SUP_state = 4))) AND NOT (((R1_state = 99) OR (CONV_state = 99) OR (R2_state = 99))) AND ((mismatches > 0) OR QH OR (R1_state = 10)));
   LT_01_green := (NOT (((SUP_state = 3) OR (SUP_state = 4))) AND NOT (((R1_state = 99) OR (CONV_state = 99) OR (R2_state = 99))) AND NOT (((mismatches > 0) OR QH OR (R1_state = 10))));
+  V_partPlaced := partPlaced;
+  V_pickAllowed := pickAllowed;
+  V_partPicked := partPicked;
+  V_consecNok := consecNok;
+  V_QH := QH;
+  V_mismatches := mismatches;
+  V_CAM_FAULT := CAM_FAULT;
 END_PROGRAM
 
-CONFIGURATION Cell
+CONFIGURATION Config0
   VAR_GLOBAL (* inputs from the plant (Modbus bridge, A3.3) *)
-    R1_Done : BOOL; (* job done, held until Start is low *)
-    R1_CP_1_Done : BOOL; (* camera answer for CP-1 ready, held until Trig is low *)
-    R1_CP_1_Valid : BOOL; (* CAM-1 image valid *)
-    R1_CP_1_Cam : BOOL; (* CAM-1 / ROI-A: Input pallet present and seated *)
-    R1_CP_1_Also : BOOL; (* CAM-1: CAM-1.part *)
-    R1_CP_2_Done : BOOL; (* camera answer for CP-2 ready, held until Trig is low *)
-    R1_CP_2_Valid : BOOL; (* CAM-1 image valid *)
-    R1_CP_2_Cam : BOOL; (* CAM-1 / ROI-B: Part at conveyor entry *)
-    CONV_CP_2_Done : BOOL; (* camera answer for CP-2 ready, held until Trig is low *)
-    CONV_CP_2_Valid : BOOL; (* CAM-1 image valid *)
-    CONV_CP_2_Cam : BOOL; (* CAM-1 / ROI-B: Part at conveyor entry *)
-    CONV_CP_3_Done : BOOL; (* camera answer for CP-3 ready, held until Trig is low *)
-    CONV_CP_3_Valid : BOOL; (* CAM-2 image valid *)
-    CONV_CP_3_Cam : BOOL; (* CAM-2 / ROI-C: Part at the end stop *)
-    R2_Done : BOOL; (* job done, held until Start is low *)
-    R2_CP_4_Done : BOOL; (* camera answer for CP-4 ready, held until Trig is low *)
-    R2_CP_4_Valid : BOOL; (* CAM-2 image valid *)
-    R2_CP_4_Cam : BOOL; (* CAM-2 / ROI-D: Output pallet present *)
-    R2_CP_5_Done : BOOL; (* camera answer for CP-5 ready, held until Trig is low *)
-    R2_CP_5_Valid : BOOL; (* CAM-2 image valid *)
-    R2_CP_5_Cam : BOOL; (* CAM-2 / ROI-E: Part in gauge nest *)
-    R2_CP_3_Done : BOOL; (* camera answer for CP-3 ready, held until Trig is low *)
-    R2_CP_3_Valid : BOOL; (* CAM-2 image valid *)
-    R2_CP_3_Cam : BOOL; (* CAM-2 / ROI-C: Part at the end stop *)
-    HMI_auto : BOOL; (* HMI.auto *)
-    R1_home : BOOL; (* R1.home *)
-    CNC_ready : BOOL; (* CNC.ready *)
-    ZS_32_in : BOOL; (* ZS-32, raw *)
-    GR_21A_in : BOOL; (* GR-21A, raw *)
-    CNC_done : BOOL; (* CNC.done *)
-    ZS_33_in : BOOL; (* ZS-33, raw *)
-    CNC_empty : BOOL; (* CNC.empty *)
-    ZS_31_in : BOOL; (* ZS-31, raw *)
-    PS_36_in : BOOL; (* PS-36, raw *)
-    GR_21B_in : BOOL; (* GR-21B, raw *)
-    ZS_34_in : BOOL; (* ZS-34, raw *)
-    ZS_35_in : BOOL; (* ZS-35, raw *)
-    R1_clearCnc : BOOL; (* R1.clearCnc *)
-    CNC_run : BOOL; (* CNC.run *)
-    ENC_43_in : BOOL; (* ENC-43, raw *)
-    R1_clearConv : BOOL; (* R1.clearConv *)
-    HMI_loaded : BOOL; (* HMI.loaded *)
-    R2_clearConv : BOOL; (* R2.clearConv *)
-    PE_42_in : BOOL; (* PE-42, raw *)
-    ROI_C : BOOL; (* ROI-C *)
-    R2_home : BOOL; (* R2.home *)
-    GAUGE_zeroed : BOOL; (* GAUGE.zeroed *)
-    GR_51_in : BOOL; (* GR-51, raw *)
-    R2_clearGauge : BOOL; (* R2.clearGauge *)
-    GAUGE_valid : BOOL; (* GAUGE.valid *)
-    GAUGE_ok : BOOL; (* GAUGE.ok *)
-    CAM_2_slot : BOOL; (* CAM-2.slot *)
-    outCount : INT; (* outCount *)
-    PE_65_in : BOOL; (* PE-65, raw *)
-    PX_11_in : BOOL; (* PX-11, raw *)
-    PE_41_in : BOOL; (* PE-41, raw *)
-    PX_52_in : BOOL; (* PX-52, raw *)
-    PX_64_in : BOOL; (* PX-64, raw *)
-    HMI_clear : BOOL; (* HMI.clear (button) *)
-    HMI_verify : BOOL; (* HMI.verify (button) *)
-    VERIFY_pass : BOOL; (* VERIFY.pass (button) *)
-    HMI_reset : BOOL; (* HMI.reset (button) *)
-    VERIFY_fail : BOOL; (* VERIFY.fail (button) *)
-    HMI_release : BOOL; (* HMI.release (button) *)
-    HB : BOOL; (* heartbeat, toggled by the bridge *)
+    R1_Done AT %IX100.0 : BOOL; (* job done, held until Start is low *)
+    R1_CP_1_Done AT %IX100.1 : BOOL; (* camera answer for CP-1 ready, held until Trig is low *)
+    R1_CP_1_Valid AT %IX100.2 : BOOL; (* CAM-1 image valid *)
+    R1_CP_1_Cam AT %IX100.3 : BOOL; (* CAM-1 / ROI-A: Input pallet present and seated *)
+    R1_CP_1_Also AT %IX100.4 : BOOL; (* CAM-1: CAM-1.part *)
+    R1_CP_2_Done AT %IX100.5 : BOOL; (* camera answer for CP-2 ready, held until Trig is low *)
+    R1_CP_2_Valid AT %IX100.6 : BOOL; (* CAM-1 image valid *)
+    R1_CP_2_Cam AT %IX100.7 : BOOL; (* CAM-1 / ROI-B: Part at conveyor entry *)
+    CONV_CP_2_Done AT %IX101.0 : BOOL; (* camera answer for CP-2 ready, held until Trig is low *)
+    CONV_CP_2_Valid AT %IX101.1 : BOOL; (* CAM-1 image valid *)
+    CONV_CP_2_Cam AT %IX101.2 : BOOL; (* CAM-1 / ROI-B: Part at conveyor entry *)
+    CONV_CP_3_Done AT %IX101.3 : BOOL; (* camera answer for CP-3 ready, held until Trig is low *)
+    CONV_CP_3_Valid AT %IX101.4 : BOOL; (* CAM-2 image valid *)
+    CONV_CP_3_Cam AT %IX101.5 : BOOL; (* CAM-2 / ROI-C: Part at the end stop *)
+    R2_Done AT %IX101.6 : BOOL; (* job done, held until Start is low *)
+    R2_CP_4_Done AT %IX101.7 : BOOL; (* camera answer for CP-4 ready, held until Trig is low *)
+    R2_CP_4_Valid AT %IX102.0 : BOOL; (* CAM-2 image valid *)
+    R2_CP_4_Cam AT %IX102.1 : BOOL; (* CAM-2 / ROI-D: Output pallet present *)
+    R2_CP_5_Done AT %IX102.2 : BOOL; (* camera answer for CP-5 ready, held until Trig is low *)
+    R2_CP_5_Valid AT %IX102.3 : BOOL; (* CAM-2 image valid *)
+    R2_CP_5_Cam AT %IX102.4 : BOOL; (* CAM-2 / ROI-E: Part in gauge nest *)
+    R2_CP_3_Done AT %IX102.5 : BOOL; (* camera answer for CP-3 ready, held until Trig is low *)
+    R2_CP_3_Valid AT %IX102.6 : BOOL; (* CAM-2 image valid *)
+    R2_CP_3_Cam AT %IX102.7 : BOOL; (* CAM-2 / ROI-C: Part at the end stop *)
+    HMI_auto AT %IX103.0 : BOOL; (* HMI.auto *)
+    R1_home AT %IX103.1 : BOOL; (* R1.home *)
+    CNC_ready AT %IX103.2 : BOOL; (* CNC.ready *)
+    ZS_32_in AT %IX103.3 : BOOL; (* ZS-32, raw *)
+    GR_21A_in AT %IX103.4 : BOOL; (* GR-21A, raw *)
+    CNC_done AT %IX103.5 : BOOL; (* CNC.done *)
+    ZS_33_in AT %IX103.6 : BOOL; (* ZS-33, raw *)
+    CNC_empty AT %IX103.7 : BOOL; (* CNC.empty *)
+    ZS_31_in AT %IX104.0 : BOOL; (* ZS-31, raw *)
+    PS_36_in AT %IX104.1 : BOOL; (* PS-36, raw *)
+    GR_21B_in AT %IX104.2 : BOOL; (* GR-21B, raw *)
+    ZS_34_in AT %IX104.3 : BOOL; (* ZS-34, raw *)
+    ZS_35_in AT %IX104.4 : BOOL; (* ZS-35, raw *)
+    R1_clearCnc AT %IX104.5 : BOOL; (* R1.clearCnc *)
+    CNC_run AT %IX104.6 : BOOL; (* CNC.run *)
+    ENC_43_in AT %IX104.7 : BOOL; (* ENC-43, raw *)
+    R1_clearConv AT %IX105.0 : BOOL; (* R1.clearConv *)
+    HMI_loaded AT %IX105.1 : BOOL; (* HMI.loaded *)
+    R2_clearConv AT %IX105.2 : BOOL; (* R2.clearConv *)
+    PE_42_in AT %IX105.3 : BOOL; (* PE-42, raw *)
+    ROI_C AT %IX105.4 : BOOL; (* ROI-C *)
+    R2_home AT %IX105.5 : BOOL; (* R2.home *)
+    GAUGE_zeroed AT %IX105.6 : BOOL; (* GAUGE.zeroed *)
+    GR_51_in AT %IX105.7 : BOOL; (* GR-51, raw *)
+    R2_clearGauge AT %IX106.0 : BOOL; (* R2.clearGauge *)
+    GAUGE_valid AT %IX106.1 : BOOL; (* GAUGE.valid *)
+    GAUGE_ok AT %IX106.2 : BOOL; (* GAUGE.ok *)
+    CAM_2_slot AT %IX106.3 : BOOL; (* CAM-2.slot *)
+    outCount AT %IW100 : INT; (* outCount *)
+    PE_65_in AT %IX106.4 : BOOL; (* PE-65, raw *)
+    PX_11_in AT %IX106.5 : BOOL; (* PX-11, raw *)
+    PE_41_in AT %IX106.6 : BOOL; (* PE-41, raw *)
+    PX_52_in AT %IX106.7 : BOOL; (* PX-52, raw *)
+    PX_64_in AT %IX107.0 : BOOL; (* PX-64, raw *)
+    HMI_clear AT %IX107.1 : BOOL; (* HMI.clear (button) *)
+    HMI_verify AT %IX107.2 : BOOL; (* HMI.verify (button) *)
+    VERIFY_pass AT %IX107.3 : BOOL; (* VERIFY.pass (button) *)
+    HMI_reset AT %IX107.4 : BOOL; (* HMI.reset (button) *)
+    VERIFY_fail AT %IX107.5 : BOOL; (* VERIFY.fail (button) *)
+    HMI_release AT %IX107.6 : BOOL; (* HMI.release (button) *)
+    HB AT %IX107.7 : BOOL; (* heartbeat, toggled by the bridge *)
   END_VAR
   VAR_GLOBAL (* outputs to the plant *)
-    R1_state : INT; (* state of R1 (codes in FB_R1S2) *)
-    R1_fault : INT; (* fault code of R1, 0 = none *)
-    CONV_state : INT; (* state of CONV (codes in FB_CONV) *)
-    CONV_fault : INT; (* fault code of CONV, 0 = none *)
-    R2_state : INT; (* state of R2 (codes in FB_R2S2) *)
-    R2_fault : INT; (* fault code of R2, 0 = none *)
-    SUP_state : INT; (* state of SUP (codes in FB_SUP) *)
-    R1_JobNo : INT; (* job number (order of M.JOBS, from 1) *)
-    R1_Start : BOOL; (* job start (handshake: Start, Done, Start low, Done low) *)
-    R1_CP_1_Trig : BOOL; (* camera trigger for CP-1 *)
-    R1_CP_2_Trig : BOOL; (* camera trigger for CP-2 *)
-    CONV_CP_2_Trig : BOOL; (* camera trigger for CP-2 *)
-    CONV_CP_3_Trig : BOOL; (* camera trigger for CP-3 *)
-    R2_JobNo : INT; (* job number (order of M.JOBS, from 1) *)
-    R2_Start : BOOL; (* job start (handshake: Start, Done, Start low, Done low) *)
-    R2_CP_4_Trig : BOOL; (* camera trigger for CP-4 *)
-    R2_CP_5_Trig : BOOL; (* camera trigger for CP-5 *)
-    R2_CP_3_Trig : BOOL; (* camera trigger for CP-3 *)
-    BELT_motor : BOOL; (* conveyor motor ON *)
-    LT_53 : BOOL; (* blue beacon: output pallet ready for pickup *)
-    LT_01_red : BOOL; (* stack light red *)
-    LT_01_amber : BOOL; (* stack light amber *)
-    LT_01_green : BOOL; (* stack light green *)
+    R1_state AT %QW100 : INT; (* state of R1 (codes in FB_R1S2) *)
+    R1_fault AT %QW101 : INT; (* fault code of R1, 0 = none *)
+    CONV_state AT %QW102 : INT; (* state of CONV (codes in FB_CONV) *)
+    CONV_fault AT %QW103 : INT; (* fault code of CONV, 0 = none *)
+    R2_state AT %QW104 : INT; (* state of R2 (codes in FB_R2S2) *)
+    R2_fault AT %QW105 : INT; (* fault code of R2, 0 = none *)
+    SUP_state AT %QW106 : INT; (* state of SUP (codes in FB_SUP) *)
+    R1_JobNo AT %QW107 : INT; (* job number (order of M.JOBS, from 1) *)
+    R1_Start AT %QX100.0 : BOOL; (* job start (handshake: Start, Done, Start low, Done low) *)
+    R1_CP_1_Trig AT %QX100.1 : BOOL; (* camera trigger for CP-1 *)
+    R1_CP_2_Trig AT %QX100.2 : BOOL; (* camera trigger for CP-2 *)
+    CONV_CP_2_Trig AT %QX100.3 : BOOL; (* camera trigger for CP-2 *)
+    CONV_CP_3_Trig AT %QX100.4 : BOOL; (* camera trigger for CP-3 *)
+    R2_JobNo AT %QW108 : INT; (* job number (order of M.JOBS, from 1) *)
+    R2_Start AT %QX100.5 : BOOL; (* job start (handshake: Start, Done, Start low, Done low) *)
+    R2_CP_4_Trig AT %QX100.6 : BOOL; (* camera trigger for CP-4 *)
+    R2_CP_5_Trig AT %QX100.7 : BOOL; (* camera trigger for CP-5 *)
+    R2_CP_3_Trig AT %QX101.0 : BOOL; (* camera trigger for CP-3 *)
+    BELT_motor AT %QX101.1 : BOOL; (* conveyor motor ON *)
+    LT_53 AT %QX101.2 : BOOL; (* blue beacon: output pallet ready for pickup *)
+    LT_01_red AT %QX101.3 : BOOL; (* stack light red *)
+    LT_01_amber AT %QX101.4 : BOOL; (* stack light amber *)
+    LT_01_green AT %QX101.5 : BOOL; (* stack light green *)
+    V_partPlaced AT %QX101.6 : BOOL; (* copy of partPlaced *)
+    V_pickAllowed AT %QX101.7 : BOOL; (* copy of pickAllowed *)
+    V_partPicked AT %QX102.0 : BOOL; (* copy of partPicked *)
+    V_consecNok AT %QW109 : INT; (* copy of consecNok *)
+    V_QH AT %QX102.1 : BOOL; (* copy of QH *)
+    V_mismatches AT %QW110 : INT; (* copy of mismatches *)
+    V_CAM_FAULT AT %QX102.2 : BOOL; (* copy of CAM_FAULT *)
   END_VAR
   VAR_GLOBAL (* internal *)
     ZS_32 : BOOL; (* ZS-32, debounced *)
@@ -1979,7 +2028,7 @@ CONFIGURATION Cell
     consecNok : INT; (* consecNok *)
     QH : BOOL; (* QH *)
   END_VAR
-  RESOURCE PLC1 ON PLC
+  RESOURCE Res0 ON PLC
     TASK MainTask (INTERVAL := T#10ms, PRIORITY := 0);
     PROGRAM Main WITH MainTask : CellMain;
   END_RESOURCE
