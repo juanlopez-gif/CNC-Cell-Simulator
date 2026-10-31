@@ -11,6 +11,9 @@ on:
       seconds:
         description: Seconds of operation per scenario (real time)
         default: "3600"
+      scenarios:
+        description: Scenarios of plc_compare.py, as a JSON list (the demo scenario is "demo")
+        default: '["nominal", "cp2fault", "camwrong"]'
   push:
     branches: [a3-plc]
     paths:
@@ -25,8 +28,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # a push runs the nominal scenario only; by hand all three scenarios of plc_compare.py
-        scenario: ${{ fromJSON(github.event_name == 'push' && '["nominal"]' || '["nominal", "cp2fault", "camwrong"]') }}
+        # a push runs the nominal scenario only; by hand the scenarios given (all three by default)
+        scenario: ${{ fromJSON(github.event_name == 'push' && '["nominal"]' || inputs.scenarios) }}
     env:
       SECONDS_RUN: ${{ inputs.seconds || '900' }}
       SCENARIO: ${{ matrix.scenario }}
@@ -66,7 +69,7 @@ jobs:
           W="$RUNNER_TEMP/OpenPLC_v3/webserver"
           python -m cellsim.plc_bridge --mbconfig "$W/mbconfig.cfg"
           touch "$W/persistent.file"
-          python -m cellsim.plc_bridge --seconds "$SECONDS_RUN" --scenario "$SCENARIO" --out plc_run.json &
+          python -m cellsim.plc_bridge --seconds "$SECONDS_RUN" --scenario "$SCENARIO" --live --out plc_run.json &
           BRIDGE=$!
           sleep 3
           (cd "$W" && exec ./core/openplc > "$RUNNER_TEMP/openplc.log" 2>&1) &

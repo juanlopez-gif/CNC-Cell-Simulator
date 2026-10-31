@@ -178,9 +178,10 @@ class Bridge:
         return di, ir
 
 
-def serve(port, io, seconds, seed, scenario="nominal", log_every=60.0):
+def serve(port, io, seconds, seed, scenario="nominal", log_every=60.0, wait=120.0, live=False):
     """Run the plant against the PLC for `seconds` of wall-clock time, with the disturbances and the
-    operator of a scenario of plc_compare.py; return the result."""
+    operator of a scenario of plc_compare.py; return the result. live: print every state change, PLC
+    fault, disturbance and operator action as it happens (for the recorded demo)."""
     from pymodbus.datastore import ModbusSequentialDataBlock, ModbusServerContext, ModbusSlaveContext
     from pymodbus.server import StartAsyncTcpServer
 
@@ -209,12 +210,21 @@ def serve(port, io, seconds, seed, scenario="nominal", log_every=60.0):
     t_wait = time.monotonic()
     while sim.mch["R1"]["state"] == "":
         exchange()
-        if time.monotonic() - t_wait > 120:
-            raise RuntimeError("the PLC did not start within 120 s (no state from Robot 1)")
+        if time.monotonic() - t_wait > wait:
+            raise RuntimeError(f"the PLC did not start within {wait:.0f} s (no state from Robot 1)")
         time.sleep(0.002)
     print(f"PLC running after {time.monotonic() - t_wait:.1f} s; plant clock starts")
     t0 = last = time.monotonic()
     next_log = log_every
+    shown = {"trace": 0, "actions": 0, "faults": 0}
+
+    def show():
+        rows = [(e["t"], f'{e["slot"]:4} {e["from"] or "(start)":>7} -> {e["to"]}') for e in sim.trace[shown["trace"]:]]
+        rows += [(a[0], f"** {a[1]} {a[2]}".rstrip()) for a in drv.actions[shown["actions"]:]]
+        rows += [(f[0], f"!! PLC fault {f[1]} code {f[2]}") for f in br.plc_faults[shown["faults"]:]]
+        shown.update(trace=len(sim.trace), actions=len(drv.actions), faults=len(br.plc_faults))
+        for t, text in sorted(rows, key=lambda r: r[0]):
+            print(f"{t:8.2f} s  {text}", flush=True)
     while True:
         now = time.monotonic()
         if now - t0 >= seconds:
@@ -223,6 +233,8 @@ def serve(port, io, seconds, seed, scenario="nominal", log_every=60.0):
         drv.step(sim)
         sim.advance(now - last)
         last = now
+        if live:
+            show()
         if sim.t >= next_log:
             next_log += log_every
             m = sim.measures()
@@ -243,6 +255,8 @@ def main():
     ap.add_argument("--io", default=IO_MAP)
     ap.add_argument("--mbconfig", help="write the OpenPLC mbconfig.cfg to this path and exit")
     ap.add_argument("--out", default="plc_run.json")
+    ap.add_argument("--wait", type=float, default=120, help="seconds to wait for the PLC to start")
+    ap.add_argument("--live", action="store_true", help="print every state change as it happens")
     a = ap.parse_args()
     with open(a.io) as f:
         io = json.load(f)
@@ -250,7 +264,7 @@ def main():
         write_mbconfig(a.mbconfig, io, a.port)
         print("written", a.mbconfig)
         return
-    r = serve(a.port, io, a.seconds, a.seed, a.scenario)
+    r = serve(a.port, io, a.seconds, a.seed, a.scenario, wait=a.wait, live=a.live)
     with open(a.out, "w") as f:
         json.dump(r, f, indent=1)
     print(f"{r['seconds']} s: {r['cycles']} CNC cycles, {r['measures']['parts_out']} parts out, "

@@ -814,6 +814,10 @@ plant error, no property violation, no ring overflow; 25 CNC cycles each, mean C
 against 20.5 s. The lag grows by about 0.8 s per CNC cycle (handshakes on the critical path), as
 expected from point 11. What this shows and does not show: §1.1.
 
+**Recorded demo (A3, `engine/PLC_DEMO.md`).** OpenPLC on the author's PC (WSL 2, Ubuntu 22.04, web
+interface, polling 10 ms), the bridge with `--scenario demo --live` (one camera error at CP-4, a
+FAULT of Robot 2 at about 189 s cleared by the operator) and `plc_compare` at the end. Not recorded yet.
+
 ---
 
 ## 6. Browser simulator (`source/sim-src/app.js`)
@@ -1217,7 +1221,7 @@ green. Effort figures are indicative only.
 | A0 Claims and assumptions stated | Done | `main` | 2026-10-23 |
 | A1 Base: Setup 2 only, CI, one build | Done | `a1-base` → `main` | 2026-10-23 |
 | A2 Design gaps: camera policy, gauge, times, KPIs, faults | Done: A2.1 (2026-10-28); A2.2 (2026-10-29); A2.3 times, A2.4 KPIs, A2.5 faults (2026-10-30). Merged into `main` 2026-10-30 | `a2-design-gaps` → `main` | 2026-10-30 |
-| A3 PLC demonstration | In progress: A3.1 execution semantics approved (2026-10-30); A3.2 generator done (2026-10-31); A3.3 OpenPLC and bridge done, A3.4 comparison passed in 3 scenarios × 1 h (2026-10-31); recorded demo left | `a3-plc` | |
+| A3 PLC demonstration | In progress: A3.1 execution semantics approved (2026-10-30); A3.2 generator done (2026-10-31); A3.3 OpenPLC and bridge done, A3.4 comparison passed in 3 scenarios × 1 h (2026-10-31); recorded demo prepared (`engine/PLC_DEMO.md`), not recorded yet | `a3-plc` | |
 | A4 Timed verification (UPPAAL) | Not started | | |
 | A5 Studies with the Python engine | Not started | | |
 | A6 More realistic plant | Not started | | |

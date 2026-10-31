@@ -31,6 +31,9 @@ SCENARIOS = {
                  (("R1", "B2", 8), "camwrong", "CP-3"), (("R1", "B2", 10), "camwrong", "CP-5"),
                  (("R1", "B2", 12), "camwrong", "CP-1"), (("R1", "B2", 14), "stale", "CP-4"),
                  (("R1", "B2", 16), "camwrong", "CP-2"), (("CONV", "C4", 17), "glitch", "CP-3")],
+    # the recorded demo (engine/PLC_DEMO.md): one camera error early, so that a FAULT and its clearing
+    # are seen within the first four minutes
+    "demo": [(("R1", "B2", 2), "camwrong", "CP-4")],
 }
 OPERATOR_DELAY = 5.0       # s from the state that needs the operator to the button
 BRIDGE_CYCLE = 0.02        # s, upper bound of one bridge cycle (Modbus poll + exchange)
