@@ -378,6 +378,22 @@
     { when: 'HMI.release & QH', set: { QH: false, consecNok: 0 }, text: 'tool and offsets checked → quality hold released' },
   ];
 
+  // How the PLC runs the machines (step A3, PROJECT_STATUS.md §5.16, approved 2026-10-30); read by
+  // the Structured Text generator (cell-st.js). The simulators compute the same values in their plant.
+  const PLC = {
+    scanMs: 10,                          // cyclic task interval
+    heartbeatTimeout: 0.5,               // s without a heartbeat toggle from the bridge = communication lost
+    retain: ['QH', 'consecNok'],         // kept over a cold restart: a power cycle must not release a quality hold
+    pulse: ['PE-65'],                    // inputs that may be shorter than a scan: latched on the rising edge
+    stopOnCommLoss: ['BELT.motor'],      // outputs forced off while communication with the plant is lost
+    mismatchCount: 'mismatches',         // check disagreements within RULES.mismatchWindow
+    cameraFault: 'CAM_FAULT',            // set by a check after a second invalid image
+    checkAlso: { 'CP-1': 'CAM-1.part' }, // the camera also answers this signal at that check
+    // a sensor of the model that the PLC computes itself: true `every` seconds after the job `after`
+    // ended with `when` holding (GAUGE.due: 4 h after the last passed master check)
+    timers: { 'GAUGE.due': { every: 'masterEvery', after: 'GAUGE.master', when: 'GAUGE.zeroed' } },
+  };
+
   // Properties of the design. The verifier checks them on every reachable state of the abstract
   // model; the simulation monitors the safety ones while it runs.
   //   never: must not hold in a stable state (after the supervisor has reacted)
@@ -922,12 +938,25 @@
         (l.match(/\[(CP-\d)\]/g) || []).forEach((t) => { const cp = t.slice(1, -1); if (!tags.has(cp) && !refs.has(cp)) errs.push(`${mk} ${id}: text names ${cp} but no step or guard of the machine uses it`); });
       });
     });
+    // the PLC table names existing signals, jobs and rules (§5.16)
+    const sigKind = (n, kind) => SIGNALS[n] && SIGNALS[n].kind === kind;
+    PLC.retain.forEach((n) => { if (!sigKind(n, 'var')) errs.push(`PLC.retain: ${n} is not a PLC variable`); });
+    PLC.pulse.forEach((n) => { if (!sigKind(n, 'sensor')) errs.push(`PLC.pulse: ${n} is not a sensor`); });
+    PLC.stopOnCommLoss.forEach((n) => { if (!OUTPUTS[n]) errs.push(`PLC.stopOnCommLoss: ${n} is not an output`); });
+    if (!sigKind(PLC.mismatchCount, 'var') || !SIGNALS[PLC.mismatchCount].num) errs.push(`PLC.mismatchCount: ${PLC.mismatchCount} is not a counter`);
+    if (!sigKind(PLC.cameraFault, 'var')) errs.push(`PLC.cameraFault: ${PLC.cameraFault} is not a PLC variable`);
+    Object.entries(PLC.checkAlso).forEach(([cp, n]) => { if (!CHECKPOINTS.some((c) => c.id === cp) || !sigKind(n, 'check')) errs.push(`PLC.checkAlso: ${cp} → ${n}`); });
+    Object.entries(PLC.timers).forEach(([n, x]) => {
+      if (!sigKind(n, 'sensor')) errs.push(`PLC.timers: ${n} is not a sensor`);
+      if (!(x.every in RULES) || !JOBS[x.after]) errs.push(`PLC.timers ${n}: unknown rule ${x.every} or job ${x.after}`);
+      checkExpr(x.when, `PLC.timers ${n}`);
+    });
     return errs;
   }
 
   const MODEL = {
     T, TLABEL, TKIND, TSRC, TRANGE, TMIN, TMAX, KPI, BASELINE, RULES, CHECKPOINTS, SENSORS, STATES, idleSetup2,
-    SLOTS, SIGNALS, CONST, OUTPUTS, RUNGS, PROPERTIES, JOBS, MACHINES, SETUP_MACHINES, IDLE_MACHINE,
+    SLOTS, SIGNALS, CONST, OUTPUTS, RUNGS, PLC, PROPERTIES, JOBS, MACHINES, SETUP_MACHINES, IDLE_MACHINE,
     expr: { parse, evaluate, names, terms, label, plain, visible, constVal },
     jobTime, stateSteps, stateTime, lint,
   };

@@ -47,7 +47,7 @@ reference behind it.
 | Time sources and intervals (§5.1.1) | Yes (A2.3, approved by the author 2026-10-30) | Yes (merged into `main` 2026-10-30): `TKIND`, `TSRC`, `TRANGE` in the model, checked by `lint()`; nominal values unchanged |
 | KPI definitions: five measures, time lost by cause (§5.15) | Yes (A2.4, 2026-10-30) | Yes (merged into `main` 2026-10-30): `CellSim.measures()` and `engine/kpi_report.py` |
 | Pallet capacity and combined faults (§9.1, `verification/pallet_capacity.md`) | Yes (A2.5, 2026-10-30) | Yes (merged into `main` 2026-10-30): `slots: 'any'` and the counter game in `cell-verify.js`, `verify_pallet.js`; `verify.js` still runs capacity 2 |
-| PLC execution semantics (§5.16) | Proposed (A3.1, 2026-10-30), pending the author's review | No: no code until it is approved |
+| PLC execution semantics (§5.16) | Yes (A3.1, approved by the author 2026-10-30) | Being implemented in branch `a3-plc` (A3.2: generator `cell-st.js`) |
 | Roadmap A1–A6, B, C (§15) | Yes | A0 and A1 done; A2 done and merged into `main` (2026-10-30); A3 in progress in branch `a3-plc`; progress table in §15 |
 
 ---
@@ -619,7 +619,7 @@ quality hold cost no CNC time in these runs (single undersized parts, released w
 test `test_kpi_measures` shows that it is charged when it does. The disturbance rates are chosen to
 exercise the logic, not measured: these ranges are not a forecast of a real cell.
 
-### 5.16 PLC execution semantics (A3.1, proposed 2026-10-30, pending the author's review)
+### 5.16 PLC execution semantics (A3.1, approved by the author 2026-10-30)
 
 How the generated Structured Text (A3.2) runs the machines of §5.8 on a scanning PLC. The
 simulators run every machine until nothing moves at an instant (zero time per state change); the
@@ -1115,7 +1115,7 @@ green. Effort figures are indicative only.
 | A0 Claims and assumptions stated | Done | `main` | 2026-10-23 |
 | A1 Base: Setup 2 only, CI, one build | Done | `a1-base` → `main` | 2026-10-23 |
 | A2 Design gaps: camera policy, gauge, times, KPIs, faults | Done: A2.1 (2026-10-28); A2.2 (2026-10-29); A2.3 times, A2.4 KPIs, A2.5 faults (2026-10-30). Merged into `main` 2026-10-30 | `a2-design-gaps` → `main` | 2026-10-30 |
-| A3 PLC demonstration | In progress: A3.1 execution semantics proposed (2026-10-30), pending review | `a3-plc` | |
+| A3 PLC demonstration | In progress: A3.1 execution semantics approved (2026-10-30); A3.2 generator next | `a3-plc` | |
 | A4 Timed verification (UPPAAL) | Not started | | |
 | A5 Studies with the Python engine | Not started | | |
 | A6 More realistic plant | Not started | | |
@@ -1474,3 +1474,4 @@ Newest last. Every change to the plan or to a design rule is written here first 
 | 2026-10-30 | **A2.5 fault coverage**, done by Claude within the plan: output pallet of any capacity as an abstract count (`slots: 'any'`) and a counter game for L1–L3 in the verifier; capacity 3 run in three of the five runs; `faults: 'all'` documented as out of reach (about 1.4 × 10⁹ states) and the largest combined run reached instead (every class except undersized parts, all 15 properties hold). `verify.js` and the published NuSMV models stay at capacity 2. **Step A2 done** (`verification/pallet_capacity.md`) | The plan asks for the argument to carry the case of 12, not a capacity-3 run; the abstraction proves it for safety with no extra states. `all` needs about 140 GB with the explicit search. Changing the default to `'any'` would change the published models and need a new NuSMV cross-check of more than 12 h: left to the author |
 | 2026-10-30 | **A2.5 accepted by the author** with Claude's three recommendations: (1) `faults: 'all'` stays out of reach and is not planned (sensor faults with undersized parts alone are about 1.2 × 10⁹ states; reaching it needs another technique, such as partial-order reduction or disk-based search); (2) `verify.js` keeps capacity 2 for now and moves to `slots: 'any'` at the next NuSMV re-run that a model change requires anyway (expected in A3), with a longer `NUSMV_TIMEOUT` to close P11 and P12 of `sensor_camwrong`; (3) `a2-design-gaps` merged into `main` after the full checks (`npm run check`, `npm test`, `npm run regress`, Python tests, all green) | The proof for any capacity is already in `verification/pallet_capacity.json`; changing the published models now costs a NuSMV cross-check of more than 12 h for no new result. The merge publishes the A2 simulator on GitHub Pages |
 | 2026-10-30 | **A3 started; A3.1 execution semantics proposed** (§5.16), pending the author's review. Proposed by Claude: one 10-ms cyclic task (read inputs, fixed order `SUP`, `R1S2`, `SUP`, `CONV`, `SUP`, `R2S2`, rungs, `SUP`, write outputs); the supervisor after every machine; one state change per machine per scan; a four-phase handshake for every job; `TON` timers, the mismatch window as a ring of event times, `GAUGE.due` as a PLC timer; latched pulse inputs; heartbeat with the bridge (0.5 s) and F on loss; cold restart to the initial states with `QH` and `consecNok` retained | A scan must be one of the interleavings the verifier explored for the verified properties to carry over to the PLC; calling the supervisor only at the end of the scan would break its `urgent` rule. A power cycle must not release a quality hold |
+| 2026-10-30 | **A3.1 approved by the author** as proposed (§5.16); A3.2 started | — |
