@@ -136,6 +136,7 @@ Week2_Sensors_Design/
 ├── verification/
 │   ├── cell_setup2_<run>.smv        NuSMV models of the 5 runs (none, sensor, process, camwrong,
 │   │                                sensor_camwrong), generated
+│   ├── cell_setup2_timed*.xml       UPPAAL models, case 1 and case 2 of the master check (A4.2), generated
 │   ├── results.json                 every number of the last verification run
 │   ├── results.md                   human-readable results (tables of runs and properties)
 │   ├── camera_policy.md             step A2.1: evidence for the camera rule and the decision
@@ -166,6 +167,8 @@ Week2_Sensors_Design/
     ├── src/cell-diagrams.js         SVG generator for all figures + cell layout
     ├── src/cell-verify.js           abstract model, explicit-state search, NuSMV export
     ├── src/cell-st.js               step A3.2: IEC 61131-3 Structured Text generator (§5.16)
+    ├── src/cell-timed.js            step A4.2: timed network, UPPAAL export, simulation (§5.17)
+    ├── timed.js                     npm run timed: the timed network simulated (nominal and random times)
     ├── plc/cell.st                  generated PLC program (function blocks, program, configuration)
     ├── plc/io_map.json              generated: Modbus address and meaning of every PLC I/O (read by the bridge)
     ├── sim-src/app.js               simulator: interpreter + plant + drawing + UI
@@ -818,7 +821,7 @@ expected from point 11. What this shows and does not show: §1.1.
 interface, polling 10 ms), the bridge with `--scenario demo --live` (one camera error at CP-4, a
 FAULT of Robot 2 at about 189 s cleared by the operator) and `plc_compare` at the end. Not recorded yet.
 
-### 5.17 Timed model for UPPAAL (A4.1, proposed, not approved yet)
+### 5.17 Timed model for UPPAAL (A4.1 approved 2026-10-31, A4.2 done)
 
 The untimed model of §9 (`build()` of `src/cell-verify.js`) is kept as it is and gets time; the
 generator `toUppaal(ir)` writes it as a network of timed automata (UPPAAL 5, `verifyta` in CI with
@@ -877,8 +880,39 @@ checked by `npm run check`, a sanity query (the untimed reachable machine states
 A4.3 B1–B3 with `verifyta` in a CI workflow (`timed verification`), results in
 `verification/timed_results.md`; A4.4 the engine comparison.
 
-What the author decides: the conditions of point 3 (in particular the operator acting at once and
-the two gauge cases), the properties B1–B3, ignoring the 10-ms scan, and the time unit.
+Approved by the author on 2026-10-31 without changes (the conditions of point 3, B1–B3, the 10-ms
+scan ignored, the unit 0.01 s).
+
+**A4.2 (done 2026-10-31).** `src/cell-timed.js`: `network({ master })` builds the network as data
+from `build(2, { faults: false, slots: 12 })`, `toUppaal()` prints it, `queries()` lists the queries,
+`simulate()` runs the network with random or nominal times. Generated (by `npm run build`, checked by
+`npm run check`): `verification/cell_setup2_timed.xml` (case 1, no master check after start-up) and
+`verification/cell_setup2_timed_master.xml` (case 2); 8 automata (`A_R1`, `A_CONV`, `A_R2`,
+`A_SUP`, `A_CNC`, `A_BELT`, `A_OP`, `A_ENV`), 325 / 326 edges. Details fixed in the generation:
+
+- Every machine keeps its location also in a global integer (other machines' guards read it); every
+  edge resets the clock of its machine. Immediate edges synchronise on `urgent broadcast chan hurry`,
+  the supervisor's on `sup` with `chan priority default < sup`. The updates of a command read the
+  old state, so a value that reads a variable written on the same edge goes through a temporary
+  (`ti0`, reset to 0 afterwards).
+- A check repeated until its condition holds (`until`, CONV start-up and R2 E7) waits one check time
+  between tries, as both engines do; without it the repetition takes no time.
+- Belt: start ramp, then transport `beltTravel` from the start of motion, then stop ramp, then the
+  zero-speed window (`zsOk`, read by CONV C4 → C5).
+- CNC: `Started` is a committed location where the observer reads `w` (idle) and `p` (period);
+  `cyc` counts completed cycles (the first start is not measured).
+- Operator: takes the output pallet away only with parts on it. In the untimed model it may also take
+  away the new empty pallet while Robot 2 still shows LT-53; acting at once, that repeats without end.
+- The initial fill of the output pallet (any of 0–11) is chosen by `A_ENV` in a committed location.
+
+Queries in the files: `A[] not deadlock`; `E<>` for every state of every machine (compared with the
+untimed nominal run of §9, where all are reached except `R1` H and F, `CONV` H and F, `R2` E6 and H,
+`SUP` X2–X4); B1 and B2 as `sup` / `inf`. B3 is added in A4.3.
+
+Check without UPPAAL (`npm run timed`, in CI): with every time nominal the idle of every cycle is
+20.50 s = `KPI.idle2` (period 140.5 s) in both cases; with random times for 20 h (about 505 cycles)
+no deadlock or timelock, idle 19.0–25.7 s (case 1) and 18.6–25.6 s (case 2), mean 22.2 s, period
+133–151 s. The XML has not been through UPPAAL yet (syntax and type check come with `verifyta` in A4.3).
 
 ---
 
@@ -1098,7 +1132,7 @@ branch `legacy-setup1-setup2`.
 
 | Command (from `source/` unless noted) | What it checks |
 |---|---|
-| `npm run check` | Lint (§5.13) and that every generated text file (10 SVG figures, the simulator page, the model JSON, the PLC program `plc/cell.st`, the 5 `.smv` files) is exactly what the sources give; stale figure files; missing PNGs |
+| `npm run check` | Lint (§5.13) and that every generated text file (10 SVG figures, the simulator page, the model JSON, the PLC program `plc/cell.st`, the 5 `.smv` files, the 2 UPPAAL `.xml` files) is exactly what the sources give; stale figure files; missing PNGs |
 | `node export_model.js --check` | The JSON read by Python matches `cell-model.js` (not that the Python interpreter is correct) |
 | `node test_sim.js basic` | Simulator loads, runs, no console errors |
 | `node test_sim.js fault` | Dead PE-41 (CP-2) → Robot 1 FAULT on the missing confirmation, cleared by the operator → third mismatch → line stop → clear the FAULT so that Robot 1 parks → verify → reset works |
@@ -1110,10 +1144,11 @@ branch `legacy-setup1-setup2`.
 | `npm run regress` | Setup 2 fingerprint identical to `regression/setup2_reference.json` (KPIs, state times, NuSMV models, figures, browser and Python traces, no page errors) |
 | `python -m unittest test_engine` (in `engine/`) | §7 |
 | `npm run verify` | §9 (and with `NUSMV=…` the NuSMV cross-check) |
+| `npm run timed` | A4.2: the timed network simulated in both cases of the master check; nominal times give idle = KPI in every cycle, random times for 20 h give no deadlock or timelock (§5.17) |
 | `python -m cellsim.plc_compare compare ref.json plc_run.json` (in `engine/`) | A3.4: the PLC run has the same state changes as the reference, within the lag bound (§5.16) |
 
 **Continuous integration** (`.github/workflows/checks.yml`, Ubuntu, clean `npm ci`): `npm run
-check`, the Python tests, the nominal verification run, all browser tests and the regression, on
+check`, the Python tests, `npm run timed`, the nominal verification run, all browser tests and the regression, on
 every push and pull request; a second job (`plc`) builds matiec from its repository and compiles
 `source/plc/cell.st` (step A3.2). The workflow **`plc run`** (`.github/workflows/plc-run.yml`)
 installs OpenPLC, runs `cell.st` against the plant through the Modbus bridge in real time, runs the
@@ -1284,7 +1319,7 @@ green. Effort figures are indicative only.
 | A1 Base: Setup 2 only, CI, one build | Done | `a1-base` → `main` | 2026-10-23 |
 | A2 Design gaps: camera policy, gauge, times, KPIs, faults | Done: A2.1 (2026-10-28); A2.2 (2026-10-29); A2.3 times, A2.4 KPIs, A2.5 faults (2026-10-30). Merged into `main` 2026-10-30 | `a2-design-gaps` → `main` | 2026-10-30 |
 | A3 PLC demonstration | In progress: A3.1 execution semantics approved (2026-10-30); A3.2 generator done (2026-10-31); A3.3 OpenPLC and bridge done, A3.4 comparison passed in 3 scenarios × 1 h (2026-10-31); recorded demo prepared (`engine/PLC_DEMO.md`), not recorded yet. Merged into `main` 2026-10-31 | `a3-plc` → `main` | |
-| A4 Timed verification (UPPAAL) | In progress: A4.1 timed model proposed (§5.17), waiting for the author | `a4-uppaal` | |
+| A4 Timed verification (UPPAAL) | In progress: A4.1 timed model approved (2026-10-31); A4.2 generator and UPPAAL models done, checked by simulation (2026-10-31); A4.3 needs the author's UPPAAL licence key as a repository secret | `a4-uppaal` | |
 | A5 Studies with the Python engine | Not started | | |
 | A6 More realistic plant | Not started | | |
 | B Element framework (types, three levels of detail) | Not started | | |
@@ -1648,3 +1683,4 @@ Newest last. Every change to the plan or to a design rule is written here first 
 | 2026-10-31 | **A3.3 OpenPLC run**, chosen by the author: OpenPLC in CI (Linux), not on the author's PC (that install is left for the recorded demo). Done by Claude: located I/O and `io_map.json` from the generator, `CellSim(external=True)` as the plant, `plc_bridge.py` as Modbus slave, workflow `plc run`. Fix found in the first run: `JobNo := 0` when `Start` drops, and the bridge starts a job only with a number (the master writes coils before registers). Result: 600 s nominal, 4 CNC cycles, no fault, no violation | No local install needed and the run is repeatable. The handshake race is a property of the OpenPLC Modbus master, not of the model |
 | 2026-10-31 | **A3.4 comparison**, choices made by Claude: the three current parity scenarios stand for the plan's "four" (two setups × two scenarios before A1); disturbances and operator on events, not instants, run by the same `Driver` in the reference and the PLC run; a glitch in the PLC run is a wrong proximity input held until the PLC latches it; a ring of state changes in the PLC (`M.PLC.traceDepth`); bound per change 0.05 s + 0.15 s per job or check of the state left, on the lag above the largest earlier lag. Result: 3 scenarios × 1 h pass (largest increment 0.31 s, lag 20 s at 1 h). The A3.3 documentation is written in the same change (its first edit had added only the decision row) | Fixed instants would hit different checks once the PLC lags; a single-scan glitch would be removed by the debounce; a bound on absolute instants cannot hold because the lag accumulates (§5.16 point 11) |
 | 2026-10-31 | **A3 merged into `main`** at the author's request, after the full tests (check, all browser tests, regression, Python tests): A3.1–A3.4 done, the recorded demo left to the author (`engine/PLC_DEMO.md`). **A4 tool: UPPAAL** with the author's academic licence key (repository secret), chosen by the author over the open-source TChecker | UPPAAL is the tool of the plan and answers bound queries directly (`sup`, `A[]` on an observer clock) |
+| 2026-10-31 | **A4.1 approved by the author** without changes. **A4.2**, choices made by Claude: a repeated check waits one check time between tries (as the engines); the operator takes the output pallet away only with parts on it; output pallet capacity 12 (the real one), its initial fill chosen in the model; two generated files for the two cases of the master check; the network is checked by simulation (`npm run timed`) until `verifyta` is available | Without the first two the immediate operator and quick checks give loops that take no time (Zeno runs), which hide the bounds; the simulation with nominal times reproduces the KPI exactly (20.50 s), so the network has the timing of the model |
