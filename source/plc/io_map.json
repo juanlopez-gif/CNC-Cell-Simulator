@@ -608,6 +608,203 @@
    "addr": "%QW110",
    "k": "var",
    "name": "mismatches"
+  },
+  {
+   "st": "TR_N",
+   "addr": "%QW111",
+   "k": "traceN"
+  },
+  {
+   "st": "TR_00",
+   "addr": "%QW112",
+   "k": "trace",
+   "i": 0
+  },
+  {
+   "st": "TR_01",
+   "addr": "%QW113",
+   "k": "trace",
+   "i": 1
+  },
+  {
+   "st": "TR_02",
+   "addr": "%QW114",
+   "k": "trace",
+   "i": 2
+  },
+  {
+   "st": "TR_03",
+   "addr": "%QW115",
+   "k": "trace",
+   "i": 3
+  },
+  {
+   "st": "TR_04",
+   "addr": "%QW116",
+   "k": "trace",
+   "i": 4
+  },
+  {
+   "st": "TR_05",
+   "addr": "%QW117",
+   "k": "trace",
+   "i": 5
+  },
+  {
+   "st": "TR_06",
+   "addr": "%QW118",
+   "k": "trace",
+   "i": 6
+  },
+  {
+   "st": "TR_07",
+   "addr": "%QW119",
+   "k": "trace",
+   "i": 7
+  },
+  {
+   "st": "TR_08",
+   "addr": "%QW120",
+   "k": "trace",
+   "i": 8
+  },
+  {
+   "st": "TR_09",
+   "addr": "%QW121",
+   "k": "trace",
+   "i": 9
+  },
+  {
+   "st": "TR_10",
+   "addr": "%QW122",
+   "k": "trace",
+   "i": 10
+  },
+  {
+   "st": "TR_11",
+   "addr": "%QW123",
+   "k": "trace",
+   "i": 11
+  },
+  {
+   "st": "TR_12",
+   "addr": "%QW124",
+   "k": "trace",
+   "i": 12
+  },
+  {
+   "st": "TR_13",
+   "addr": "%QW125",
+   "k": "trace",
+   "i": 13
+  },
+  {
+   "st": "TR_14",
+   "addr": "%QW126",
+   "k": "trace",
+   "i": 14
+  },
+  {
+   "st": "TR_15",
+   "addr": "%QW127",
+   "k": "trace",
+   "i": 15
+  },
+  {
+   "st": "TR_16",
+   "addr": "%QW128",
+   "k": "trace",
+   "i": 16
+  },
+  {
+   "st": "TR_17",
+   "addr": "%QW129",
+   "k": "trace",
+   "i": 17
+  },
+  {
+   "st": "TR_18",
+   "addr": "%QW130",
+   "k": "trace",
+   "i": 18
+  },
+  {
+   "st": "TR_19",
+   "addr": "%QW131",
+   "k": "trace",
+   "i": 19
+  },
+  {
+   "st": "TR_20",
+   "addr": "%QW132",
+   "k": "trace",
+   "i": 20
+  },
+  {
+   "st": "TR_21",
+   "addr": "%QW133",
+   "k": "trace",
+   "i": 21
+  },
+  {
+   "st": "TR_22",
+   "addr": "%QW134",
+   "k": "trace",
+   "i": 22
+  },
+  {
+   "st": "TR_23",
+   "addr": "%QW135",
+   "k": "trace",
+   "i": 23
+  },
+  {
+   "st": "TR_24",
+   "addr": "%QW136",
+   "k": "trace",
+   "i": 24
+  },
+  {
+   "st": "TR_25",
+   "addr": "%QW137",
+   "k": "trace",
+   "i": 25
+  },
+  {
+   "st": "TR_26",
+   "addr": "%QW138",
+   "k": "trace",
+   "i": 26
+  },
+  {
+   "st": "TR_27",
+   "addr": "%QW139",
+   "k": "trace",
+   "i": 27
+  },
+  {
+   "st": "TR_28",
+   "addr": "%QW140",
+   "k": "trace",
+   "i": 28
+  },
+  {
+   "st": "TR_29",
+   "addr": "%QW141",
+   "k": "trace",
+   "i": 29
+  },
+  {
+   "st": "TR_30",
+   "addr": "%QW142",
+   "k": "trace",
+   "i": 30
+  },
+  {
+   "st": "TR_31",
+   "addr": "%QW143",
+   "k": "trace",
+   "i": 31
   }
  ],
  "jobs": [
@@ -684,5 +881,12 @@
    "98": "H",
    "99": "F"
   }
- }
+ },
+ "traceDepth": 32,
+ "traceSlots": [
+  "R1",
+  "CONV",
+  "R2",
+  "SUP"
+ ]
 }

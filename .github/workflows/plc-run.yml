@@ -1,14 +1,16 @@
-# Step A3.3 (PROJECT_STATUS.md §5.16, §15): the generated PLC program (source/plc/cell.st) runs in the
-# OpenPLC runtime and controls the plant of the Python engine through the Modbus bridge
-# (engine/cellsim/plc_bridge.py). A software PLC controlling a simulated cell, not industrial hardware.
+# Steps A3.3 and A3.4 (PROJECT_STATUS.md §5.16, §15): the generated PLC program (source/plc/cell.st) runs
+# in the OpenPLC runtime and controls the plant of the Python engine through the Modbus bridge
+# (engine/cellsim/plc_bridge.py); its state changes are then compared with the Python interpreter of
+# the model in the same scenario (engine/cellsim/plc_compare.py). A software PLC controlling a simulated
+# cell, not industrial hardware.
 name: plc run
 
 on:
   workflow_dispatch:
     inputs:
       seconds:
-        description: Seconds of operation (real time)
-        default: "900"
+        description: Seconds of operation per scenario (real time)
+        default: "3600"
   push:
     branches: [a3-plc]
     paths:
@@ -19,9 +21,15 @@ on:
 jobs:
   run:
     runs-on: ubuntu-22.04
-    timeout-minutes: 120
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      matrix:
+        # a push runs the nominal scenario only; by hand all three scenarios of plc_compare.py
+        scenario: ${{ fromJSON(github.event_name == 'push' && '["nominal"]' || '["nominal", "cp2fault", "camwrong"]') }}
     env:
-      SECONDS_RUN: ${{ inputs.seconds || '600' }}
+      SECONDS_RUN: ${{ inputs.seconds || '900' }}
+      SCENARIO: ${{ matrix.scenario }}
     steps:
       - uses: actions/checkout@v4
 
@@ -48,13 +56,17 @@ jobs:
       - name: Bridge dependencies
         run: python -m pip install pymodbus==3.6.9
 
+      - name: Reference run of the model (Python interpreter)
+        working-directory: engine
+        run: python -m cellsim.plc_compare ref --scenario "$SCENARIO" --seconds $((SECONDS_RUN + 300)) --out ref.json
+
       - name: Run the PLC against the plant
         working-directory: engine
         run: |
           W="$RUNNER_TEMP/OpenPLC_v3/webserver"
           python -m cellsim.plc_bridge --mbconfig "$W/mbconfig.cfg"
           touch "$W/persistent.file"
-          python -m cellsim.plc_bridge --seconds "$SECONDS_RUN" --out plc_run.json &
+          python -m cellsim.plc_bridge --seconds "$SECONDS_RUN" --scenario "$SCENARIO" --out plc_run.json &
           BRIDGE=$!
           sleep 3
           (cd "$W" && exec ./core/openplc > "$RUNNER_TEMP/openplc.log" 2>&1) &
@@ -73,19 +85,29 @@ jobs:
           import json
           r = json.load(open("plc_run.json"))
           m = r["measures"]
-          print(f"{r['seconds']} s, {r['cycles']} CNC cycles, {m['parts_out']} parts out, mean CNC idle {m['mean_cnc_idle_s']} s")
+          print(f"{r['scenario']}: {r['seconds']} s, {r['cycles']} CNC cycles, {m['parts_out']} parts out, mean CNC idle {m['mean_cnc_idle_s']} s")
           print("PLC faults:", r["plc_faults"])
           print("plant errors:", r["errors"][:10])
           print("property violations:", r["violations"])
-          ok = r["cycles"] >= 2 and not r["plc_faults"] and not r["errors"] and r["violations"] == 0
+          print("bridge problems:", r["bridge_problems"][:10])
+          print("operator and disturbances:", r["actions"])
+          # faults are part of the disturbed scenarios; the comparison checks that the model has them too
+          ok = (r["cycles"] >= 2 and not r["errors"] and r["violations"] == 0 and not r["bridge_problems"]
+                and (r["scenario"] != "nominal" or not r["plc_faults"]))
           raise SystemExit(0 if ok else 1)
           EOF
+
+      - name: Compare with the model
+        working-directory: engine
+        run: python -m cellsim.plc_compare compare ref.json plc_run.json --out compare.json
 
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: plc-run
+          name: plc-run-${{ matrix.scenario }}
           path: |
             engine/plc_run.json
+            engine/ref.json
+            engine/compare.json
             ${{ runner.temp }}/openplc.log
             ${{ runner.temp }}/openplc_install.log

@@ -7,7 +7,10 @@ program. Every cycle the bridge reads what the PLC wrote (coils, holding registe
 plant (CellSim(external=True)), advances the plant by the elapsed wall-clock time, and writes the
 inputs back (discrete inputs, input registers). The plant runs in real time because the PLC does.
 
-    python -m cellsim.plc_bridge --seconds 900 --port 5020 --out run.json
+    python -m cellsim.plc_bridge --seconds 900 --port 5020 --scenario nominal --out run.json
+
+State changes (A3.4) come from a ring in the PLC (TR_N, TR_00..), so that a state that lasts a single
+scan is not lost between two polls. Disturbances and operator: the Driver of plc_compare.py.
 
 Handshakes (§5.16 point 6): a job starts on the rising edge of <slot>_Start; Done is raised
 RULES.debounce plus one scan after the job ended, so that the debounced sensors it changed are
@@ -21,6 +24,7 @@ import os
 import threading
 import time
 
+from .plc_compare import SCENARIOS, Driver, result
 from .sim import CellSim
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -62,6 +66,8 @@ class Bridge:
         self.scan = io["scanMs"] / 1000.0
         self.plc_faults = []  # (t, slot, code)
         self._fault_last = {}
+        self.tr_n = 0         # state changes of the PLC ring already read (A3.4)
+        self.problems = []    # the ring and the state registers disagree, or the ring overflowed
 
     # ---- PLC outputs -> plant
     def apply_outputs(self, coils, regs):
@@ -73,15 +79,30 @@ class Bridge:
             val[e["st"]] = int(v)
         job_no = {e["slot"]: val[e["st"]] for e in io["holdingRegisters"] if e["k"] == "jobNo"}
         faults = {e["slot"]: val[e["st"]] for e in io["holdingRegisters"] if e["k"] == "fault"}
+        for slot, f in faults.items():
+            if f and self._fault_last.get(slot) != f:
+                self.plc_faults.append((round(sim.t, 3), slot, f))
+            self._fault_last[slot] = f
+        # every state change since the last cycle, in the order the PLC made them (the ring of A3.4)
+        depth = io["traceDepth"]
+        ring = {e["i"]: val[e["st"]] for e in io["holdingRegisters"] if e["k"] == "trace"}
+        n = next(val[e["st"]] for e in io["holdingRegisters"] if e["k"] == "traceN")
+        new = (n - self.tr_n) % 32000
+        if new > depth:
+            self.problems.append(f"t = {sim.t:.3f} s: {new} state changes in one cycle, the ring holds {depth}")
+        for i in range(self.tr_n, self.tr_n + min(new, depth)):
+            v = ring[(i % 32000) % depth]
+            slot = io["traceSlots"][v // 100 - 1]
+            sid = self.states[slot].get(str(v % 100), "")
+            f = faults.get(slot, 0)
+            sim.ext_state(slot, sid, f"PLC fault code {f}" if sid == "F" else None)
+        self.tr_n = n
         for e in io["holdingRegisters"]:
             if e["k"] == "state":
-                code = val[e["st"]]
-                sid = self.states[e["slot"]].get(str(code), "")
-                f = faults.get(e["slot"], 0)
-                if f and self._fault_last.get(e["slot"]) != f:
-                    self.plc_faults.append((round(sim.t, 3), e["slot"], f))
-                self._fault_last[e["slot"]] = f
-                sim.ext_state(e["slot"], sid, f"PLC fault code {f}" if f else None)
+                sid = self.states[e["slot"]].get(str(val[e["st"]]), "")
+                if sim.mch[e["slot"]]["state"] != sid and len(self.problems) < 20:
+                    self.problems.append(f"t = {sim.t:.3f} s: {e['slot']} is {sid} in its register, "
+                                         f"{sim.mch[e['slot']]['state']} after the ring")
             elif e["k"] == "var":
                 sim.ext["vars"][e["name"]] = val[e["st"]]
         for e in io["coils"]:
@@ -107,6 +128,7 @@ class Bridge:
                 if v and not c["done"]:
                     c["valid"], c["cam"], c["also"] = sim.ext_camera(e["cp"])
                     c["done"] = True
+                    sim.cps[e["cp"]]["glitch"] = False     # the PLC latched the proximity value with the trigger
                 elif not v and c["done"]:
                     c["done"] = False
 
@@ -145,6 +167,10 @@ class Bridge:
             elif k == "sensor":
                 n = e["name"]
                 v = sim._prox_live(self.prox_cp[n]) if n not in sim.M.SIGNALS and n in self.prox_cp else sim.read(n)
+                # a glitch (inject_glitch) is a wrong proximity value from the moment it is injected until
+                # the PLC latches it with the camera trigger: longer than the debounce, unlike in the simulators
+                if n in self.prox_cp and sim.cps[self.prox_cp[n]]["glitch"]:
+                    v = not v
             else:
                 raise KeyError(f"unknown input kind {k}")
             di.append(bool(v))
@@ -152,13 +178,15 @@ class Bridge:
         return di, ir
 
 
-def serve(port, io, seconds, seed, log_every=60.0):
-    """Run the plant against the PLC for `seconds` of wall-clock time; return the result."""
+def serve(port, io, seconds, seed, scenario="nominal", log_every=60.0):
+    """Run the plant against the PLC for `seconds` of wall-clock time, with the disturbances and the
+    operator of a scenario of plc_compare.py; return the result."""
     from pymodbus.datastore import ModbusSequentialDataBlock, ModbusServerContext, ModbusSlaveContext
     from pymodbus.server import StartAsyncTcpServer
 
-    sim = CellSim(seed=seed, external=True, auto_operator=True)
+    sim = CellSim(seed=seed, external=True, auto_operator=True, instant_verify=True)   # as the reference
     br = Bridge(sim, io)
+    drv = Driver(scenario)
     n = {k: max(1, len(io[k])) for k in ("discreteInputs", "coils", "inputRegisters", "holdingRegisters")}
     store = ModbusSlaveContext(di=ModbusSequentialDataBlock(0, [0] * n["discreteInputs"]),
                                co=ModbusSequentialDataBlock(0, [0] * n["coils"]),
@@ -192,6 +220,7 @@ def serve(port, io, seconds, seed, log_every=60.0):
         if now - t0 >= seconds:
             break
         exchange()
+        drv.step(sim)
         sim.advance(now - last)
         last = now
         if sim.t >= next_log:
@@ -201,10 +230,8 @@ def serve(port, io, seconds, seed, log_every=60.0):
                   f"states {[sim.mch[s]['state'] for s in sim.M.SLOTS]}, errors {len(sim.errors)}, "
                   f"violations {sim.stats['violations']}, PLC faults {len(br.plc_faults)}", flush=True)
         time.sleep(0.001)
-    return {"seconds": round(sim.t, 3), "seed": seed, "cycles": sim.stats["cycles"], "measures": sim.measures(),
-            "kpis": sim.kpis(), "errors": sim.errors, "violations": sim.stats["violations"],
-            "plc_faults": br.plc_faults, "trace": [[round(x["t"], 3), x["slot"], x["from"], x["to"]] for x in sim.trace],
-            "logs": [[round(t, 3), c, m] for t, c, m in sim.logs]}
+    return dict(result(sim, drv, scenario, seed), measures=sim.measures(), kpis=sim.kpis(), plc_faults=br.plc_faults,
+                bridge_problems=br.problems, logs=[[round(t, 3), c, m] for t, c, m in sim.logs])
 
 
 def main():
@@ -212,6 +239,7 @@ def main():
     ap.add_argument("--seconds", type=float, default=900)
     ap.add_argument("--port", type=int, default=5020)
     ap.add_argument("--seed", type=int, default=1)
+    ap.add_argument("--scenario", choices=SCENARIOS, default="nominal")
     ap.add_argument("--io", default=IO_MAP)
     ap.add_argument("--mbconfig", help="write the OpenPLC mbconfig.cfg to this path and exit")
     ap.add_argument("--out", default="plc_run.json")
@@ -222,13 +250,15 @@ def main():
         write_mbconfig(a.mbconfig, io, a.port)
         print("written", a.mbconfig)
         return
-    r = serve(a.port, io, a.seconds, a.seed)
+    r = serve(a.port, io, a.seconds, a.seed, a.scenario)
     with open(a.out, "w") as f:
         json.dump(r, f, indent=1)
     print(f"{r['seconds']} s: {r['cycles']} CNC cycles, {r['measures']['parts_out']} parts out, "
-          f"{len(r['errors'])} plant errors, {r['violations']} property violations, {len(r['plc_faults'])} PLC faults")
-    if r["errors"]:
-        print("plant errors:", *r["errors"][:10], sep="\n  ")
+          f"{len(r['errors'])} plant errors, {r['violations']} property violations, {len(r['plc_faults'])} PLC faults, "
+          f"{len(r['conformance'])} changes not in the model, {len(r['bridge_problems'])} bridge problems")
+    for k in ("errors", "conformance", "bridge_problems"):
+        if r[k]:
+            print(k + ":", *r[k][:10], sep="\n  ")
 
 
 if __name__ == "__main__":

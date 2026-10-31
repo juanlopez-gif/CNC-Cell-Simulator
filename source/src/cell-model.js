@@ -392,6 +392,9 @@
     // a sensor of the model that the PLC computes itself: true `every` seconds after the job `after`
     // ended with `when` holding (GAUGE.due: 4 h after the last passed master check)
     timers: { 'GAUGE.due': { every: 'masterEvery', after: 'GAUGE.master', when: 'GAUGE.zeroed' } },
+    // diagnostics for the comparison with the model (A3.4): every state change goes into a ring of
+    // this many entries (machine number × 100 + state code) that the bridge reads with a counter
+    traceDepth: 32,
   };
 
   // Properties of the design. The verifier checks them on every reachable state of the abstract
@@ -945,6 +948,7 @@
     PLC.stopOnCommLoss.forEach((n) => { if (!OUTPUTS[n]) errs.push(`PLC.stopOnCommLoss: ${n} is not an output`); });
     if (!sigKind(PLC.mismatchCount, 'var') || !SIGNALS[PLC.mismatchCount].num) errs.push(`PLC.mismatchCount: ${PLC.mismatchCount} is not a counter`);
     if (!sigKind(PLC.cameraFault, 'var')) errs.push(`PLC.cameraFault: ${PLC.cameraFault} is not a PLC variable`);
+    if (!(PLC.traceDepth >= 8 && 32000 % PLC.traceDepth === 0)) errs.push('PLC.traceDepth: at least 8 and a divisor of 32000 (the counter wraps at 32000)');
     Object.entries(PLC.checkAlso).forEach(([cp, n]) => { if (!CHECKPOINTS.some((c) => c.id === cp) || !sigKind(n, 'check')) errs.push(`PLC.checkAlso: ${cp} → ${n}`); });
     Object.entries(PLC.timers).forEach(([n, x]) => {
       if (!sigKind(n, 'sensor')) errs.push(`PLC.timers: ${n} is not a sensor`);

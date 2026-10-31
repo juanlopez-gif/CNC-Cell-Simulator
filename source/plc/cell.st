@@ -159,6 +159,39 @@ FUNCTION_BLOCK FB_R1S2
     V_QH : BOOL;
     V_mismatches : INT;
     V_CAM_FAULT : BOOL;
+    TR_N : INT;
+    TR_00 : INT;
+    TR_01 : INT;
+    TR_02 : INT;
+    TR_03 : INT;
+    TR_04 : INT;
+    TR_05 : INT;
+    TR_06 : INT;
+    TR_07 : INT;
+    TR_08 : INT;
+    TR_09 : INT;
+    TR_10 : INT;
+    TR_11 : INT;
+    TR_12 : INT;
+    TR_13 : INT;
+    TR_14 : INT;
+    TR_15 : INT;
+    TR_16 : INT;
+    TR_17 : INT;
+    TR_18 : INT;
+    TR_19 : INT;
+    TR_20 : INT;
+    TR_21 : INT;
+    TR_22 : INT;
+    TR_23 : INT;
+    TR_24 : INT;
+    TR_25 : INT;
+    TR_26 : INT;
+    TR_27 : INT;
+    TR_28 : INT;
+    TR_29 : INT;
+    TR_30 : INT;
+    TR_31 : INT;
   END_VAR
   VAR
     stp : INT := 0;        (* step of the state; = number of steps once they are done *)
@@ -665,6 +698,39 @@ FUNCTION_BLOCK FB_CONV
     V_QH : BOOL;
     V_mismatches : INT;
     V_CAM_FAULT : BOOL;
+    TR_N : INT;
+    TR_00 : INT;
+    TR_01 : INT;
+    TR_02 : INT;
+    TR_03 : INT;
+    TR_04 : INT;
+    TR_05 : INT;
+    TR_06 : INT;
+    TR_07 : INT;
+    TR_08 : INT;
+    TR_09 : INT;
+    TR_10 : INT;
+    TR_11 : INT;
+    TR_12 : INT;
+    TR_13 : INT;
+    TR_14 : INT;
+    TR_15 : INT;
+    TR_16 : INT;
+    TR_17 : INT;
+    TR_18 : INT;
+    TR_19 : INT;
+    TR_20 : INT;
+    TR_21 : INT;
+    TR_22 : INT;
+    TR_23 : INT;
+    TR_24 : INT;
+    TR_25 : INT;
+    TR_26 : INT;
+    TR_27 : INT;
+    TR_28 : INT;
+    TR_29 : INT;
+    TR_30 : INT;
+    TR_31 : INT;
   END_VAR
   VAR
     stp : INT := 0;        (* step of the state; = number of steps once they are done *)
@@ -1003,6 +1069,39 @@ FUNCTION_BLOCK FB_R2S2
     V_QH : BOOL;
     V_mismatches : INT;
     V_CAM_FAULT : BOOL;
+    TR_N : INT;
+    TR_00 : INT;
+    TR_01 : INT;
+    TR_02 : INT;
+    TR_03 : INT;
+    TR_04 : INT;
+    TR_05 : INT;
+    TR_06 : INT;
+    TR_07 : INT;
+    TR_08 : INT;
+    TR_09 : INT;
+    TR_10 : INT;
+    TR_11 : INT;
+    TR_12 : INT;
+    TR_13 : INT;
+    TR_14 : INT;
+    TR_15 : INT;
+    TR_16 : INT;
+    TR_17 : INT;
+    TR_18 : INT;
+    TR_19 : INT;
+    TR_20 : INT;
+    TR_21 : INT;
+    TR_22 : INT;
+    TR_23 : INT;
+    TR_24 : INT;
+    TR_25 : INT;
+    TR_26 : INT;
+    TR_27 : INT;
+    TR_28 : INT;
+    TR_29 : INT;
+    TR_30 : INT;
+    TR_31 : INT;
   END_VAR
   VAR
     stp : INT := 0;        (* step of the state; = number of steps once they are done *)
@@ -1593,6 +1692,39 @@ FUNCTION_BLOCK FB_SUP
     V_QH : BOOL;
     V_mismatches : INT;
     V_CAM_FAULT : BOOL;
+    TR_N : INT;
+    TR_00 : INT;
+    TR_01 : INT;
+    TR_02 : INT;
+    TR_03 : INT;
+    TR_04 : INT;
+    TR_05 : INT;
+    TR_06 : INT;
+    TR_07 : INT;
+    TR_08 : INT;
+    TR_09 : INT;
+    TR_10 : INT;
+    TR_11 : INT;
+    TR_12 : INT;
+    TR_13 : INT;
+    TR_14 : INT;
+    TR_15 : INT;
+    TR_16 : INT;
+    TR_17 : INT;
+    TR_18 : INT;
+    TR_19 : INT;
+    TR_20 : INT;
+    TR_21 : INT;
+    TR_22 : INT;
+    TR_23 : INT;
+    TR_24 : INT;
+    TR_25 : INT;
+    TR_26 : INT;
+    TR_27 : INT;
+    TR_28 : INT;
+    TR_29 : INT;
+    TR_30 : INT;
+    TR_31 : INT;
   END_VAR
   VAR
     stp : INT := 0;        (* step of the state; = number of steps once they are done *)
@@ -1780,6 +1912,39 @@ PROGRAM CellMain
     V_QH : BOOL;
     V_mismatches : INT;
     V_CAM_FAULT : BOOL;
+    TR_N : INT;
+    TR_00 : INT;
+    TR_01 : INT;
+    TR_02 : INT;
+    TR_03 : INT;
+    TR_04 : INT;
+    TR_05 : INT;
+    TR_06 : INT;
+    TR_07 : INT;
+    TR_08 : INT;
+    TR_09 : INT;
+    TR_10 : INT;
+    TR_11 : INT;
+    TR_12 : INT;
+    TR_13 : INT;
+    TR_14 : INT;
+    TR_15 : INT;
+    TR_16 : INT;
+    TR_17 : INT;
+    TR_18 : INT;
+    TR_19 : INT;
+    TR_20 : INT;
+    TR_21 : INT;
+    TR_22 : INT;
+    TR_23 : INT;
+    TR_24 : INT;
+    TR_25 : INT;
+    TR_26 : INT;
+    TR_27 : INT;
+    TR_28 : INT;
+    TR_29 : INT;
+    TR_30 : INT;
+    TR_31 : INT;
   END_VAR
   VAR
     fbR1S2 : FB_R1S2;
@@ -1820,6 +1985,12 @@ PROGRAM CellMain
     mmOn3 : BOOL;
     mmT3 : TON;
     tm_GAUGE_due : TON;
+    trBuf : ARRAY[0..31] OF INT;
+    trI : INT;
+    trL_R1 : INT;
+    trL_CONV : INT;
+    trL_R2 : INT;
+    trL_SUP : INT;
   END_VAR
   (* 1. inputs: heartbeat, debounce, latches, mismatch window, PLC timers *)
   hbT(IN := HB = hbLast, PT := T#500ms); hbLast := HB; COMM_LOST := hbT.Q;
@@ -1866,14 +2037,14 @@ PROGRAM CellMain
   tm_GAUGE_due(IN := GAUGE_zeroed, PT := T#14400000ms); GAUGE_due := tm_GAUGE_due.Q;
   
   (* 2. machines in a fixed order; the urgent supervisor first and after every other machine *)
-  fbSUP();
-  fbR1S2();
-  fbSUP();
-  fbCONV();
-  fbSUP();
-  fbR2S2();
+  fbSUP(); IF SUP_state <> trL_SUP THEN trL_SUP := SUP_state; trBuf[trI MOD 32] := 400 + SUP_state; trI := trI + 1; IF trI >= 32000 THEN trI := 0; END_IF; END_IF;
+  fbR1S2(); IF R1_state <> trL_R1 THEN trL_R1 := R1_state; trBuf[trI MOD 32] := 100 + R1_state; trI := trI + 1; IF trI >= 32000 THEN trI := 0; END_IF; END_IF;
+  fbSUP(); IF SUP_state <> trL_SUP THEN trL_SUP := SUP_state; trBuf[trI MOD 32] := 400 + SUP_state; trI := trI + 1; IF trI >= 32000 THEN trI := 0; END_IF; END_IF;
+  fbCONV(); IF CONV_state <> trL_CONV THEN trL_CONV := CONV_state; trBuf[trI MOD 32] := 200 + CONV_state; trI := trI + 1; IF trI >= 32000 THEN trI := 0; END_IF; END_IF;
+  fbSUP(); IF SUP_state <> trL_SUP THEN trL_SUP := SUP_state; trBuf[trI MOD 32] := 400 + SUP_state; trI := trI + 1; IF trI >= 32000 THEN trI := 0; END_IF; END_IF;
+  fbR2S2(); IF R2_state <> trL_R2 THEN trL_R2 := R2_state; trBuf[trI MOD 32] := 300 + R2_state; trI := trI + 1; IF trI >= 32000 THEN trI := 0; END_IF; END_IF;
   IF (L_HMI_release AND QH) THEN QH := FALSE; consecNok := 0; L_HMI_release := FALSE; END_IF; (* rung: tool and offsets checked -> quality hold released *)
-  fbSUP();
+  fbSUP(); IF SUP_state <> trL_SUP THEN trL_SUP := SUP_state; trBuf[trI MOD 32] := 400 + SUP_state; trI := trI + 1; IF trI >= 32000 THEN trI := 0; END_IF; END_IF;
   
   (* 3. outputs *)
   BELT_motor := (CONV_state = 3) AND NOT COMM_LOST;
@@ -1888,6 +2059,39 @@ PROGRAM CellMain
   V_QH := QH;
   V_mismatches := mismatches;
   V_CAM_FAULT := CAM_FAULT;
+  TR_00 := trBuf[0];
+  TR_01 := trBuf[1];
+  TR_02 := trBuf[2];
+  TR_03 := trBuf[3];
+  TR_04 := trBuf[4];
+  TR_05 := trBuf[5];
+  TR_06 := trBuf[6];
+  TR_07 := trBuf[7];
+  TR_08 := trBuf[8];
+  TR_09 := trBuf[9];
+  TR_10 := trBuf[10];
+  TR_11 := trBuf[11];
+  TR_12 := trBuf[12];
+  TR_13 := trBuf[13];
+  TR_14 := trBuf[14];
+  TR_15 := trBuf[15];
+  TR_16 := trBuf[16];
+  TR_17 := trBuf[17];
+  TR_18 := trBuf[18];
+  TR_19 := trBuf[19];
+  TR_20 := trBuf[20];
+  TR_21 := trBuf[21];
+  TR_22 := trBuf[22];
+  TR_23 := trBuf[23];
+  TR_24 := trBuf[24];
+  TR_25 := trBuf[25];
+  TR_26 := trBuf[26];
+  TR_27 := trBuf[27];
+  TR_28 := trBuf[28];
+  TR_29 := trBuf[29];
+  TR_30 := trBuf[30];
+  TR_31 := trBuf[31];
+  TR_N := trI;
 END_PROGRAM
 
 CONFIGURATION Config0
@@ -1989,6 +2193,39 @@ CONFIGURATION Config0
     V_QH AT %QX102.1 : BOOL; (* copy of QH *)
     V_mismatches AT %QW110 : INT; (* copy of mismatches *)
     V_CAM_FAULT AT %QX102.2 : BOOL; (* copy of CAM_FAULT *)
+    TR_N AT %QW111 : INT; (* state changes so far, modulo 32000 *)
+    TR_00 AT %QW112 : INT; (* state change ring: machine number x 100 + state code *)
+    TR_01 AT %QW113 : INT;
+    TR_02 AT %QW114 : INT;
+    TR_03 AT %QW115 : INT;
+    TR_04 AT %QW116 : INT;
+    TR_05 AT %QW117 : INT;
+    TR_06 AT %QW118 : INT;
+    TR_07 AT %QW119 : INT;
+    TR_08 AT %QW120 : INT;
+    TR_09 AT %QW121 : INT;
+    TR_10 AT %QW122 : INT;
+    TR_11 AT %QW123 : INT;
+    TR_12 AT %QW124 : INT;
+    TR_13 AT %QW125 : INT;
+    TR_14 AT %QW126 : INT;
+    TR_15 AT %QW127 : INT;
+    TR_16 AT %QW128 : INT;
+    TR_17 AT %QW129 : INT;
+    TR_18 AT %QW130 : INT;
+    TR_19 AT %QW131 : INT;
+    TR_20 AT %QW132 : INT;
+    TR_21 AT %QW133 : INT;
+    TR_22 AT %QW134 : INT;
+    TR_23 AT %QW135 : INT;
+    TR_24 AT %QW136 : INT;
+    TR_25 AT %QW137 : INT;
+    TR_26 AT %QW138 : INT;
+    TR_27 AT %QW139 : INT;
+    TR_28 AT %QW140 : INT;
+    TR_29 AT %QW141 : INT;
+    TR_30 AT %QW142 : INT;
+    TR_31 AT %QW143 : INT;
   END_VAR
   VAR_GLOBAL (* internal *)
     ZS_32 : BOOL; (* ZS-32, debounced *)
