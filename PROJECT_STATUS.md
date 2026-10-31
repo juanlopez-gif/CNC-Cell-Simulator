@@ -818,6 +818,68 @@ expected from point 11. What this shows and does not show: §1.1.
 interface, polling 10 ms), the bridge with `--scenario demo --live` (one camera error at CP-4, a
 FAULT of Robot 2 at about 189 s cleared by the operator) and `plc_compare` at the end. Not recorded yet.
 
+### 5.17 Timed model for UPPAAL (A4.1, proposed, not approved yet)
+
+The untimed model of §9 (`build()` of `src/cell-verify.js`) is kept as it is and gets time; the
+generator `toUppaal(ir)` writes it as a network of timed automata (UPPAAL 5, `verifyta` in CI with
+the author's academic licence key as a repository secret). No second hand-written model.
+
+**1. Automata.** One automaton per machine (`R1`, `CONV`, `R2`, `SUP`), its locations the locations
+of the IR (one per blocking step, one exit location per state); one automaton per plant process
+(`CNC`, `BELT`, `OP`, `ENV`). Every IR command is an edge; a nondeterministic update (`oneOf`,
+`step`) becomes one edge per value. The PLC variables, the check results and the abstract plant
+are bounded global integers, as in the NuSMV model.
+
+**2. Time.** One clock per machine, reset whenever it enters a location, and one per timed plant
+process:
+
+| Element | Timed as |
+|---|---|
+| Job (`M.JOBS[j].time`, sum of its components) | location invariant `x <= max`, completion edge guard `x >= min`, from `M.TRANGE` (A2.3) |
+| Check (`T.check`) | `[0.4, 0.75]` s; a `quick` check takes no time, as in the simulators |
+| `for: zeroSpeed` (conveyor C4) | clock guard on the transition, `TRANGE.zeroSpeed` |
+| CNC cycle | `[114, 126]` s from `CNC.start` |
+| Belt transport, start, stop | `beltTravel`, `beltStart`, `beltStop` intervals on the moves of the abstract belt |
+| Every other controller edge (guards on signals, `await`, `set`) | taken as soon as enabled (urgent channel); the PLC scan of §5.16 (10 ms) is ignored, it is below the resolution of the intervals |
+| Supervisor (`urgent` in the model) | as in the untimed model: no other machine moves while a supervisor edge is enabled |
+
+Times are in units of 0.01 s (UPPAAL clocks compare with integers).
+
+**3. Conditions of the bounds** (the "with" part of each property, enforced in the timed model, not
+assumed silently):
+
+- Nominal operation: fault classes `none` (no wrong reading, no missed grip, no NOK part, no camera
+  fault), so no FAULT, no line stop and no quality hold can occur.
+- Material available: the operator changes a pallet at once when it is needed (urgent edges of `OP`).
+- Every time anywhere in its interval, independently in every cycle (the worst and best cases are
+  interleavings, not "all times at maximum").
+- Two cases for the gauge: without the 4-h master check, and with it (`GAUGE.due` may become true
+  when Robot 2 finishes a part, as in §9).
+
+**4. Properties** (observer automaton with a clock `w`, reset when the CNC finishes a cycle, read
+when it starts the next one; the first cycle after start-up is excluded, as in the KPI):
+
+- B1 CNC idle per cycle: `sup` and `inf` of `w` at `CNC.start` (UPPAAL `sup{…}: w` / `inf{…}: w`),
+  then `A[] (obs.start imply w <= X)` with X = the reported supremum, proved.
+- B2 period between two CNC starts: `sup` and `inf`, the same way (B1 + CNC cycle).
+- B3 time from a raw part picked (CP-1) to the finished part on the output pallet: `sup`.
+- Compared with the hand-computed range `KPI.idle2Range` = [17.0, 27.5] s (every time at its
+  minimum / maximum on the critical path): B1 shows whether any interleaving falls outside it.
+- Optional (A4.3, only if B1–B3 are done): response properties `A<>` / `-->` under stated fairness.
+
+**5. Comparison with the engine (A4.4).** The Python engine gets an option to draw every job time
+uniformly in its interval (seeded), and the measured idle of many cycles must lie in [inf, sup] of
+B1; the nominal 20.5 s and the PLC's 21.2 s (A3.4, scan and handshakes added) are reported next to
+it.
+
+**6. Steps.** A4.1 this text (approval); A4.2 `toUppaal`, generated `verification/cell_setup2_timed.xml`
+checked by `npm run check`, a sanity query (the untimed reachable machine states are reachable);
+A4.3 B1–B3 with `verifyta` in a CI workflow (`timed verification`), results in
+`verification/timed_results.md`; A4.4 the engine comparison.
+
+What the author decides: the conditions of point 3 (in particular the operator acting at once and
+the two gauge cases), the properties B1–B3, ignoring the 10-ms scan, and the time unit.
+
 ---
 
 ## 6. Browser simulator (`source/sim-src/app.js`)
@@ -1222,7 +1284,7 @@ green. Effort figures are indicative only.
 | A1 Base: Setup 2 only, CI, one build | Done | `a1-base` → `main` | 2026-10-23 |
 | A2 Design gaps: camera policy, gauge, times, KPIs, faults | Done: A2.1 (2026-10-28); A2.2 (2026-10-29); A2.3 times, A2.4 KPIs, A2.5 faults (2026-10-30). Merged into `main` 2026-10-30 | `a2-design-gaps` → `main` | 2026-10-30 |
 | A3 PLC demonstration | In progress: A3.1 execution semantics approved (2026-10-30); A3.2 generator done (2026-10-31); A3.3 OpenPLC and bridge done, A3.4 comparison passed in 3 scenarios × 1 h (2026-10-31); recorded demo prepared (`engine/PLC_DEMO.md`), not recorded yet. Merged into `main` 2026-10-31 | `a3-plc` → `main` | |
-| A4 Timed verification (UPPAAL) | Not started | | |
+| A4 Timed verification (UPPAAL) | In progress: A4.1 timed model proposed (§5.17), waiting for the author | `a4-uppaal` | |
 | A5 Studies with the Python engine | Not started | | |
 | A6 More realistic plant | Not started | | |
 | B Element framework (types, three levels of detail) | Not started | | |
