@@ -298,7 +298,10 @@
 
   // Queries of the model (A4.2: sanity; A4.3: the bounds of §5.17)
   function queries(net) {
-    const q = [{ f: 'A[] not deadlock', c: 'no deadlock and no timelock: the cell always continues' }];
+    // UPPAAL cannot check `A[] not deadlock` with channel priorities (the supervisor's): the cell
+    // always continuing is shown as the CNC always starting again, which fails on a deadlock, a
+    // timelock and an endless run without a CNC start alike
+    const q = [{ f: 'A_CNC.Idle --> A_CNC.Running', c: 'the CNC always starts again: no deadlock, no timelock, no endless run without a CNC start' }];
     const ir = net.ir;
     Object.keys(ir.mach).forEach((slot) => ir.states[slot].forEach((sid) => {
       const ls = ir.mach[slot].locs.filter((l) => ir.mach[slot].info[l].sid === sid);

@@ -2969,8 +2969,8 @@ int ti0 = 0; // temporary of a simultaneous update</declaration>
   <system>system A_R1, A_CONV, A_R2, A_SUP, A_CNC, A_BELT, A_OP, A_ENV;</system>
   <queries>
     <query>
-      <formula>A[] not deadlock</formula>
-      <comment>no deadlock and no timelock: the cell always continues</comment>
+      <formula>A_CNC.Idle --&gt; A_CNC.Running</formula>
+      <comment>the CNC always starts again: no deadlock, no timelock, no endless run without a CNC start</comment>
     </query>
     <query>
       <formula>E&lt;&gt; (A_R1.B0_0 || A_R1.B0_x)</formula>
