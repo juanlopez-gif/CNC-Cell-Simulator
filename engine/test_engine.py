@@ -2,6 +2,8 @@
 
 - the model export is up to date with source/src/cell-model.js (needs Node; skipped without it)
 - nominal operation: the CNC idle time of every cycle equals the KPI derived from the model
+- random step times in their intervals (A4.4): the CNC idle of every cycle lies in the bounds that
+  UPPAAL found (B1, verification/timed_results.md)
 - a faulty CP-2 sensor: the camera keeps the line running, the 3rd mismatch stops it, the sensor
   verification and the reset bring it back
 - two undersized parts in a row cause a quality hold; no cycle start during the hold
@@ -14,6 +16,7 @@
   is violated and every job takes its model time
 """
 import os
+import re
 import shutil
 import subprocess
 import unittest
@@ -43,6 +46,24 @@ class EngineTest(unittest.TestCase):
         self.assertGreater(len(sim.stats["idles"]), 30)
         for idle in sim.stats["idles"]:
             self.assertAlmostEqual(idle, kpi, delta=0.005)
+
+    def test_random_times_within_uppaal_bounds(self):
+        # A4.4: every step time drawn in its interval; the idle of every cycle (the first excluded,
+        # cycles with time lost to another cause than the exchange excluded, condition 3 of §5.17)
+        # lies in [inf, sup] of B1 found by UPPAAL (verification/timed_results.md)
+        with open(os.path.join(HERE, "..", "verification", "timed_results.md"), encoding="utf-8") as f:
+            text = f.read()
+        lo = float(re.search(r"B1 CNC idle per cycle, infimum \| satisfied; inf (\d+)", text).group(1)) / 100
+        hi = float(re.search(r"B1 CNC idle per cycle, supremum[^|]*\| satisfied; sup (\d+)", text).group(1)) / 100
+        sim = CellSim(seed=1, random_times=True)
+        sim.advance(6 * 3600)
+        self.assertClean(sim)
+        idles = [i for i, o in zip(sim.stats["idles"], sim.stats["idle_other"]) if o < 1e-6]
+        self.assertGreater(len(idles), 100)
+        for idle in idles:
+            self.assertGreaterEqual(idle, lo - 0.011)
+            self.assertLessEqual(idle, hi + 0.011)
+        self.assertGreater(max(idles) - min(idles), 2.0, "the times are not drawn")
 
     def test_faulty_sensor_stops_the_line(self):
         sim = CellSim(seed=1, instant_verify=True)

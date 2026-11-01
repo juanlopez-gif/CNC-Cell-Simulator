@@ -29,7 +29,7 @@ class Model:
 
     def __init__(self, data):
         self.data = data
-        for key in ("T", "RULES", "CHECKPOINTS", "SLOTS", "SIGNALS", "CONST", "RUNGS", "PROPERTIES",
+        for key in ("T", "TRANGE", "RULES", "CHECKPOINTS", "SLOTS", "SIGNALS", "CONST", "RUNGS", "PROPERTIES",
                     "OUTPUTS", "JOBS", "MACHINES", "SETUP_MACHINES", "KPI", "BASELINE"):
             setattr(self, key, data[key])
         self._parsed = {}
