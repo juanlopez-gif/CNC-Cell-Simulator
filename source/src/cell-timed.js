@@ -177,7 +177,9 @@
           { guard: and(e.guard, a.g), upd: Object.assign({}, e.upd, a.u), resets: e.resets.concat(a.r || []) }))));
       };
       split('A_R1', 'B1: R1.pickRawA done', [
-        { g: TT, u: { wip: add('wip', 1) } },
+        { g: is('trk', 1), u: { wip: add('wip', 1) } },
+        // not followed: b is reset, so that it stays bounded while no part is followed
+        { g: is('trk', 0), u: { wip: add('wip', 1) }, r: ['b'] },
         { g: is('trk', 0), u: { wip: add('wip', 1), ahd: { op: 'copy', v: 'wip' }, trk: { op: 'val', val: 1 } }, r: ['b'] },
       ]);
       split('A_R2', 'E5: R2.placePallet done', [

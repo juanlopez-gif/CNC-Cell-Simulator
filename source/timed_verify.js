@@ -5,7 +5,7 @@
 // case 2) every query of TM.queries() is checked on its own, with a limit of QUERY_MINUTES (default
 // 20) per query; the raw output of verifyta goes to <out>/<model>.txt,
 // the table of results to <out>/timed_results.md (default out dir: out/timed). It exits 1 when
-// verifyta fails or a query is not satisfied. The licence of verifyta must be active already
+// verifyta fails, a query does not finish or a query other than E<> is not satisfied. The licence of verifyta must be active already
 // (verifyta --lease <hours> --key <key>, done by the workflow `timed verification`).
 const fs = require('fs');
 const path = require('path');
@@ -45,13 +45,15 @@ for (const c of CASES) {
     const secs = ((Date.now() - t0) / 1000).toFixed(1);
     const raw = (r.stdout || '') + (r.stderr || '');
     log.push(`==== query ${k + 1}: ${q.f} (${secs} s, exit ${r.status}${r.signal ? ', killed at the limit' : ''})`, raw);
-    const lines = raw.split('\n').map((l) => l.replace(/^\s*-- /, '').trim()).filter(Boolean);
+    const lines = raw.split('\n').map((l) => l.replace(/\x1b\[[0-9;]*[A-Za-z]/g, '').replace(/^\s*-- /, '').trim()).filter(Boolean);
     const ok = lines.some((l) => /Formula is satisfied/i.test(l));
-    // a sup / inf query also prints its value, in time units: shown in s
-    const vals = lines.filter((l) => /^(sup|inf)/i.test(l)).map((l) => l.replace(/-?\d+(\.\d+)?$/, (n) => `${n} (${(Number(n) * UNIT).toFixed(2)} s)`));
-    const text = r.signal ? '**not finished in the limit**' : ok ? ['satisfied'].concat(vals).join('; ')
+    // a sup / inf query also prints its value ("sup: 2745:"), in time units: shown in s
+    const vals = lines.map((l) => /^(sup|inf): (-?\d+)/.exec(l)).filter(Boolean).map((m) => `${m[1]} ${m[2]} = ${(Number(m[2]) * UNIT).toFixed(2)} s`);
+    // an E<> query not satisfied is a result (the state is not reachable), not a failure
+    const reach = q.f.startsWith('E<>'), no = !r.signal && lines.some((l) => /Formula is NOT satisfied/i.test(l));
+    const text = r.signal ? '**not finished in the limit**' : ok ? ['satisfied'].concat(vals).join('; ') : reach && no ? 'not satisfied (not reachable)'
       : '**' + (lines.filter((l) => /not satisfied|error|may be/i.test(l)).join(' ').slice(0, 300) || 'no result') + '**';
-    if (!ok) failed = true;
+    if (!ok && !(reach && no)) failed = true;
     md.push(`| ${k + 1} | \`${q.f.replace(/\|/g, '\\|')}\` | ${q.c} | ${text.replace(/\|/g, '\\|')} | ${secs} s |`);
     console.log(`${c.file} query ${k + 1}/${qs.length} ${q.f}: ${text} (${secs} s)`);
   });

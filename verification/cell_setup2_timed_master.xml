@@ -227,8 +227,15 @@ int ti0 = 0; // temporary of a simultaneous update</declaration>
     <transition>
       <source ref="A_R1_B1_1"/>
       <target ref="A_R1_B1_x"/>
-      <label kind="guard">x_R1 &gt;= 360</label>
+      <label kind="guard">x_R1 &gt;= 360 &amp;&amp; trk == 1</label>
       <label kind="assignment">inParts = true, r1A = 1, R1 = 5, R1_res = 0, wip = (wip + 1 &gt; 8 ? 8 : wip + 1 &lt; 0 ? 0 : wip + 1), x_R1 = 0</label>
+      <label kind="comments">B1: R1.pickRawA done</label>
+    </transition>
+    <transition>
+      <source ref="A_R1_B1_1"/>
+      <target ref="A_R1_B1_x"/>
+      <label kind="guard">x_R1 &gt;= 360 &amp;&amp; trk == 0</label>
+      <label kind="assignment">inParts = true, r1A = 1, R1 = 5, R1_res = 0, wip = (wip + 1 &gt; 8 ? 8 : wip + 1 &lt; 0 ? 0 : wip + 1), x_R1 = 0, b = 0</label>
       <label kind="comments">B1: R1.pickRawA done</label>
     </transition>
     <transition>
@@ -241,8 +248,15 @@ int ti0 = 0; // temporary of a simultaneous update</declaration>
     <transition>
       <source ref="A_R1_B1_1"/>
       <target ref="A_R1_B1_x"/>
-      <label kind="guard">x_R1 &gt;= 360</label>
+      <label kind="guard">x_R1 &gt;= 360 &amp;&amp; trk == 1</label>
       <label kind="assignment">inParts = false, r1A = 1, R1 = 5, R1_res = 0, wip = (wip + 1 &gt; 8 ? 8 : wip + 1 &lt; 0 ? 0 : wip + 1), x_R1 = 0</label>
+      <label kind="comments">B1: R1.pickRawA done</label>
+    </transition>
+    <transition>
+      <source ref="A_R1_B1_1"/>
+      <target ref="A_R1_B1_x"/>
+      <label kind="guard">x_R1 &gt;= 360 &amp;&amp; trk == 0</label>
+      <label kind="assignment">inParts = false, r1A = 1, R1 = 5, R1_res = 0, wip = (wip + 1 &gt; 8 ? 8 : wip + 1 &lt; 0 ? 0 : wip + 1), x_R1 = 0, b = 0</label>
       <label kind="comments">B1: R1.pickRawA done</label>
     </transition>
     <transition>
