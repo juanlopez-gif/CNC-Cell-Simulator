@@ -128,7 +128,7 @@ def figures(sa, sb, out):
             ss = [s for s in sb if s["window_min"] == w and s["miss_q"] == q]
             if m == "not_detected":
                 ys = [100 * s[m] for s in ss]
-                hw = [100 * (s["not_detected_high"] - s["not_detected_low"]) / 2 for s in ss]
+                hw = [(100 * (s[m] - s["not_detected_low"]), 100 * (s["not_detected_high"] - s[m])) for s in ss]
             else:
                 ys = [s[m] for s in ss]
                 hw = [s[m + "_ci"] or 0 for s in ss]

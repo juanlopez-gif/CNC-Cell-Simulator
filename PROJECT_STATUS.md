@@ -92,6 +92,7 @@ formal verification are all generated from or interpret that file.
 | Removing Setup 1 (A1) did not change Setup 2 | `regression/`: identical KPIs, NuSMV models, browser and Python traces (deterministic and seeded random runs) | Covers the recorded scenarios and the three abstract models, not every possible run |
 | The cross-check rules of §5.3 keep the properties with one wrong source | Exhaustive search with proximity wrong, camera false positive / false negative / stale image at every checkpoint, PLC timeouts included (§9.3); timed study, `verification/camera_policy.md` | One source wrong at a time: both wrong the same way (common mode) is not modelled and no rule detects it. The original rule "the camera decides" was **not** safe: it failed P6 at CP-4, and FAULT recovery failed P5 and P11 (`camera_policy.md` §2–3) |
 | CNC idle per cycle is between 17.00 and 27.45 s in nominal operation, whatever the times within their intervals | UPPAAL `sup` / `inf` over all interleavings of the timed model (A4.3, `verification/timed_results.md`), with and without the master check; the Python engine with random step times stays inside (19.50–25.38 s in 3 × 24 h, A4.4) | Timed model of §5.17: times in the intervals of `M.TRANGE` (chosen, not measured), no faults, operator acts at once, the 10-ms PLC scan ignored |
+| How the cell reacts to its parameters, disturbances, the cross-check rule and the NOK rate (A5) | 1 620 runs of 8 h in the Python engine with random step times, 10–20 seeds per point, 95 % intervals, no model error or property violation (`engine/studies/STUDIES.md`, §5.18) | Rates, response times, NOK rates and faulty sensors are chosen, not measured: thresholds and trends of the design, not the availability of a real cell. Rule values other than 3 in 10 min are simulated only, not verified |
 | The design is validated for a real cell | — | **Not claimed.** No hardware, no measured times; sensors and prices come from catalogues |
 
 ---
@@ -130,6 +131,7 @@ Week2_Sensors_Design/
 ├── .github/workflows/checks.yml     CI: the checks of §11 on every push
 ├── .github/workflows/full-verification.yml   full verification with NuSMV, started by hand
 ├── .github/workflows/timed-verification.yml  A4.3: UPPAAL verifyta on the timed models (licence secret)
+├── .github/workflows/studies.yml   A5: the four studies of §5.18, one job each, outputs as artifacts
 ├── submission/                      round-1 course submission, historical (answer, report, video, README)
 ├── diagrams/                        10 figures as SVG (editable) and PNG (2x), generated
 ├── simulation/
@@ -161,6 +163,11 @@ Week2_Sensors_Design/
 │   ├── cellsim/cell_model.json      the model exported from JS (generated, do not edit)
 │   ├── run.py                       command line
 │   ├── test_engine.py               5 unit tests
+│   ├── test_studies.py              A5: engine options of the studies, every study in short form
+│   ├── studies/common.py            A5: model copies, operator and technician, runs in parallel, 95 % intervals, CSV, plots
+│   ├── studies/s1_sweeps.py … s4_nok.py   A5: the four studies of §5.18
+│   ├── studies/STUDIES.md           A5: results and reading of the four studies
+│   ├── studies/out/                 A5: CSVs (every run, summaries) and plots of the last full run
 │   ├── trace.py                     prints a scenario trace as JSON (used by test_sim.js engine)
 │   ├── regress.py                   fingerprints of fixed scenarios (used by regress.js)
 │   └── camera_sim.py                step A2.1: timed cost of each camera rule per checkpoint
@@ -1033,6 +1040,37 @@ workflow `studies`, `STUDIES.md`.
 committed, every plotted value has its 95 % interval, `test_studies` passes in CI and the regression
 is identical.
 
+**6. As built (A5.2–A5.3, 2026-11-01).** Differences from point 3, recorded in §17: the
+intermittent sensor is a method, `sim.set_sensor_miss(cp, q)`, called at t = 1 h by the study (a
+constructor option would fail from t = 0); line stops and FAULTs with their instants are read from the
+trace (`studies.common.episodes`), so `stats` only gets the quality holds (`stats["qh"]`, pairs of
+set and release instants); the disturbance harness is `studies.common.drive` with a hook per study.
+S3 (b) reports the FAULTs before detection, not "wrong placements": no property was violated in any
+run, so no part was ever placed wrongly. The robot speed factor f divides every time of kind `robot`
+and its interval by f; a NOK part is decided when the CNC finishes it (one of its three sizes in the
+guard band or below). The workflow `studies` also starts on a push of its own file, because GitHub
+starts a hand-run workflow only from the default branch.
+
+**7. Results** (run 41333134738 of the workflow `studies`, 1 620 runs, no model error, no property
+violation; tables, plots and reading in `engine/studies/STUDIES.md`):
+
+- S1: the CNC is the bottleneck over every range (Robot 1 waits at the door 71–85 % of the shift, even
+  with a 90-s cycle). The belt speed has no effect (off the critical path). The CNC idle per part is
+  the exchange time and depends only on the robots: 16.7–27.6 s with nominal times for robot speed
+  1.3–0.7. Nominal cell 25.5 parts/h (25.2 ± 0.05 with random times).
+- S2: the technician's response time decides the logic availability: above 99.5 % with a technician
+  at once even at 4 disturbances per hour; 87 % (2 per hour) and 73 % (4 per hour) with 30 min. A FAULT
+  costs about 1.2 min with the operator present.
+- S3: the model's rule (3 in 10 min) gives 0 false stops at 1 transient error per hour and 1.8 ± 0.9 at
+  4 per hour; it finds a dead sensor in 4.6 min and a sensor missing 30 % of checks in 25 ± 15 min, but
+  misses a sensor missing 10 % in 20 % of the shifts (Wilson 6–51 %). A wider window detects better and
+  stops falsely more often (3 in 20 min: every such sensor detected, 3.7 false stops at 4 per hour);
+  with a 5-min window and a limit of 4–5 even a dead sensor is often not found, because the FAULTs it
+  causes slow its mismatches. No point is better in every measure.
+- S4: the quality hold behaves as the rule for independent parts (holds equal the count of 2 NOK in a
+  row in every run checked). Below 2 % NOK it practically never fires; with a prompt release a hold
+  costs almost nothing beyond the scrap, with a 30-min release as much as the scrap at 10 % NOK.
+
 What the author decides: the factors and their ranges, n and the 8-h shift, the definition of logic
 availability, the scenarios (a) and (b) of S3, and that the rates are chosen values.
 
@@ -1095,6 +1133,11 @@ sim.state("R2"); sim.kpis(); sim.measures(); sim.trace; sim.logs; sim.stats; sim
   and compares the two traces (§5.16).
 - `CellSim(random_times=True)` (A4.4): every step time drawn in its interval (`M.TRANGE`), seeded; `run.py
   --random-times`.
+- `CellSim(nok_rate=p)` (A5): every part undersized with probability p when the CNC finishes it (own
+  seeded stream); `sim.set_sensor_miss(cp, q)`: the proximity sensor of `cp` misses the object at each
+  check with probability q until the technician's verification repairs it; `sim.stats["qh"]`: the
+  instants of every quality hold and its release. Off by default: every existing run is identical.
+  The studies of §5.18 are in `engine/studies/` (`studies.common.drive` plays operator and technician).
 - `scenarios.run_random(setup, hours, faults, seed, random_times=False)` (about one disturbance every 14 min) and
   `scenarios.conformance(sim)` (every state change must be a model transition).
 - Tests (`test_engine.py`): export current; nominal idle = KPI every cycle; faulty CP-2 (dead
@@ -1268,6 +1311,8 @@ branch `legacy-setup1-setup2`.
 | `npm test` | All the `test_sim.js` modes |
 | `npm run regress` | Setup 2 fingerprint identical to `regression/setup2_reference.json` (KPIs, state times, NuSMV models, figures, browser and Python traces, no page errors) |
 | `python -m unittest test_engine` (in `engine/`) | §7 |
+| `python -m unittest test_studies` (in `engine/`) | A5: NOK rate gives quality holds with their instants; an intermittent sensor stops the line and is repaired; `model_with` changes a copy; the interval formulas; every study in short form (n = 2, 0.5 h) gives complete summaries with no model error or violation, and S1 with nominal times gives the nominal idle |
+| `python -m studies.<name>` (in `engine/`) | A5: one study of §5.18 in full; in CI the workflow `studies` (by hand: `gh workflow run studies.yml`) runs all four and uploads `engine/studies/out/` |
 | `npm run verify` | §9 (and with `NUSMV=…` the NuSMV cross-check) |
 | `npm run timed` | A4.2: the timed network simulated in both cases of the master check; nominal times give idle = KPI in every cycle, random times for 20 h give no deadlock or timelock (§5.17) |
 | `node timed_verify.js <verifyta>` | A4.3: every query of both UPPAAL models, results in `out/timed/timed_results.md` (needs an active UPPAAL licence; in CI the workflow `timed verification`) |
@@ -1446,7 +1491,7 @@ green. Effort figures are indicative only.
 | A2 Design gaps: camera policy, gauge, times, KPIs, faults | Done: A2.1 (2026-10-28); A2.2 (2026-10-29); A2.3 times, A2.4 KPIs, A2.5 faults (2026-10-30). Merged into `main` 2026-10-30 | `a2-design-gaps` → `main` | 2026-10-30 |
 | A3 PLC demonstration | In progress: A3.1 execution semantics approved (2026-10-30); A3.2 generator done (2026-10-31); A3.3 OpenPLC and bridge done, A3.4 comparison passed in 3 scenarios × 1 h (2026-10-31); recorded demo prepared (`engine/PLC_DEMO.md`), not recorded yet. Merged into `main` 2026-10-31 | `a3-plc` → `main` | |
 | A4 Timed verification (UPPAAL) | Done: A4.1 timed model approved (2026-10-31); A4.2 generator and UPPAAL models done, checked by simulation (2026-10-31); A4.3 bounds with `verifyta` in CI (2026-11-01): idle 17.00–27.45 s, period 131.00–153.45 s, raw pick to output pallet up to 335.70 s; A4.4 Python engine with random step times inside the bounds (19.50–25.38 s in 3 × 24 h) (2026-11-01). Merged into `main` 2026-11-01 | `a4-uppaal` → `main` | |
-| A5 Studies with the Python engine | In progress: A5.1 study design approved (2026-11-01, §5.18); A5.2 engine options, harness, S1 and S4 | `a5-studies` | |
+| A5 Studies with the Python engine | Done, waiting for the author's review and merge: A5.1 study design approved (2026-11-01, §5.18); A5.2 engine options, harness, S1 and S4; A5.3 S2, S3, workflow `studies`, `engine/studies/STUDIES.md` (2026-11-01): 1 620 runs of 8 h, no model error or violation | `a5-studies` | |
 | A6 More realistic plant | Not started | | |
 | B Element framework (types, three levels of detail) | Not started | | |
 | C Factory and scheduling | Not started | | |
@@ -1814,3 +1859,4 @@ Newest last. Every change to the plan or to a design rule is written here first 
 | 2026-11-01 | **A4.4**, choices made by Claude: one draw per time component and job (a job that reads a component in parts uses one value), a new draw for every read outside a job; belt speed nominal; the door times follow `doorOpen` / `doorClose` in the engine (before: fixed 4 s); B1 read from `timed_results.md` by the test; cycles with time lost to another cause than the exchange left out of the comparison | One value per component keeps every job inside the interval the timed model gives it (two draws for the parts of one component could leave it); the fixed door time would never vary; the condition "operator at once" of the bounds does not hold for the engine's operator, so cycles with a pallet change are not comparable |
 | 2026-11-01 | **A4 merged into `main`** at the author's request, after the full tests (check, all browser tests, regression, Python tests) and the timed verification in CI: A4.1–A4.4 done | — |
 | 2026-11-01 | **A5.1 approved by the author** without changes (§5.18) | — |
+| 2026-11-01 | **A5.2–A5.3 done**, choices made by Claude within the approved design (§5.18 point 6): the intermittent sensor as `set_sensor_miss(cp, q)` from t = 1 h instead of a constructor option; line stops and FAULTs read from the trace, only the quality-hold instants added to `stats`; S3 (b) reports FAULTs before detection instead of wrong placements; S2 keeps the operator present (FAULT cleared after 60 s, hold released after 120 s) and a sensor fault stays until repaired; robot speed factor divides the robot times; NOK decided when the CNC finishes a part; the workflow `studies` also starts on a push of its own file; CSVs and plots committed in `engine/studies/out/`; the Wilson intervals drawn as they are (not symmetric). Results in §5.18 point 7. Nothing in the model or the plan changes; open for the author: the cross-check rule (3 in 10 min misses about 1 in 5 sensors that fail 10 % of checks), CNC cycles below 90 s (outside the approved range) | A constructor option would make the sensor faulty from the start; the trace already has every instant, so counters would duplicate it; no property was violated, so no wrong placement occurred to count; a dispatch-only workflow cannot be started from a branch |

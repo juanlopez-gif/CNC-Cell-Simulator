@@ -236,14 +236,17 @@ def write_csv(path, rows):
 
 def plot(path, panels, title):
     """panels: [(x label, y label, [(series label, xs, ys, half-widths)])], drawn side by side with
-    the 95 % intervals as error bars. Needs matplotlib (only the full runs plot)."""
+    the 95 % intervals as error bars; a half-width may be a pair (below, above) for an interval that
+    is not symmetric (Wilson). Needs matplotlib (only the full runs plot)."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     fig, axs = plt.subplots(1, len(panels), figsize=(4.2 * len(panels), 3.4), squeeze=False)
     for ax, (xl, yl, series) in zip(axs[0], panels):
         for label, xs, ys, hw in series:
-            ax.errorbar(xs, [math.nan if y is None else y for y in ys], yerr=[h or 0 for h in hw],
+            pairs = [h if isinstance(h, tuple) else (h or 0, h or 0) for h in hw]
+            ax.errorbar(xs, [math.nan if y is None else y for y in ys],
+                        yerr=[[a for a, _ in pairs], [b for _, b in pairs]],
                         marker="o", ms=3, capsize=3, lw=1.2, label=label)
         ax.set_xlabel(xl)
         ax.set_ylabel(yl)
