@@ -108,7 +108,7 @@
       edge(t, 'Started', 'Running', TT, {}, { resets: ['x_CNC', 'p'], label: 'CNC: machining' });
       ['CNC: cycle complete (part OK or undersized)', 'CNC: cycle complete (empty)'].forEach((lb) => {
         const c = plantCmd(lb);
-        edge(t, 'Running', 'Unlocking', c.guard, Object.assign({}, c.upd, { cyc: { op: 'add', v: 'cyc', n: 1, lo: 0, hi: 2 } }),
+        edge(t, 'Running', 'Unlocking', c.guard, Object.assign({}, c.upd, { cyc: { op: 'add', v: 'cyc', n: 1, lo: 0, hi: 2, sat: true } }),
           { clk: { c: 'x_CNC', lo: cyc[0] }, resets: ['x_CNC', 'w'], label: lb });
       });
       const lk = plantCmd('CNC: guard lock released after the cycle');
@@ -158,6 +158,36 @@
     }
     const unknown = ir.cmds.filter((c) => !c.at && !['CNC', 'BELT', 'OP', 'ENV'].includes(c.proc));
     if (unknown.length) throw new Error('plant commands without a timed process: ' + unknown.map((c) => c.label).join(', '));
+
+    // ---- observer of B3: one raw part, chosen when Robot 1 picks it (CP-1), followed to the output
+    // pallet with the clock b. wip counts the parts picked and not yet on the output pallet; parts
+    // leave in the order they were picked, so the chosen part is the one placed after ahd others.
+    {
+      const W = 8, dom = Array.from({ length: W + 1 }, (_, k) => k);
+      addVar('wip', dom, 0, 'observer B3: raw parts picked and not yet on the output pallet');
+      addVar('ahd', dom, 0, 'observer B3: parts ahead of the followed part');
+      addVar('trk', [0, 1, 2], 0, 'observer B3: 0 no part followed, 1 followed, 2 followed part just placed');
+      clocks.push('b');
+      const add = (v, n) => ({ op: 'add', v, n, lo: 0, hi: W });
+      const is = (v, n) => ({ op: 'cmp', v, rel: '=', n }), isNot = (v, n) => ({ op: 'cmp', v, rel: '!=', n });
+      const split = (name, label, alts) => {
+        const t = tpls.find((x) => x.name === name), es = t.edges.filter((e) => e.label === label);
+        if (!es.length) throw new Error(`${name}: no edge ${label}`);
+        t.edges = t.edges.flatMap((e) => (!es.includes(e) ? [e] : alts.map((a) => Object.assign({}, e,
+          { guard: and(e.guard, a.g), upd: Object.assign({}, e.upd, a.u), resets: e.resets.concat(a.r || []) }))));
+      };
+      split('A_R1', 'B1: R1.pickRawA done', [
+        { g: TT, u: { wip: add('wip', 1) } },
+        { g: is('trk', 0), u: { wip: add('wip', 1), ahd: { op: 'copy', v: 'wip' }, trk: { op: 'val', val: 1 } }, r: ['b'] },
+      ]);
+      split('A_R2', 'E5: R2.placePallet done', [
+        { g: isNot('trk', 1), u: { wip: add('wip', -1) } },
+        { g: and(is('trk', 1), isNot('ahd', 0)), u: { wip: add('wip', -1), ahd: add('ahd', -1) } },
+        { g: and(is('trk', 1), is('ahd', 0)), u: { wip: add('wip', -1), trk: { op: 'val', val: 2 } } },
+      ]);
+      // the time is read in the instant trk = 2, then the observer is free again
+      edge(tpls.find((x) => x.name === 'A_ENV'), 'Env', 'Env', is('trk', 2), { trk: { op: 'val', val: 0 } }, { sync: 'hurry', resets: ['b'], label: 'observer B3: free again' });
+    }
     return { opts, ir, vars, VI: ir.VI, clocks, tpls, N };
   }
 
@@ -193,7 +223,7 @@
         case 'val': return enc(v, u.val);
         case 'copy': if (String(vars[VI[u.v]].dom) !== String(vars[VI[v]].dom)) throw new Error(`copy ${u.v} -> ${v}: different domains`); return san(u.v);
         case 'bexp': return ex(u.e);
-        case 'add': { const s = `${san(u.v)} + ${u.n}`; return `(${s} > ${u.hi} ? ${u.hi} : ${s} < ${u.lo} ? ${u.lo} : ${s})`; }
+        case 'add': { const s = `${san(u.v)} ${u.n < 0 ? '-' : '+'} ${Math.abs(u.n)}`; return `(${s} > ${u.hi} ? ${u.hi} : ${s} < ${u.lo} ? ${u.lo} : ${s})`; }
       }
       throw new Error('bad update ' + u.op);
     }
@@ -278,6 +308,10 @@
     q.push({ f: 'inf{A_CNC.Started && cyc >= 1}: w', c: 'B1 CNC idle per cycle, infimum' });
     q.push({ f: 'sup{A_CNC.Started && cyc >= 1}: p', c: 'B2 period between two CNC starts, supremum' });
     q.push({ f: 'inf{A_CNC.Started && cyc >= 1}: p', c: 'B2 period between two CNC starts, infimum' });
+    q.push({ f: 'sup{trk == 2}: b', c: 'B3 raw part picked (CP-1) to finished part on the output pallet, supremum' });
+    q.push({ f: 'inf{trk == 2}: b', c: 'B3 raw part picked (CP-1) to finished part on the output pallet, infimum' });
+    q.push({ f: 'A[] (wip < 8 && ahd < 8)', c: 'observer B3: its counters never reach their bound' });
+    q.push({ f: 'A[] (A_R2.E5_3 imply wip > 0)', c: 'observer B3: a part placed on the output pallet was counted when picked' });
     return q;
   }
 
@@ -285,7 +319,8 @@
   // Every timed location gets a time drawn in its interval when it is entered (opts.nominal: the
   // nominal time), and its timed edge is taken then; urgent edges are taken at once, in a random
   // order. An optional edge (the master check falling due) is taken with probability opts.pDue when
-  // enabled. Returns the CNC idle and period of every cycle after the first, in s.
+  // enabled. Returns the CNC idle and period of every cycle after the first and the B3 times of the
+  // followed parts, in s.
   function simulate(net, opts) {
     opts = Object.assign({ seconds: 3600, seed: 1, nominal: false, pDue: 0.1 }, opts || {});
     let a = opts.seed >>> 0;
@@ -315,12 +350,18 @@
       due[tp.name] = !tm ? Infinity : reset[L.inv.c] + (opts.nominal ? tm[2] : tm[0] + rnd() * (tm[1] - tm[0]));
     };
     net.tpls.forEach((tp) => { at[tp.name] = tp.init; draw(tp); });
-    const out = { idles: [], periods: [], cycles: 0, error: null, steps: 0 };
+    const out = { idles: [], periods: [], b3: [], wipMax: 0, cycles: 0, error: null, steps: 0 };
     const eps = 1e-9;
     const fire = (tp, e) => {
       const nv = {};
-      Object.keys(e.upd).forEach((v) => { nv[v] = rv(e.upd[v]); });
+      Object.keys(e.upd).forEach((v) => {
+        const u = e.upd[v];
+        nv[v] = rv(u);
+        if (u.op === 'add' && !u.sat && nv[v] !== val[u.v] + u.n && !out.error) out.error = `${v} leaves its range on ${e.label} at ${(t * UNIT).toFixed(2)} s`;
+      });
       Object.assign(val, nv);
+      if (val.trk === 2) out.b3.push(clk('b') * UNIT);
+      if (val.wip > out.wipMax) out.wipMax = val.wip;
       e.resets.forEach((c) => { reset[c] = t; });
       const before = at[tp.name];
       at[tp.name] = e.to;
@@ -335,6 +376,7 @@
     let instant = 0, lastT = -1;
     while (t < end) {
       if (t !== lastT) { lastT = t; instant = 0; }
+      if (out.error) break;
       if (++instant > 10000) { out.error = `more than 10000 steps without time passing at ${(t * UNIT).toFixed(2)} s: ` + net.tpls.map((tp) => `${tp.name}.${at[tp.name]}`).join(' '); break; }
       const committed = net.tpls.filter((tp) => tp.locs[at[tp.name]].committed);
       const cand = [];

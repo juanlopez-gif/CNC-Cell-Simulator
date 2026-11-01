@@ -7,7 +7,7 @@
 // hurry: edges taken as soon as they are enabled; sup: the supervisor reacts before any other edge.
 urgent broadcast chan hurry, sup;
 chan priority default &lt; sup;
-clock x_R1, x_CONV, x_R2, x_SUP, x_CNC, w, p, x_BELT;
+clock x_R1, x_CONV, x_R2, x_SUP, x_CNC, w, p, x_BELT, b;
 int[0,30] R1 = 0; // location of the R1 machine (state_step) [0 I_x, 1 B0_0, 2 B0_x, 3 B1_0, 4 B1_1, 5 B1_x, 6 B2_0, 7 B2_x, 8 B3_0, 9 B3_x, 10 B4_0, 11 B4_1, 12 B4_2, 13 B4_x, 14 B5_0, 15 B5_1, 16 B5_x, 17 B6_0, 18 B6_1, 19 B6_x, 20 B7_0, 21 B7_1, 22 B7_2, 23 B7_3, 24 B7_4, 25 B7_x, 26 W1_0, 27 W1_x, 28 H_0, 29 H_x, 30 F_x]
 int[0,12] R1_res = 0; // where R1 continues after HOLD / FAULT [0 none, 1 B0@0, 2 B1@0, 3 B2@0, 4 B3@0, 5 B4@0, 6 B5@0, 7 B6@0, 8 Q_B6@0, 9 B7@0, 10 B7@2, 11 B7@4, 12 W1@0]
 int[0,12] CONV = 0; // location of the CONV machine (state_step) [0 I_0, 1 I_1, 2 I_x, 3 C1_x, 4 C2_1, 5 C2_2, 6 C2_x, 7 C3_x, 8 C4_x, 9 C5_1, 10 C5_x, 11 H_x, 12 F_x]
@@ -55,6 +55,9 @@ bool due = false; // master check due (4 h since the last one)
 bool pe65 = false; // PE-65 saw a part fall
 bool zsOk = true; // belt at zero speed for the zero-speed window (C4 -&gt; C5)
 int[0,2] cyc = 0; // observer: CNC cycles completed (2 = two or more)
+int[0,8] wip = 0; // observer B3: raw parts picked and not yet on the output pallet
+int[0,8] ahd = 0; // observer B3: parts ahead of the followed part
+int[0,2] trk = 0; // observer B3: 0 no part followed, 1 followed, 2 followed part just placed
 int ti0 = 0; // temporary of a simultaneous update</declaration>
   <template>
     <name>A_R1</name>
@@ -225,14 +228,28 @@ int ti0 = 0; // temporary of a simultaneous update</declaration>
       <source ref="A_R1_B1_1"/>
       <target ref="A_R1_B1_x"/>
       <label kind="guard">x_R1 &gt;= 360</label>
-      <label kind="assignment">inParts = true, r1A = 1, R1 = 5, R1_res = 0, x_R1 = 0</label>
+      <label kind="assignment">inParts = true, r1A = 1, R1 = 5, R1_res = 0, wip = (wip + 1 &gt; 8 ? 8 : wip + 1 &lt; 0 ? 0 : wip + 1), x_R1 = 0</label>
+      <label kind="comments">B1: R1.pickRawA done</label>
+    </transition>
+    <transition>
+      <source ref="A_R1_B1_1"/>
+      <target ref="A_R1_B1_x"/>
+      <label kind="guard">x_R1 &gt;= 360 &amp;&amp; trk == 0</label>
+      <label kind="assignment">ti0 = wip, inParts = true, r1A = 1, R1 = 5, R1_res = 0, wip = (wip + 1 &gt; 8 ? 8 : wip + 1 &lt; 0 ? 0 : wip + 1), trk = 1, ahd = ti0, ti0 = 0, x_R1 = 0, b = 0</label>
       <label kind="comments">B1: R1.pickRawA done</label>
     </transition>
     <transition>
       <source ref="A_R1_B1_1"/>
       <target ref="A_R1_B1_x"/>
       <label kind="guard">x_R1 &gt;= 360</label>
-      <label kind="assignment">inParts = false, r1A = 1, R1 = 5, R1_res = 0, x_R1 = 0</label>
+      <label kind="assignment">inParts = false, r1A = 1, R1 = 5, R1_res = 0, wip = (wip + 1 &gt; 8 ? 8 : wip + 1 &lt; 0 ? 0 : wip + 1), x_R1 = 0</label>
+      <label kind="comments">B1: R1.pickRawA done</label>
+    </transition>
+    <transition>
+      <source ref="A_R1_B1_1"/>
+      <target ref="A_R1_B1_x"/>
+      <label kind="guard">x_R1 &gt;= 360 &amp;&amp; trk == 0</label>
+      <label kind="assignment">ti0 = wip, inParts = false, r1A = 1, R1 = 5, R1_res = 0, wip = (wip + 1 &gt; 8 ? 8 : wip + 1 &lt; 0 ? 0 : wip + 1), trk = 1, ahd = ti0, ti0 = 0, x_R1 = 0, b = 0</label>
       <label kind="comments">B1: R1.pickRawA done</label>
     </transition>
     <transition>
@@ -1770,8 +1787,22 @@ int ti0 = 0; // temporary of a simultaneous update</declaration>
     <transition>
       <source ref="A_R2_E5_3"/>
       <target ref="A_R2_E5_x"/>
-      <label kind="guard">x_R2 &gt;= 225</label>
-      <label kind="assignment">r2S = 0, outCount = (outCount + 1 &gt; 12 ? 12 : outCount + 1 &lt; 0 ? 0 : outCount + 1), R2 = 22, R2_res = 0, x_R2 = 0</label>
+      <label kind="guard">x_R2 &gt;= 225 &amp;&amp; trk != 1</label>
+      <label kind="assignment">r2S = 0, outCount = (outCount + 1 &gt; 12 ? 12 : outCount + 1 &lt; 0 ? 0 : outCount + 1), R2 = 22, R2_res = 0, wip = (wip - 1 &gt; 8 ? 8 : wip - 1 &lt; 0 ? 0 : wip - 1), x_R2 = 0</label>
+      <label kind="comments">E5: R2.placePallet done</label>
+    </transition>
+    <transition>
+      <source ref="A_R2_E5_3"/>
+      <target ref="A_R2_E5_x"/>
+      <label kind="guard">x_R2 &gt;= 225 &amp;&amp; (trk == 1 &amp;&amp; ahd != 0)</label>
+      <label kind="assignment">r2S = 0, outCount = (outCount + 1 &gt; 12 ? 12 : outCount + 1 &lt; 0 ? 0 : outCount + 1), R2 = 22, R2_res = 0, wip = (wip - 1 &gt; 8 ? 8 : wip - 1 &lt; 0 ? 0 : wip - 1), ahd = (ahd - 1 &gt; 8 ? 8 : ahd - 1 &lt; 0 ? 0 : ahd - 1), x_R2 = 0</label>
+      <label kind="comments">E5: R2.placePallet done</label>
+    </transition>
+    <transition>
+      <source ref="A_R2_E5_3"/>
+      <target ref="A_R2_E5_x"/>
+      <label kind="guard">x_R2 &gt;= 225 &amp;&amp; (trk == 1 &amp;&amp; ahd == 0)</label>
+      <label kind="assignment">r2S = 0, outCount = (outCount + 1 &gt; 12 ? 12 : outCount + 1 &lt; 0 ? 0 : outCount + 1), R2 = 22, R2_res = 0, wip = (wip - 1 &gt; 8 ? 8 : wip - 1 &lt; 0 ? 0 : wip - 1), trk = 2, x_R2 = 0</label>
       <label kind="comments">E5: R2.placePallet done</label>
     </transition>
     <transition>
@@ -2926,6 +2957,14 @@ int ti0 = 0; // temporary of a simultaneous update</declaration>
       <label kind="assignment">outCount = 11</label>
       <label kind="comments">initial fill of the output pallet</label>
     </transition>
+    <transition>
+      <source ref="A_ENV_Env"/>
+      <target ref="A_ENV_Env"/>
+      <label kind="guard">trk == 2</label>
+      <label kind="synchronisation">hurry!</label>
+      <label kind="assignment">trk = 0, b = 0</label>
+      <label kind="comments">observer B3: free again</label>
+    </transition>
   </template>
   <system>system A_R1, A_CONV, A_R2, A_SUP, A_CNC, A_BELT, A_OP, A_ENV;</system>
   <queries>
@@ -3076,6 +3115,22 @@ int ti0 = 0; // temporary of a simultaneous update</declaration>
     <query>
       <formula>inf{A_CNC.Started &amp;&amp; cyc &gt;= 1}: p</formula>
       <comment>B2 period between two CNC starts, infimum</comment>
+    </query>
+    <query>
+      <formula>sup{trk == 2}: b</formula>
+      <comment>B3 raw part picked (CP-1) to finished part on the output pallet, supremum</comment>
+    </query>
+    <query>
+      <formula>inf{trk == 2}: b</formula>
+      <comment>B3 raw part picked (CP-1) to finished part on the output pallet, infimum</comment>
+    </query>
+    <query>
+      <formula>A[] (wip &lt; 8 &amp;&amp; ahd &lt; 8)</formula>
+      <comment>observer B3: its counters never reach their bound</comment>
+    </query>
+    <query>
+      <formula>A[] (A_R2.E5_3 imply wip &gt; 0)</formula>
+      <comment>observer B3: a part placed on the output pallet was counted when picked</comment>
     </query>
   </queries>
 </nta>

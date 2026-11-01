@@ -3,7 +3,8 @@
 // for both cases of the master check (§5.17), first with every time at its nominal value: the CNC
 // idle of every cycle must then equal the KPI of the model (M.KPI.idle2); then with random times in
 // their intervals for `hours` (default 20): no deadlock or timelock may occur. The idle and period
-// found are printed next to the hand-computed range M.KPI.idle2Range (the bounds come from UPPAAL, A4.3).
+// found are printed next to the hand-computed range M.KPI.idle2Range, with the B3 times of the parts
+// followed by the observer (the bounds come from UPPAAL, A4.3: timed_verify.js).
 const M = require('./src/cell-model.js');
 const TM = require('./src/cell-timed.js');
 
@@ -20,6 +21,7 @@ for (const master of [false, true]) {
   const rnd = TM.simulate(net, { seconds: hours * 3600, seed: 1 });
   const okRnd = !rnd.error && rnd.cycles > 0;
   console.log(`${name}, random times, ${hours} h: ${rnd.cycles} cycles, idle ${stats(rnd.idles)}, period ${stats(rnd.periods)} ${okRnd ? 'OK' : 'FAIL'}${rnd.error ? ': ' + rnd.error : ''}`);
+  console.log(`${name}, random times: raw part picked to output pallet (B3, ${rnd.b3.length} parts followed) ${stats(rnd.b3)}; at most ${rnd.wipMax} parts in the cell`);
   failed = failed || !okNom || !okRnd;
 }
 console.log(`hand-computed idle range (every time at its minimum / maximum): ${M.KPI.idle2Range.join(' to ')} s`);
