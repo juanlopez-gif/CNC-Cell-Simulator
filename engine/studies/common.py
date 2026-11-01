@@ -45,17 +45,19 @@ def model_with(T=None, RULES=None, scale=None):
     return Model(d)
 
 
-def drive(sim, hours, step=10.0, clear_after=60.0, release_after=120.0, tech_after=0.0, every=None):
+def drive(sim, hours, step=10.0, clear_after=60.0, release_after=120.0, tech_after=0.0, every=None, stop=None):
     """The operator and the technician answer the HMI as in run_random: a FAULT is cleared after
     clear_after s, a quality hold released after release_after s, the sensor verification started
     tech_after s after a line stop and the line reset when it is done. every(sim) is called after
-    each step (disturbances)."""
+    each step (disturbances); the run ends early when stop(sim) is true."""
     fault_since = qh_since = stop_since = None
     end = hours * 3600
     while sim.t < end - 1e-9:
         sim.advance(min(step, end - sim.t))
         if every:
             every(sim)
+        if stop and stop(sim):
+            return
         if any(sim.faults.values()):
             fault_since = sim.t if fault_since is None else fault_since
             if sim.t - fault_since >= clear_after:
@@ -107,23 +109,60 @@ def measures_row(sim):
     }
     for c, v in m["lost_s"].items():
         row["lost_" + c.replace(" ", "_").replace("-", "_") + "_s"] = v
+    # logic availability (§5.18): the share of the run not lost to the cell logic's own stops
+    row["logic_availability"] = 1 - (m["lost_s"]["fault"] + m["lost_s"]["line stop"] + m["lost_s"]["quality hold"]) / sim.t
     return row
+
+
+def episodes(sim):
+    """Line stops (the supervisor enters LINE STOP until it is back in NORMAL) and FAULTs (a machine
+    enters F until it leaves it), from the trace: {'stops': [(start, end)], 'faults': [(slot, start, end)]};
+    end is None when the run ended first."""
+    stops, faults, open_f = [], [], {}
+    for e in sim.trace:
+        if e["slot"] == "SUP":
+            if e["to"] == "X3":
+                stops.append([e["t"], None])
+            elif e["to"] == "X1" and stops and stops[-1][1] is None:
+                stops[-1][1] = e["t"]
+        if e["to"] == "F":
+            open_f[e["slot"]] = e["t"]
+        elif e["from"] == "F" and e["slot"] in open_f:
+            faults.append((e["slot"], open_f.pop(e["slot"]), e["t"]))
+    faults += [(s, t, None) for s, t in open_f.items()]
+    return {"stops": [tuple(s) for s in stops], "faults": faults}
+
+
+def percentile(xs, q):
+    xs = sorted(xs)
+    if not xs:
+        return None
+    i = q * (len(xs) - 1)
+    lo = int(i)
+    return xs[lo] + (xs[min(lo + 1, len(xs) - 1)] - xs[lo]) * (i - lo)
+
+
+def _fn(name):
+    mod, fn = name.rsplit(".", 1)
+    return getattr(__import__(mod, fromlist=[fn]), fn)
 
 
 def _run(task):
     """One run: task = {study, point (dict), seed, hours, model (kwargs of model_with), sim (kwargs of
-    CellSim), drive (kwargs of drive), random_times}. Extra measures come from task['extra'], the name
-    of a function of the study module (fn(sim) -> dict)."""
+    CellSim), drive (kwargs of drive), random_times}. task['hook'] names a function of the study
+    module, hook(sim, seed, **task['hook_args']) -> {every, stop} (disturbances, early end);
+    task['extra'] one that gives extra measures, fn(sim) -> dict. Functions are given by name so that
+    the tasks can go to the worker processes."""
     model = model_with(**task.get("model", {})) if task.get("model") else None
     sim = CellSim(seed=task["seed"], model=model, instant_verify=True,
                   random_times=task.get("random_times", True), **task.get("sim", {}))
-    drive(sim, task["hours"], **task.get("drive", {}))
-    row = {"study": task["study"], **task["point"], "seed": task["seed"], "hours": task["hours"],
+    hook = _fn(task["hook"])(sim, task["seed"], **task.get("hook_args", {})) if task.get("hook") else {}
+    drive(sim, task["hours"], **task.get("drive", {}), **hook)
+    row = {"study": task["study"], **task["point"], "seed": task["seed"], "hours": sim.t / 3600,
            "random_times": int(task.get("random_times", True))}
     row.update(measures_row(sim))
     if task.get("extra"):
-        mod, fn = task["extra"].rsplit(".", 1)
-        row.update(getattr(__import__(mod, fromlist=[fn]), fn)(sim))
+        row.update(_fn(task["extra"])(sim))
     return row
 
 
@@ -204,7 +243,8 @@ def plot(path, panels, title):
     fig, axs = plt.subplots(1, len(panels), figsize=(4.2 * len(panels), 3.4), squeeze=False)
     for ax, (xl, yl, series) in zip(axs[0], panels):
         for label, xs, ys, hw in series:
-            ax.errorbar(xs, ys, yerr=[h or 0 for h in hw], marker="o", ms=3, capsize=3, lw=1.2, label=label)
+            ax.errorbar(xs, [math.nan if y is None else y for y in ys], yerr=[h or 0 for h in hw],
+                        marker="o", ms=3, capsize=3, lw=1.2, label=label)
         ax.set_xlabel(xl)
         ax.set_ylabel(yl)
         ax.grid(alpha=0.3)

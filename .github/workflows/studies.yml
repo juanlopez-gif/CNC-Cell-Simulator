@@ -8,7 +8,7 @@ on:
     inputs:
       studies:
         description: Studies to run (JSON list of module names)
-        default: '["s1_sweeps", "s4_nok"]'
+        default: '["s1_sweeps", "s2_disturbances", "s3_crosscheck", "s4_nok"]'
   push:
     # a manual start needs the workflow on main; until then a change of this file starts it
     paths:
@@ -21,7 +21,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        study: ${{ fromJSON(inputs.studies || '["s1_sweeps", "s4_nok"]') }}
+        study: ${{ fromJSON(inputs.studies || '["s1_sweeps", "s2_disturbances", "s3_crosscheck", "s4_nok"]') }}
     steps:
       - uses: actions/checkout@v4
 

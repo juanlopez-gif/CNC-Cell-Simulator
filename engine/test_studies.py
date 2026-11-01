@@ -18,6 +18,8 @@ from cellsim.model import load
 from studies.common import drive, mean_ci, model_with, wilson
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+POINT_KEYS = ("factor", "value", "rate_per_h", "tech_min", "limit", "window_min", "transient_per_h", "miss_q",
+              "nok_rate", "release_min")
 
 
 def read(path):
@@ -66,15 +68,18 @@ class StudiesTest(unittest.TestCase):
 
     def test_studies_quick(self):
         with tempfile.TemporaryDirectory() as out:
-            for mod, n_points in (("studies.s1_sweeps", 20), ("studies.s4_nok", 18)):
+            for mod, summaries in (("studies.s1_sweeps", {"s1": 20}), ("studies.s2_disturbances", {"s2": 12}),
+                                   ("studies.s3_crosscheck", {"s3a": 32, "s3b": 48}), ("studies.s4_nok", {"s4": 18})):
                 with self.subTest(study=mod):
                     r = subprocess.run([sys.executable, "-m", mod, "--quick", "--out", out], cwd=HERE,
                                        capture_output=True, text=True)
                     self.assertEqual(r.returncode, 0, r.stdout[-2000:] + r.stderr[-2000:])
-                    name = mod.split(".")[1][:2]
-                    runs, summary = read(os.path.join(out, f"{name}_runs.csv")), read(os.path.join(out, f"{name}_summary.csv"))
-                    self.assertEqual(len({tuple(v for k, v in s.items() if k in ("factor", "value", "nok_rate", "release_min")) for s in summary}), n_points)
+                    runs = read(os.path.join(out, mod.split(".")[1][:2] + "_runs.csv"))
                     self.assertTrue(all(r["model_errors"] == "0" and r["violations"] == "0" for r in runs))
+                    for name, n_points in summaries.items():
+                        summary = read(os.path.join(out, f"{name}_summary.csv"))
+                        keys = [k for k in summary[0] if k in POINT_KEYS]
+                        self.assertEqual(len({tuple(s[k] for k in keys) for s in summary}), n_points)
             nominal = [s for s in read(os.path.join(out, "s1_summary.csv"))
                        if s["factor"] == "CNC cycle" and float(s["value"]) == 120 and s["random_times"] == "0"]
             self.assertAlmostEqual(float(nominal[0]["mean_cnc_idle_s"]), load().KPI["idle2"], places=3)
