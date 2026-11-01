@@ -1,0 +1,68 @@
+# Timed verification with UPPAAL (step A4.3, PROJECT_STATUS.md §5.17), started by hand (Actions tab,
+# or `gh workflow run timed-verification.yml`) and on a push that changes the models or this check. verifyta needs a licence: the author's academic
+# licence key is the repository secret UPPAL_KEY, activated for a short lease on the runner.
+# The results are uploaded as an artifact; download it and commit timed_results.md to verification/.
+name: timed verification
+
+on:
+  workflow_dispatch:
+    inputs:
+      minutes:
+        description: Time limit per query, in minutes
+        default: "5"
+  push:
+    paths:
+      - verification/cell_setup2_timed*.xml
+      - source/timed_verify.js
+      - .github/workflows/timed-verification.yml
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Models are current
+        working-directory: source
+        run: |
+          npm ci
+          npm run check
+
+      - name: Download UPPAAL 5.0.0
+        run: |
+          curl -sSL -o uppaal.zip https://download.uppaal.org/uppaal-5.0/uppaal-5.0.0/uppaal-5.0.0-linux64.zip
+          sha256sum uppaal.zip
+          unzip -q uppaal.zip -d uppaal
+          VERIFYTA="$(find "$PWD/uppaal" -type f -name verifyta | head -1)"
+          test -n "$VERIFYTA"
+          chmod +x "$VERIFYTA"
+          echo "VERIFYTA=$VERIFYTA" >> "$GITHUB_ENV"
+          "$VERIFYTA" --version || true
+          "$VERIFYTA" --help || true
+
+      - name: Activate the licence
+        env:
+          UPPAAL_KEY: ${{ secrets.UPPAL_KEY }}
+        run: |
+          test -n "$UPPAAL_KEY" || { echo "secret UPPAL_KEY is not set"; exit 1; }
+          "$VERIFYTA" --lease 1 --key "$UPPAAL_KEY" > lease.txt 2>&1 || { tail -5 lease.txt; exit 1; }
+          tail -5 lease.txt
+
+      - name: Verify both models
+        working-directory: source
+        env:
+          QUERY_MINUTES: ${{ inputs.minutes || 5 }}
+        run: node timed_verify.js "$VERIFYTA" out/timed
+
+      - name: Upload the results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: timed-verification
+          path: source/out/timed/
+          if-no-files-found: warn

@@ -36,6 +36,10 @@ jobs:
         working-directory: engine
         run: python -m unittest -v test_engine
 
+      - name: Timed model, simulated (A4.2)
+        working-directory: source
+        run: npm run timed
+
       - name: Exhaustive verification, nominal run
         working-directory: source
         run: ONLY=setup2_none node --max-old-space-size=6000 verify.js

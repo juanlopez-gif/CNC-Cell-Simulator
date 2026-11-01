@@ -72,6 +72,27 @@ class Proc:
         self.gen, self.wait, self.done, self.name = gen, None, False, name
 
 
+class _Times:
+    """Step times drawn uniformly in their intervals (M.TRANGE), for random_times=True (step A4.4).
+
+    Inside a job every time component has one value, drawn when the job reads it first (a job may
+    read a component in parts, e.g. r2Master as 0.3 + 0.4 + 0.3); outside a job (checks, CNC cycle,
+    zero-speed window) every read is a new draw. The belt speed stays nominal (belt physics)."""
+
+    def __init__(self, sim, seed):
+        self.sim, self.rnd = sim, random.Random(f"times-{seed}")
+        self.job = {}                        # process -> {component: drawn time} while it runs a job
+
+    def __getitem__(self, k):
+        lo, hi = self.sim.M.TRANGE[k]
+        cache = self.job.get(self.sim._cur)
+        if cache is None:
+            return lo + self.rnd.random() * (hi - lo)
+        if k not in cache:
+            cache[k] = lo + self.rnd.random() * (hi - lo)
+        return cache[k]
+
+
 class CellSim:
     """One simulated cell. Typical use:
 
@@ -87,11 +108,14 @@ class CellSim:
     """
 
     def __init__(self, setup=2, seed=None, model=None, auto_operator=True, instant_verify=False,
-                 verify_step_time=0.65, rules=None, external=False):
+                 verify_step_time=0.65, rules=None, external=False, random_times=False):
         if setup != 2:
             raise ValueError("only Setup 2 is simulated (Setup 1 is in the branch legacy-setup1-setup2)")
         self.M = model or load()
-        self.T, self.RU = self.M.T, self.M.RULES
+        self.RU = self.M.RULES
+        # random_times = True: every step time drawn in its interval (A4.4), seeded with seed
+        self._cur = None                     # the process the scheduler is running
+        self.T = _Times(self, seed) if random_times else self.M.T
         self.setup = setup
         self.rnd = random.Random(seed)
         self.auto_operator = auto_operator
@@ -131,8 +155,8 @@ class CellSim:
                     "run_start": 0.0, "done_at": None}
         self.door = {"pos": 0.0, "anim": None}
         self.belt = {"cmd": False, "v": 0.0}
-        self.v_max = BELT_LENGTH / self.T["beltTravel"]
-        self.acc = self.v_max / self.T["beltStart"]
+        self.v_max = BELT_LENGTH / self.M.T["beltTravel"]
+        self.acc = self.v_max / self.M.T["beltStart"]
         self.r1, self.r2 = Robot("R1", True), Robot("R2", False)
         self.gauge = {"zeroed": False, "due": False, "valid": False, "ok": False, "d_master": None, "master_at": None}
         self.last_slot = None
@@ -140,7 +164,7 @@ class CellSim:
         self.ok_parts = 0
         self.nok_parts = 0
         self.stats = {"run_time": 0.0, "first_start": None, "last_idle": None, "idle_sum": 0.0, "idle_n": 0,
-                      "idles": [], "cycles": 0, "mismatches": 0, "stops": 0, "jobs": 0, "violations": 0,
+                      "idles": [], "idle_other": [], "cycles": 0, "mismatches": 0, "stops": 0, "jobs": 0, "violations": 0,
                       "lost": {c: 0.0 for c in LOSS_CAUSES}}
         for i in range(3, 12):
             self._add_part("raw", {"k": "in", "slot": i})
@@ -291,7 +315,7 @@ class CellSim:
         util = st["run_time"] / (self.t - st["first_start"]) if st["first_start"] is not None and self.t > st["first_start"] else None
         mean_idle = st["idle_sum"] / st["idle_n"] if st["idle_n"] else None
         design_idle = self.M.KPI["idle2"]
-        cycle = self.T["cncCycle"] + (mean_idle if mean_idle is not None else design_idle)
+        cycle = self.M.T["cncCycle"] + (mean_idle if mean_idle is not None else design_idle)
         return {
             "sim_time_h": self.t / 3600, "parts_on_pallet": self.ok_parts, "nok_parts": self.nok_parts,
             "cnc_cycles": st["cycles"], "cnc_utilization": util, "mean_cnc_idle_s": mean_idle,
@@ -359,6 +383,7 @@ class CellSim:
                         break
                     p.wait = None
                     moved = True
+                    self._cur = p
                     try:
                         p.wait = p.gen.send(None)
                     except StopIteration:
@@ -763,14 +788,20 @@ class CellSim:
             r.zone = j.get("zone") or "free"
             r.job = name
         self._monitor_start(name)
+        drawn = None
+        if isinstance(self.T, _Times):
+            drawn = self.T.job[self._cur] = {}
         yield from self.JOB[name](r)
+        if drawn is not None:
+            del self.T.job[self._cur]
         if r:
             r.zone = "free"
             r.job = None
         self.mch[slot]["job"] = None
         self.stats["jobs"] += 1
-        want = self.M.job_time(name)
-        if abs(self.t - t0 - want) > 0.011:
+        # with random times the job must take the sum of the times drawn for its components
+        want = self.M.job_time(name) if drawn is None else sum(drawn.get(k, math.nan) for k in self.M.JOBS[name]["time"])
+        if not abs(self.t - t0 - want) <= 0.011:
             self.errors.append(f"job {name}: {self.t - t0:.3f} s in the simulation, {want} s in the model")
 
     # ================================================================== property monitors (same properties as the verifier)
@@ -974,12 +1005,13 @@ class CellSim:
         yield from self._wait(dur)
         r.pos, r.moving = to, False
 
-    def _slide_door(self, r, frm, to, approach):
-        yield from self._move(r, "handle", approach + 0.5)
-        self.door["anim"] = {"from": frm, "to": to, "t0": self.t, "t1": self.t + 3.0}
-        yield from self._move(r, "handle", 3.0)
+    def _slide_door(self, r, frm, to, approach, t_key):
+        k = self.T[t_key] / 4.0              # 0.5 s to the handle, 3 s of travel, 0.5 s to let go (nominal 4 s)
+        yield from self._move(r, "handle", approach + 0.5 * k)
+        self.door["anim"] = {"from": frm, "to": to, "t0": self.t, "t1": self.t + 3.0 * k}
+        yield from self._move(r, "handle", 3.0 * k)
         self.door["pos"], self.door["anim"] = to, None
-        yield from self._wait(0.5)
+        yield from self._wait(0.5 * k)
 
     # ================================================================== jobs: the plant side of every job of the model
     # Each one takes exactly the time of its components in the model (_run_job reports any difference).
@@ -1116,8 +1148,8 @@ class CellSim:
 
         return {
             "R1.home": home("doorToHome"), "R1.park": home("park"), "R2.home": home("r2Home"), "R2.park": home("park"),
-            "R1.openDoor": lambda r: self._slide_door(r, 0.0, 1.0, 0.0),
-            "R1.closeDoor": lambda r: self._slide_door(r, 1.0, 0.0, 0.0),
+            "R1.openDoor": lambda r: self._slide_door(r, 0.0, 1.0, 0.0, "doorOpen"),
+            "R1.closeDoor": lambda r: self._slide_door(r, 1.0, 0.0, 0.0, "doorClose"),
             "DOOR.lock": door_lock, "CNC.start": cnc_start,
             "R1.toConveyorB": to_conveyor,
             "R1.placeConvB": lambda r: self._place_on_belt(r, "B"),
@@ -1182,6 +1214,8 @@ class CellSim:
                 st["idle_sum"] += st["last_idle"]
                 st["idle_n"] += 1
                 st["idles"].append(st["last_idle"])
+                # time of this idle charged to a cause other than the exchange (a pallet change, a fault…)
+                st["idle_other"].append(sum(v for k, v in st["lost"].items() if k != "exchange") - c["lost_at_done"])
             if st["first_start"] is None:
                 st["first_start"] = self.t
             c["state"], c["run_start"] = "RUN", self.t
@@ -1197,6 +1231,7 @@ class CellSim:
                     self.inject["band"] -= 1
                     p.dims[int(self.rnd.random() * 3)] = 48.01 + self.rnd.random() * 0.03
             c["state"], c["done_at"] = "DONE", self.t
+            c["lost_at_done"] = sum(v for k, v in st["lost"].items() if k != "exchange")
             st["cycles"] += 1
             yield from self._wait(self.T["unlock"])
             c["locked"] = False

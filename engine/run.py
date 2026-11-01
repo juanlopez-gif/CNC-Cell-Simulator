@@ -3,6 +3,7 @@
     python run.py                          8 h, nominal
     python run.py --hours 24 --faults      random disturbances (seeded)
     python run.py --hours 2 --log 30       also show the last 30 log lines
+    python run.py --random-times           every step time drawn in its interval (A4.4)
 """
 import argparse
 import time
@@ -16,18 +17,20 @@ def main():
     ap.add_argument("--faults", action="store_true", help="inject random disturbances (about one every 14 min)")
     ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--log", type=int, default=0, metavar="N", help="print the last N log lines")
+    ap.add_argument("--random-times", action="store_true", help="draw every step time uniformly in its interval (seeded)")
     a = ap.parse_args()
     t0 = time.time()
-    sim, injected, actions = run_random(2, a.hours, faults=a.faults, seed=a.seed)
+    sim, injected, actions = run_random(2, a.hours, faults=a.faults, seed=a.seed, random_times=a.random_times)
     k = sim.kpis()
     m = sim.measures()
     errs, unvisited = conformance(sim)
-    print(f"Setup 2, {a.hours:g} h simulated {'with' if a.faults else 'without'} disturbances (seed {a.seed}) in {time.time() - t0:.1f} s")
+    print(f"Setup 2, {a.hours:g} h simulated {'with' if a.faults else 'without'} disturbances{', random step times' if a.random_times else ''} (seed {a.seed}) in {time.time() - t0:.1f} s")
     rows = [
         ("parts on the output pallet", k["parts_on_pallet"]), ("NOK parts", k["nok_parts"]),
         ("CNC cycles", k["cnc_cycles"]),
         ("CNC utilization", f'{100 * k["cnc_utilization"]:.1f} %' if k["cnc_utilization"] is not None else "-"),
         ("mean CNC idle per part", f'{k["mean_cnc_idle_s"]:.2f} s (design {k["design_cnc_idle_s"]} s)' if k["mean_cnc_idle_s"] is not None else "-"),
+        ("CNC idle per cycle, min to max", f'{min(sim.stats["idles"]):.2f} to {max(sim.stats["idles"]):.2f} s' if sim.stats["idles"] else "-"),
         ("parts per hour (from the mean idle)", f'{k["parts_per_hour"]:.1f}'),
         ("parts / good parts per hour (run)", f'{m["parts_per_hour"]:.1f} / {m["good_parts_per_hour"]:.1f}'),
         ("time not machining", f'{m["not_machining_s"] / 60:.1f} min'),

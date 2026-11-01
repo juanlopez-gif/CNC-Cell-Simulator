@@ -11,10 +11,11 @@ import random
 from .sim import CellSim
 
 
-def run_random(setup, hours, faults=True, seed=1, model=None, step=10.0):
-    """setup must be 2 (kept as a parameter for the callers)."""
+def run_random(setup, hours, faults=True, seed=1, model=None, step=10.0, random_times=False):
+    """setup must be 2 (kept as a parameter for the callers); random_times: step times drawn in
+    their intervals (A4.4)."""
     rnd = random.Random(seed)
-    sim = CellSim(setup=setup, seed=seed, model=model, instant_verify=True)
+    sim = CellSim(setup=setup, seed=seed, model=model, instant_verify=True, random_times=random_times)
     injected, actions = {}, {"clear": 0, "verify": 0, "reset": 0, "release": 0}
 
     def inj(k):

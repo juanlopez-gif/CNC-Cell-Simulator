@@ -6,6 +6,7 @@
     "build": "node build_all.js",
     "check": "node build_all.js --check",
     "test": "node test_sim.js all",
+    "timed": "node timed.js",
     "regress": "node regress.js --compare ../regression/setup2_reference.json",
     "verify": "node --max-old-space-size=10000 verify.js"
   },
