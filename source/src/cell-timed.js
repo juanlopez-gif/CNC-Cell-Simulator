@@ -309,6 +309,9 @@
       const ls = ir.mach[slot].locs.filter((l) => ir.mach[slot].info[l].sid === sid);
       q.push({ f: 'E<> (' + ls.map((l) => `A_${slot}.${l}`).join(' || ') + ')', c: `${slot} ${sid} reachable` });
     }));
+    // the master check of the gauge (R2 E1, GAUGE.master) after the first CNC cycle: reachable in
+    // case 2 only, so that the two cases differ where they should
+    q.push({ f: 'E<> (A_R2.E1_1 && cyc >= 1)', c: 'master check of the gauge after start-up reachable (case 2 only)' });
     q.push({ f: 'sup{A_CNC.Started && cyc >= 1}: w', c: 'B1 CNC idle per cycle, supremum (time units of 0.01 s)' });
     q.push({ f: 'inf{A_CNC.Started && cyc >= 1}: w', c: 'B1 CNC idle per cycle, infimum' });
     q.push({ f: 'sup{A_CNC.Started && cyc >= 1}: p', c: 'B2 period between two CNC starts, supremum' });

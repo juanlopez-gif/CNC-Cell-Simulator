@@ -3122,6 +3122,10 @@ int ti0 = 0; // temporary of a simultaneous update</declaration>
       <comment>SUP X4 reachable</comment>
     </query>
     <query>
+      <formula>E&lt;&gt; (A_R2.E1_1 &amp;&amp; cyc &gt;= 1)</formula>
+      <comment>master check of the gauge after start-up reachable (case 2 only)</comment>
+    </query>
+    <query>
       <formula>sup{A_CNC.Started &amp;&amp; cyc &gt;= 1}: w</formula>
       <comment>B1 CNC idle per cycle, supremum (time units of 0.01 s)</comment>
     </query>
