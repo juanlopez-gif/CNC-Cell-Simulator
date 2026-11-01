@@ -1,6 +1,6 @@
 # Timed verification with UPPAAL (step A4.3, PROJECT_STATUS.md §5.17), started by hand (Actions tab,
 # or `gh workflow run timed-verification.yml`) and on a push that changes the models or this check. verifyta needs a licence: the author's academic
-# licence key is the repository secret UPPAAL_KEY, activated for a short lease on the runner.
+# licence key is the repository secret UPPAL_KEY, activated for a short lease on the runner.
 # The results are uploaded as an artifact; download it and commit timed_results.md to verification/.
 name: timed verification
 
@@ -42,9 +42,9 @@ jobs:
 
       - name: Activate the licence
         env:
-          UPPAAL_KEY: ${{ secrets.UPPAAL_KEY }}
+          UPPAAL_KEY: ${{ secrets.UPPAL_KEY }}
         run: |
-          test -n "$UPPAAL_KEY" || { echo "secret UPPAAL_KEY is not set"; exit 1; }
+          test -n "$UPPAAL_KEY" || { echo "secret UPPAL_KEY is not set"; exit 1; }
           "$VERIFYTA" --lease 1 --key "$UPPAAL_KEY" > lease.txt 2>&1 || { tail -5 lease.txt; exit 1; }
           tail -5 lease.txt
 
