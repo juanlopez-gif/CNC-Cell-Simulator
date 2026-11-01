@@ -6,6 +6,10 @@ name: timed verification
 
 on:
   workflow_dispatch:
+    inputs:
+      minutes:
+        description: Time limit per query, in minutes
+        default: "5"
   push:
     paths:
       - verification/cell_setup2_timed*.xml
@@ -15,7 +19,7 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 240
+    timeout-minutes: 360
     steps:
       - uses: actions/checkout@v4
 
@@ -39,6 +43,7 @@ jobs:
           chmod +x "$VERIFYTA"
           echo "VERIFYTA=$VERIFYTA" >> "$GITHUB_ENV"
           "$VERIFYTA" --version || true
+          "$VERIFYTA" --help || true
 
       - name: Activate the licence
         env:
@@ -50,6 +55,8 @@ jobs:
 
       - name: Verify both models
         working-directory: source
+        env:
+          QUERY_MINUTES: ${{ inputs.minutes || 5 }}
         run: node timed_verify.js "$VERIFYTA" out/timed
 
       - name: Upload the results
