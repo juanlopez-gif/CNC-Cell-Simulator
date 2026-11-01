@@ -980,6 +980,62 @@ nominal 20.5 s because several intervals are not symmetric around the nominal va
 3.6–5.2 s, nominal 4 s). The PLC's 21.2 s lies inside the bounds too, but it is a different
 deviation (scan and handshakes with nominal times), not covered by the timed model.
 
+### 5.18 Studies with the Python engine (A5.1, proposed, not approved yet)
+
+Four studies of §15 A5, run by scripts in `engine/studies/` on the Python engine. The model stays the
+only source: a study changes a parameter in a **copy** of the model data in memory (`T`, `RULES`,
+`CONST`), never `cell-model.js`, and says which values it changed. The KPI measures are those of
+§5.15 (`CellSim.measures()`); nothing is redefined.
+
+**1. Common method.**
+
+| Item | Proposal |
+|---|---|
+| Run | one shift of **8 h** of simulated time, setup 2, the first CNC cycle excluded as in the KPI; `random_times=True` (A4.4) in every run, so that the replications differ also without disturbances |
+| Replications | **n independent seeds per point** (n = 10 or 20, see the studies); the same seeds at every point of a study (common random numbers: differences between points are not seed noise) |
+| Result per point | mean and **95 % confidence interval** (Student t over the n replications; one replication = one shift); for rare events (a missed sensor fault) the proportion with a Wilson interval |
+| Output | one CSV per study (one row per run: parameters, seed, every measure) and one CSV of the summaries in `engine/studies/out/`; plots (PNG, matplotlib) with the interval as error bars; `engine/studies/STUDIES.md` with tables, plots and the reading of each study |
+| Where | a hand-started workflow **`studies`** (one job per study, 4 processes each) uploads the outputs, which are committed, as for `timed_results.md`; locally `python -m studies.<name> --quick` |
+| Cost | the engine simulates 8 h in about 50 s on one core; the four studies need about 1 500 runs (the runs of S3 (b) end at the line stop); in CI the longest job (S3) takes about 3 h |
+| Test | `test_studies` in CI: every study with n = 2 and 0.5 h, checks that the CSVs are complete and that the nominal point of study 1 gives 20.5 s with nominal times |
+
+**2. Studies.**
+
+| Study | Factors (one at a time around the nominal cell) | Measures | n, points |
+|---|---|---|---|
+| S1 Parameter sweeps, no disturbances | belt speed 0.15–0.50 m/s (`beltTravel` = 2 m / v; nominal 0.25); robot speed factor 0.7–1.3 on every time of kind `robot` (with its interval); CNC cycle 90–180 s in steps of 15 (nominal 120) | parts per hour, mean CNC idle per part, machining share; which machine is the bottleneck (the CNC waiting for the robots, or the robots waiting for the CNC: time Robot 1 waits at the door) | n = 10; 20 points. Each point also once with nominal times (deterministic, no interval) |
+| S2 Monte Carlo of disturbances | disturbance rate 0.5, 1, 2, 4 per hour (mix of types as in `run_random`); technician arrival after a line stop 0, 10, 30 min | line stops and FAULTs per shift; time to restart (line stop → reset, FAULT → clear: mean and 95th percentile); time lost by cause; good parts per hour; **logic availability** = 1 − (fault + line stop + quality hold) / run time | n = 20; 12 points |
+| S3 Cross-check rule | mismatch limit 2, 3, 4, 5 × window 5, 10, 20, 30 min. (a) No faulty sensor, transient errors only (glitch, camera wrong, stale image) at 1 and 4 per hour. (b) One sensor intermittently faulty from t = 1 h, at a checkpoint drawn per run, missing each reading with probability q = 0.1, 0.3, 1.0; run stopped at the line stop | (a) **false stops** per shift; (b) proportion of faults **not detected** within the shift, time to detection, FAULTs and wrong placements before detection | (a) n = 10; 32 points; (b) n = 10; 48 points |
+| S4 NOK rate and quality holds | probability that a raw part is undersized p = 0.5, 1, 2, 5, 10, 20 %, independent per part; operator releases a quality hold after 2, 10, 30 min | quality holds per shift, time lost to quality hold, good parts per hour; compared with the expected number of holds of the hold rule ("2 NOK in a row") for independent parts (Markov chain, computed in the script) | n = 20; 18 points |
+
+**3. What the engine needs** (plant and harness only; the machines and the model do not change;
+with the new options off every run is identical, checked by `npm run regress` and the parity test):
+
+- `CellSim(model=...)` already accepts model data: a helper `studies.common.model_with(T=…, RULES=…)`
+  builds the copy (the mismatch limit is both `RULES.mismatchLimit` and `CONST.limit`; the window
+  `RULES.mismatchWindow`).
+- `CellSim(nok_rate=p)`: every new raw part undersized with probability p (own seeded stream).
+- `CellSim(sensor_miss={cp: q})`: an intermittent sensor that misses each reading with probability q
+  (today a sensor fault misses every reading, q = 1).
+- A disturbance harness with rates per hour and response times as parameters (`run_random` keeps its
+  fixed rates for the existing tests and the regression).
+- `stats` gets the instants of line stops, resets, FAULTs and clears (for the times to restart).
+
+**4. Limits stated in the report.** The disturbance rates, the response times and the NOK rates are
+**chosen, not measured**: the results show how the design reacts and where its thresholds are, not
+the availability of a real cell. Rule parameters other than 3 mismatches in 10 minutes are simulated
+only; the formal verification (§9) and the PLC (§5.16) cover the model values.
+
+**5. Steps.** A5.1 this text (approval); A5.2 engine options, harness, S1 and S4; A5.3 S2 and S3,
+workflow `studies`, `STUDIES.md`.
+
+**Done when:** the four studies have run with the n above, CSVs, plots and `STUDIES.md` are
+committed, every plotted value has its 95 % interval, `test_studies` passes in CI and the regression
+is identical.
+
+What the author decides: the factors and their ranges, n and the 8-h shift, the definition of logic
+availability, the scenarios (a) and (b) of S3, and that the rates are chosen values.
+
 ---
 
 ## 6. Browser simulator (`source/sim-src/app.js`)
@@ -1390,7 +1446,7 @@ green. Effort figures are indicative only.
 | A2 Design gaps: camera policy, gauge, times, KPIs, faults | Done: A2.1 (2026-10-28); A2.2 (2026-10-29); A2.3 times, A2.4 KPIs, A2.5 faults (2026-10-30). Merged into `main` 2026-10-30 | `a2-design-gaps` → `main` | 2026-10-30 |
 | A3 PLC demonstration | In progress: A3.1 execution semantics approved (2026-10-30); A3.2 generator done (2026-10-31); A3.3 OpenPLC and bridge done, A3.4 comparison passed in 3 scenarios × 1 h (2026-10-31); recorded demo prepared (`engine/PLC_DEMO.md`), not recorded yet. Merged into `main` 2026-10-31 | `a3-plc` → `main` | |
 | A4 Timed verification (UPPAAL) | Done: A4.1 timed model approved (2026-10-31); A4.2 generator and UPPAAL models done, checked by simulation (2026-10-31); A4.3 bounds with `verifyta` in CI (2026-11-01): idle 17.00–27.45 s, period 131.00–153.45 s, raw pick to output pallet up to 335.70 s; A4.4 Python engine with random step times inside the bounds (19.50–25.38 s in 3 × 24 h) (2026-11-01). Merged into `main` 2026-11-01 | `a4-uppaal` → `main` | |
-| A5 Studies with the Python engine | Not started | | |
+| A5 Studies with the Python engine | In progress: A5.1 study design proposed (§5.18), waiting for the author | `a5-studies` | |
 | A6 More realistic plant | Not started | | |
 | B Element framework (types, three levels of detail) | Not started | | |
 | C Factory and scheduling | Not started | | |
