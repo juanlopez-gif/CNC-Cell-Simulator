@@ -102,13 +102,14 @@ class CellSim:
 
     Disturbances: inject_glitch(cp), toggle_sensor_fault(cp), inject_camera_wrong(cp),
     inject_stale_image(cp), inject_bad_frame(), inject_camera_failure(), inject_grip_miss(),
-    inject_undersized(). rules={"CP-n": rule} overrides the fusion rule of the model at a
+    inject_undersized(), set_sensor_miss(cp, q); nok_rate = p: every part undersized with
+    probability p (A5). rules={"CP-n": rule} overrides the fusion rule of the model at a
     checkpoint. Operator and technician:
     press("verify" | "resume" | "clear" | "qh" | "swap" | "load"), auto_operator.
     """
 
     def __init__(self, setup=2, seed=None, model=None, auto_operator=True, instant_verify=False,
-                 verify_step_time=0.65, rules=None, external=False, random_times=False):
+                 verify_step_time=0.65, rules=None, external=False, random_times=False, nok_rate=0.0):
         if setup != 2:
             raise ValueError("only Setup 2 is simulated (Setup 1 is in the branch legacy-setup1-setup2)")
         self.M = model or load()
@@ -118,6 +119,11 @@ class CellSim:
         self.T = _Times(self, seed) if random_times else self.M.T
         self.setup = setup
         self.rnd = random.Random(seed)
+        # studies (A5): undersized parts and intermittent sensors from their own streams, so that
+        # the other draws stay as without them
+        self.nok_rate = nok_rate
+        self._nok_rnd = random.Random(f"nok-{seed}")
+        self._miss_rnd = random.Random(f"miss-{seed}")
         self.auto_operator = auto_operator
         self.instant_verify = instant_verify
         self.verify_step_time = verify_step_time
@@ -141,7 +147,8 @@ class CellSim:
         self.verify = None                   # sensor verification in progress
         self.stop_reason = ""
         self.events = []                     # mismatches in the 10-minute window: {t, cp, tag}
-        self.cps = {c["id"]: dict(c, fault=False, glitch=False, cam_wrong=False, stale=False, last=None, count=0)
+        self.cps = {c["id"]: dict(c, fault=False, glitch=False, cam_wrong=False, stale=False, last=None, count=0,
+                                  miss=0.0, miss_now=False)
                     for c in self.M.CHECKPOINTS}
         for cid, rule in (rules or {}).items():
             if rule not in ("camera", "prox", "present", "absent", "ask"):
@@ -164,7 +171,7 @@ class CellSim:
         self.ok_parts = 0
         self.nok_parts = 0
         self.stats = {"run_time": 0.0, "first_start": None, "last_idle": None, "idle_sum": 0.0, "idle_n": 0,
-                      "idles": [], "idle_other": [], "cycles": 0, "mismatches": 0, "stops": 0, "jobs": 0, "violations": 0,
+                      "idles": [], "idle_other": [], "qh": [], "cycles": 0, "mismatches": 0, "stops": 0, "jobs": 0, "violations": 0,
                       "lost": {c: 0.0 for c in LOSS_CAUSES}}
         for i in range(3, 12):
             self._add_part("raw", {"k": "in", "slot": i})
@@ -250,6 +257,12 @@ class CellSim:
         c["fault"] = not c["fault"]
         self.log("info", f"Test: {c['prox']} made faulty (dirty / misaligned: it misses the object)" if c["fault"]
                  else f"Test: {c['prox']} fault removed")
+
+    def set_sensor_miss(self, cp, q):
+        """An intermittent sensor (A5): it misses the object at each check with probability q, and
+        its live reading follows the last check until the next one (q = 1 as toggle_sensor_fault)."""
+        self.cps[cp]["miss"] = q
+        self.log("info", f"Test: {self.cps[cp]['prox']} misses the object with probability {q:g} per check")
 
     def inject_bad_frame(self):
         self.inject["frames"]["CAM-1"] = 1
@@ -758,6 +771,11 @@ class CellSim:
             return
         before = self.vars.get(v)
         self.vars[v] = val
+        if v == "QH" and bool(val) != bool(before):
+            if val:
+                self.stats["qh"].append([self.t, None])
+            elif self.stats["qh"]:
+                self.stats["qh"][-1][1] = self.t
         if val is True and before is not True and self.M.SIGNALS[v].get("logOn"):
             self.log("quality" if v == "QH" else "info", self.M.SIGNALS[v]["logOn"])
         if v == "CAM_FAULT" and not val:
@@ -845,7 +863,8 @@ class CellSim:
         raise KeyError(cp)
 
     def _prox_live(self, cp):
-        return False if self.cps[cp]["fault"] else self._truth(cp)
+        c = self.cps[cp]
+        return False if c["fault"] or c["miss_now"] else self._truth(cp)
 
     def _check(self, cid, quick, slot):
         """Both sources must agree; if not, the mismatch is counted and the rule of the checkpoint gives
@@ -868,7 +887,9 @@ class CellSim:
                 return "camfault"
             self.log("check", f"{cp['cam']} re-trigger OK at {cid}")
         t = self._truth(cid)
-        prox = False if cp["fault"] else t
+        if cp["miss"]:
+            cp["miss_now"] = self._miss_rnd.random() < cp["miss"]
+        prox = False if cp["fault"] or cp["miss_now"] else t
         if cp["glitch"]:
             prox = not prox
             cp["glitch"] = False
@@ -921,7 +942,7 @@ class CellSim:
 
     # ================================================================== sensor verification (technician)
     def _start_verify(self):
-        faulty = [c["prox"] for c in self.cps.values() if c["fault"]]
+        faulty = [c["prox"] for c in self.cps.values() if c["fault"] or c["miss"]]
         tags = list(dict.fromkeys([e["tag"] for e in self.events] + faulty))
         steps = []
         if tags:
@@ -955,6 +976,7 @@ class CellSim:
         self.verify["done"] = True
         for c in self.cps.values():                     # the technician repaired the sensors
             c["fault"] = False
+            c["miss"], c["miss_now"] = 0.0, False
             c["glitch"] = False
             c["cam_wrong"] = False
             c["stale"] = False
@@ -1230,6 +1252,8 @@ class CellSim:
                 elif self.inject["band"] > 0:
                     self.inject["band"] -= 1
                     p.dims[int(self.rnd.random() * 3)] = 48.01 + self.rnd.random() * 0.03
+                elif self.nok_rate and self._nok_rnd.random() < self.nok_rate:
+                    p.dims[int(self._nok_rnd.random() * 3)] = 47.35 + self._nok_rnd.random() * 0.5
             c["state"], c["done_at"] = "DONE", self.t
             c["lost_at_done"] = sum(v for k, v in st["lost"].items() if k != "exchange")
             st["cycles"] += 1
