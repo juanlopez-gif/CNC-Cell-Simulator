@@ -36,6 +36,10 @@ jobs:
         working-directory: engine
         run: python -m unittest -v test_engine
 
+      - name: Studies, short form (A5)
+        working-directory: engine
+        run: python -m unittest -v test_studies
+
       - name: Timed model, simulated (A4.2)
         working-directory: source
         run: npm run timed

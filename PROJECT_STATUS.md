@@ -980,7 +980,7 @@ nominal 20.5 s because several intervals are not symmetric around the nominal va
 3.6–5.2 s, nominal 4 s). The PLC's 21.2 s lies inside the bounds too, but it is a different
 deviation (scan and handshakes with nominal times), not covered by the timed model.
 
-### 5.18 Studies with the Python engine (A5.1, proposed, not approved yet)
+### 5.18 Studies with the Python engine (A5.1 approved 2026-11-01)
 
 Four studies of §15 A5, run by scripts in `engine/studies/` on the Python engine. The model stays the
 only source: a study changes a parameter in a **copy** of the model data in memory (`T`, `RULES`,
@@ -1446,7 +1446,7 @@ green. Effort figures are indicative only.
 | A2 Design gaps: camera policy, gauge, times, KPIs, faults | Done: A2.1 (2026-10-28); A2.2 (2026-10-29); A2.3 times, A2.4 KPIs, A2.5 faults (2026-10-30). Merged into `main` 2026-10-30 | `a2-design-gaps` → `main` | 2026-10-30 |
 | A3 PLC demonstration | In progress: A3.1 execution semantics approved (2026-10-30); A3.2 generator done (2026-10-31); A3.3 OpenPLC and bridge done, A3.4 comparison passed in 3 scenarios × 1 h (2026-10-31); recorded demo prepared (`engine/PLC_DEMO.md`), not recorded yet. Merged into `main` 2026-10-31 | `a3-plc` → `main` | |
 | A4 Timed verification (UPPAAL) | Done: A4.1 timed model approved (2026-10-31); A4.2 generator and UPPAAL models done, checked by simulation (2026-10-31); A4.3 bounds with `verifyta` in CI (2026-11-01): idle 17.00–27.45 s, period 131.00–153.45 s, raw pick to output pallet up to 335.70 s; A4.4 Python engine with random step times inside the bounds (19.50–25.38 s in 3 × 24 h) (2026-11-01). Merged into `main` 2026-11-01 | `a4-uppaal` → `main` | |
-| A5 Studies with the Python engine | In progress: A5.1 study design proposed (§5.18), waiting for the author | `a5-studies` | |
+| A5 Studies with the Python engine | In progress: A5.1 study design approved (2026-11-01, §5.18); A5.2 engine options, harness, S1 and S4 | `a5-studies` | |
 | A6 More realistic plant | Not started | | |
 | B Element framework (types, three levels of detail) | Not started | | |
 | C Factory and scheduling | Not started | | |
@@ -1813,3 +1813,4 @@ Newest last. Every change to the plan or to a design rule is written here first 
 | 2026-11-01 | **A4.3**, choices made by Claude: UPPAAL 5.0.0 for Linux from uppaal.org, licence activated in CI for one hour from the secret `UPPAL_KEY` (the name the author gave it); one `verifyta` run per query with a time limit; `A_CNC.Idle --> A_CNC.Running` in place of `A[] not deadlock`; B3 by an observer that follows one part chosen at the pick; an `E<>` query not satisfied is reported as "not reachable", not as a failure | `A[] not deadlock` is rejected by `verifyta` with channel priorities, and the supervisor needs them; the first run of all queries together ran out of the 4-h limit on B3 without any output, the run per query showed which one |
 | 2026-11-01 | **A4.4**, choices made by Claude: one draw per time component and job (a job that reads a component in parts uses one value), a new draw for every read outside a job; belt speed nominal; the door times follow `doorOpen` / `doorClose` in the engine (before: fixed 4 s); B1 read from `timed_results.md` by the test; cycles with time lost to another cause than the exchange left out of the comparison | One value per component keeps every job inside the interval the timed model gives it (two draws for the parts of one component could leave it); the fixed door time would never vary; the condition "operator at once" of the bounds does not hold for the engine's operator, so cycles with a pallet change are not comparable |
 | 2026-11-01 | **A4 merged into `main`** at the author's request, after the full tests (check, all browser tests, regression, Python tests) and the timed verification in CI: A4.1–A4.4 done | — |
+| 2026-11-01 | **A5.1 approved by the author** without changes (§5.18) | — |

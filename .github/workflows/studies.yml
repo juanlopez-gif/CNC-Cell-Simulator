@@ -1,0 +1,45 @@
+# Studies with the Python engine (step A5, PROJECT_STATUS.md §5.18), started by hand (Actions tab, or
+# `gh workflow run studies.yml`; also on a push that changes this file). One job per study, all cores of the runner; the CSVs and plots are
+# uploaded as artifacts: download them and commit them to engine/studies/out/.
+name: studies
+
+on:
+  workflow_dispatch:
+    inputs:
+      studies:
+        description: Studies to run (JSON list of module names)
+        default: '["s1_sweeps", "s4_nok"]'
+  push:
+    # a manual start needs the workflow on main; until then a change of this file starts it
+    paths:
+      - .github/workflows/studies.yml
+
+jobs:
+  study:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      matrix:
+        study: ${{ fromJSON(inputs.studies || '["s1_sweeps", "s4_nok"]') }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install matplotlib (plots)
+        run: pip install matplotlib==3.10.8
+
+      - name: Run ${{ matrix.study }}
+        working-directory: engine
+        run: |
+          nproc
+          python -m studies.${{ matrix.study }}
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ${{ matrix.study }}
+          path: engine/studies/out/
