@@ -1074,6 +1074,109 @@ violation; tables, plots and reading in `engine/studies/STUDIES.md`):
 What the author decides: the factors and their ranges, n and the 8-h shift, the definition of logic
 availability, the scenarios (a) and (b) of S3, and that the rates are chosen values.
 
+### 5.19 More realistic plant (A6.1 proposed 2026-11-02, waiting for the author's review)
+
+The four items of §15 A6 close the limitations 4, 5 and 6 of §13 and the tool-wear warning placed in
+A6 by A2.2. Each item is one step (A6.2–A6.5) and goes through the whole chain: model, both
+simulators (browser and Python, parity test), verifier (a fault class or input, properties), PLC
+program regenerated and compiled, figures, KPI cause, regression reference re-recorded with the
+intended differences listed. Proposed order: smallest first.
+
+**Common rules.**
+
+| Item | Proposal |
+|---|---|
+| Behaviour off | Every new disturbance is off in the nominal run: nominal KPIs, the nominal traces and the UPPAAL bounds stay as they are (the timed model gets the new states but no new delay in nominal operation) |
+| Rates and times | Chosen, not measured, written in `T` with an interval like the others (§5.1.1) and marked as estimates |
+| Verification | One new fault class per item in `cell-verify.js`, run with the existing runs; new properties added to `PROPERTIES`; every property must hold in every run |
+| NuSMV | Re-run once at the end of A6 (the models change anyway), with `slots: 'any'` and a longer timeout for P11/P12 of `sensor_camwrong`, as decided in A2.5 |
+| Safety claim | The PLC program stays a **standard (non-safety) PLC**. The safety functions stay in the hardwired safety relay and the robot controllers; the model describes what the cell PLC **sees and does** around them, not the safety function itself (no performance level is claimed) |
+
+**A6.2 `VERIFY.fail`: a sensor that cleaning does not repair.**
+
+- Today the technician always succeeds; X4 already loops on `VERIFY.fail` ("repair or replace the
+  sensor, re-test"), but no simulator ever takes it.
+- Plant: a sensor fault is either *dirty / misaligned* (fixed by cleaning, as today) or *broken*
+  (chosen share of the sensor faults, proposal 30 %). A broken sensor fails its checkpoint test;
+  the technician replaces it (new time `sensorReplace`, proposal 15 min, interval 10–30 min) and
+  tests again, which then passes. HMI shows the failed test and the replacement.
+- Model: no new state (the X4 loop exists); the verifier already allows `VERIFY.fail`. New
+  property **P13**: the line is reset (SUP X4 → X1) only after a passed test, with a broken sensor
+  never left in place (today's properties check jobs, not transitions: the form of the monitor is
+  part of A6.2). KPI: the replacement is line-stop time (no new cause).
+
+**A6.3 CNC alarm and `CNC.ready`.**
+
+- Plant: during a cycle the CNC can raise an alarm (tool breakage, spindle overload, coolant low;
+  one class): spindle stops, `CNC.ready` false, `CNC.run` false, the door stays locked. The operator
+  resets it at the CNC panel after a chosen time (`cncReset`, proposal 5 min, 2–15 min). The
+  program then **restarts from the start with the same part** (the faces already cut are cut in
+  air), so the cycle takes a full `cncCycle` again and the gauge decides the part as usual. Alarms
+  only while the CNC runs (the robot is never inside then).
+- Model: Robot 1 in B2 (waiting at the door) goes to a new state **W2 "WAIT FOR CNC"** when
+  `!CNC.ready` (HMI "CNC alarm: reset at the CNC panel", amber light), and back to B2 when
+  `CNC.ready`. Not a FAULT: the robot is fine and nothing has to be repeated. New property **P14**:
+  Robot 1 enters the CNC and CYCLE START is sent only with `CNC.ready`. KPI: new cause **CNC
+  alarm**, after fault in the order of §5.15.
+- Alternative not proposed: abort the cycle and send the part to the NOK chute. It needs the cell
+  to track one marked part through gripper B, the belt and Robot 2 (a flag per part), and an aborted
+  part is oversize, which the gauge would accept (there is no upper limit, §5.14).
+
+**A6.4 Tool wear and an early warning.**
+
+- Physics first: wear of the end mill on outside faces leaves parts **oversize**, which the gauge
+  cannot reject (the assignment gives only a lower limit). What makes this cell's parts undersized
+  is a **drift of the effective tool offset** (thermal growth, wear compensation applied in excess).
+  Proposal: model that drift — the mean size moves down by a chosen amount per part (proposal
+  0.002 mm per part, so the guard band 48.05 mm is reached after several hundred parts), with the
+  current part-to-part scatter on top — and say so in the report, instead of calling it tool wear.
+- Planned tool change every N parts (tool life counter in the PLC, proposal N = 400, change time
+  `toolChange` 3 min by the operator, between cycles in state B2/W2), which resets the drift.
+- **Early warning** (the item of A2.2): the PLC keeps the moving mean of the last k measured sizes
+  (smallest of L, W, H, k = 5); below a warning limit (proposal 48.05 + 0.15 mm) the HMI asks for
+  an offset check (amber, no stop); the operator corrects the offset (time `offsetCheck` 2 min,
+  resets the drift). The quality hold (2 NOK in a row) stays the last barrier.
+- Model: new variables `toolCount`, `sizeMean` (the warning as a derived signal); the tool change
+  as a step of Robot 1 / CNC before CYCLE START when the counter is due. Verifier: the counter is
+  abstracted like the pallet count (due / not due); properties unchanged except a new **P15**: no
+  CYCLE START while the tool change is due. KPI: new cause **tool change** (planned) and offset
+  check counted with it.
+- Decision for the author: whether to add an **upper limit** to the gauge (then real wear could be
+  modelled as oversize too). Not proposed, because the assignment has none.
+
+**A6.5 Safety status: E-stop and scanners SC-01 / SC-02.**
+
+- Plant: E-stop buttons (cabinet and both loading sides, one signal `ESTOP` from the safety relay)
+  and the two scanners at the loading sides, each with a warning field and a protective field.
+  The relay and the robot controllers do the stopping; the PLC reads their status.
+- New machine **SAF** (monitor, `urgent` like SUP): S1 RUN, S2 REDUCED SPEED (a person in a warning
+  field: robot times × a chosen factor, proposal 2), S3 PROTECTIVE STOP (a person in the protective
+  field of the zone a robot is working in: that robot's job pauses and resumes when the field is
+  clear, automatic reset as allowed for a UR safeguard stop), S4 EMERGENCY STOP (all motion stops;
+  every robot goes to F with the cause "E-stop", the belt stops, the CNC goes to feed hold = alarm
+  of A6.3), S5 RESET REQUIRED (E-stop released; operator resets the relay, then clears the FAULTs;
+  the robots repeat their step with the recovery rules of A2.1).
+- Properties: **P16** no robot job runs during an E-stop; **P17** no robot works in a loading zone
+  while a person is in its protective field; L1–L3 unchanged (after any stop the cell can resume).
+  Verifier: `ESTOP` and the fields as free inputs in a new run `safety` (with nominal faults only,
+  to keep the state space small).
+- Disturbance for the studies: a person enters a loading zone at a chosen rate (besides the pallet
+  changes, which the operator does while the robot waits); KPI: new cause **safety stop**.
+- What is not claimed: that the stop is safe (that is the relay, the scanners and ISO 10218 / ISO
+  13849 design of the real cell). The model shows that the PLC logic tolerates the stops at any
+  instant and recovers without breaking P1–P12.
+
+**What the author decides:** the order; the share of broken sensors and the replacement time; the
+CNC restart (from the start with the same part) against aborting the part; calling the size drift
+an offset drift instead of tool wear, and whether to add an upper limit; the tool life N and the
+warning limit; the five safety states and the reduced-speed factor; every chosen rate and time.
+
+**Done when** (A6 as a whole): the four items are in the model, both simulators (parity identical),
+the verifier (every property holds in every run, the new runs included), the PLC program (compiled
+by matiec, the OpenPLC comparison passes in its scenarios), the figures and the KPI causes; NuSMV
+re-run and agreeing; the timed verification re-run with the same nominal bounds; the regression
+re-recorded with only the intended differences; §13 points 4–6 closed.
+
 ---
 
 ## 6. Browser simulator (`source/sim-src/app.js`)
@@ -1492,7 +1595,7 @@ green. Effort figures are indicative only.
 | A3 PLC demonstration | In progress: A3.1 execution semantics approved (2026-10-30); A3.2 generator done (2026-10-31); A3.3 OpenPLC and bridge done, A3.4 comparison passed in 3 scenarios × 1 h (2026-10-31); recorded demo prepared (`engine/PLC_DEMO.md`), not recorded yet. Merged into `main` 2026-10-31 | `a3-plc` → `main` | |
 | A4 Timed verification (UPPAAL) | Done: A4.1 timed model approved (2026-10-31); A4.2 generator and UPPAAL models done, checked by simulation (2026-10-31); A4.3 bounds with `verifyta` in CI (2026-11-01): idle 17.00–27.45 s, period 131.00–153.45 s, raw pick to output pallet up to 335.70 s; A4.4 Python engine with random step times inside the bounds (19.50–25.38 s in 3 × 24 h) (2026-11-01). Merged into `main` 2026-11-01 | `a4-uppaal` → `main` | |
 | A5 Studies with the Python engine | Done: A5.1 study design approved (2026-11-01, §5.18); A5.2 engine options, harness, S1 and S4; A5.3 S2, S3, workflow `studies`, `engine/studies/STUDIES.md` (2026-11-01): 1 620 runs of 8 h, no model error or violation. Merged into `main` 2026-11-01 | `a5-studies` → `main` | 2026-11-01 |
-| A6 More realistic plant | Not started | | |
+| A6 More realistic plant | In progress: A6.1 design proposed (2026-11-02, §5.19), waiting for the author's review | `a6-plant` | |
 | B Element framework (types, three levels of detail) | Not started | | |
 | C Factory and scheduling | Not started | | |
 
@@ -1861,3 +1964,4 @@ Newest last. Every change to the plan or to a design rule is written here first 
 | 2026-11-01 | **A5.1 approved by the author** without changes (§5.18) | — |
 | 2026-11-01 | **A5.2–A5.3 done**, choices made by Claude within the approved design (§5.18 point 6): the intermittent sensor as `set_sensor_miss(cp, q)` from t = 1 h instead of a constructor option; line stops and FAULTs read from the trace, only the quality-hold instants added to `stats`; S3 (b) reports FAULTs before detection instead of wrong placements; S2 keeps the operator present (FAULT cleared after 60 s, hold released after 120 s) and a sensor fault stays until repaired; robot speed factor divides the robot times; NOK decided when the CNC finishes a part; the workflow `studies` also starts on a push of its own file; CSVs and plots committed in `engine/studies/out/`; the Wilson intervals drawn as they are (not symmetric). Results in §5.18 point 7. Nothing in the model or the plan changes; open for the author: the cross-check rule (3 in 10 min misses about 1 in 5 sensors that fail 10 % of checks), CNC cycles below 90 s (outside the approved range) | A constructor option would make the sensor faulty from the start; the trace already has every instant, so counters would duplicate it; no property was violated, so no wrong placement occurred to count; a dispatch-only workflow cannot be started from a branch |
 | 2026-11-01 | **A5 merged into `main`** at the author's request, after CI (`checks` with `test_studies`) was green on `a5-studies`: A5.1–A5.3 done. The open points of A5 (cross-check rule, CNC cycles below 90 s) stay with the author | — |
+| 2026-11-02 | **A6 started; A6.1 design proposed** (§5.19), pending the author's review. Proposed by Claude: four steps in the order `VERIFY.fail` (broken sensor replaced), CNC alarm (Robot 1 waits in a new state W2, the program restarts with the same part), size drift with tool life counter and early warning, safety status machine SAF (E-stop, scanners); the PLC stays non-safety; NuSMV re-run once at the end with `slots: 'any'`. The plan's "tool wear that makes undersized parts" is proposed as an offset drift, because wear on outside faces makes parts oversize | Smallest items first keep each regression change small; a CNC alarm is not a robot fault; aborting a part would need per-part tracking and the gauge has no upper limit to catch it |
