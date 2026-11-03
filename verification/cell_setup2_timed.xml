@@ -8,8 +8,8 @@
 urgent broadcast chan hurry, sup;
 chan priority default &lt; sup;
 clock x_R1, x_CONV, x_R2, x_SUP, x_CNC, w, p, x_BELT, b;
-int[0,30] R1 = 0; // location of the R1 machine (state_step) [0 I_x, 1 B0_0, 2 B0_x, 3 B1_0, 4 B1_1, 5 B1_x, 6 B2_0, 7 B2_x, 8 B3_0, 9 B3_x, 10 B4_0, 11 B4_1, 12 B4_2, 13 B4_x, 14 B5_0, 15 B5_1, 16 B5_x, 17 B6_0, 18 B6_1, 19 B6_x, 20 B7_0, 21 B7_1, 22 B7_2, 23 B7_3, 24 B7_4, 25 B7_x, 26 W1_0, 27 W1_x, 28 H_0, 29 H_x, 30 F_x]
-int[0,12] R1_res = 0; // where R1 continues after HOLD / FAULT [0 none, 1 B0@0, 2 B1@0, 3 B2@0, 4 B3@0, 5 B4@0, 6 B5@0, 7 B6@0, 8 Q_B6@0, 9 B7@0, 10 B7@2, 11 B7@4, 12 W1@0]
+int[0,31] R1 = 0; // location of the R1 machine (state_step) [0 I_x, 1 B0_0, 2 B0_x, 3 B1_0, 4 B1_1, 5 B1_x, 6 B2_0, 7 B2_x, 8 B3_0, 9 B3_x, 10 B4_0, 11 B4_1, 12 B4_2, 13 B4_x, 14 B5_0, 15 B5_1, 16 B5_x, 17 B6_0, 18 B6_1, 19 B6_x, 20 B7_0, 21 B7_1, 22 B7_2, 23 B7_3, 24 B7_4, 25 B7_x, 26 W1_0, 27 W1_x, 28 W2_x, 29 H_0, 30 H_x, 31 F_x]
+int[0,13] R1_res = 0; // where R1 continues after HOLD / FAULT [0 none, 1 B0@0, 2 B1@0, 3 B2@0, 4 B3@0, 5 B4@0, 6 B5@0, 7 B6@0, 8 Q_B6@0, 9 B7@0, 10 B7@2, 11 B7@4, 12 W1@0, 13 W2@0]
 int[0,12] CONV = 0; // location of the CONV machine (state_step) [0 I_0, 1 I_1, 2 I_x, 3 C1_x, 4 C2_1, 5 C2_2, 6 C2_x, 7 C3_x, 8 C4_x, 9 C5_1, 10 C5_x, 11 H_x, 12 F_x]
 int[0,7] CONV_res = 0; // where CONV continues after HOLD / FAULT [0 none, 1 C1@0, 2 C2@0, 3 C2@2, 4 C3@0, 5 C4@0, 6 C5@0, 7 C5@1]
 int[0,32] R2 = 0; // location of the R2 machine (state_step) [0 I_x, 1 E0_0, 2 E0_1, 3 E0_2, 4 E0_3, 5 E0_4, 6 E0_x, 7 E1_0, 8 E1_1, 9 E1_2, 10 E1_x, 11 E2_0, 12 E2_1, 13 E2_x, 14 E3_0, 15 E3_1, 16 E3_x, 17 E4_0, 18 E4_x, 19 E5_1, 20 E5_2, 21 E5_3, 22 E5_x, 23 E6_0, 24 E6_1, 25 E6_x, 26 E7_0, 27 E7_1, 28 E7_2, 29 E7_x, 30 H_0, 31 H_x, 32 F_x]
@@ -160,6 +160,9 @@ int ti0 = 0; // temporary of a simultaneous update</declaration>
     <location id="A_R1_W1_x">
       <name>W1_x</name>
     </location>
+    <location id="A_R1_W2_x">
+      <name>W2_x</name>
+    </location>
     <location id="A_R1_H_0">
       <name>H_0</name>
       <label kind="invariant">x_R1 &lt;= 195</label>
@@ -207,7 +210,7 @@ int ti0 = 0; // temporary of a simultaneous update</declaration>
       <target ref="A_R1_H_0"/>
       <label kind="guard">((r1Home &amp;&amp; door == 0) &amp;&amp; ((SUP == 3 || SUP == 4) || CAM_FAULT))</label>
       <label kind="synchronisation">hurry!</label>
-      <label kind="assignment">r1Home = false, R1_res = 2, R1 = 28, x_R1 = 0</label>
+      <label kind="assignment">r1Home = false, R1_res = 2, R1 = 29, x_R1 = 0</label>
       <label kind="comments">B0: hold before B1</label>
     </transition>
     <transition>
@@ -279,7 +282,7 @@ int ti0 = 0; // temporary of a simultaneous update</declaration>
       <target ref="A_R1_H_0"/>
       <label kind="guard">(!(r1A == 0) &amp;&amp; ((SUP == 3 || SUP == 4) || CAM_FAULT))</label>
       <label kind="synchronisation">hurry!</label>
-      <label kind="assignment">r1Home = false, R1_res = 3, R1 = 28, x_R1 = 0</label>
+      <label kind="assignment">r1Home = false, R1_res = 3, R1 = 29, x_R1 = 0</label>
       <label kind="comments">B1: hold before B2</label>
     </transition>
     <transition>
@@ -303,7 +306,7 @@ int ti0 = 0; // temporary of a simultaneous update</declaration>
       <target ref="A_R1_H_0"/>
       <label kind="guard">(((!(res_R1_CP_1) || !(res_R1_CAM_1_part)) &amp;&amp; r1A == 0) &amp;&amp; ((SUP == 3 || SUP == 4) || CAM_FAULT))</label>
       <label kind="synchronisation">hurry!</label>
-      <label kind="assignment">r1Home = false, R1_res = 12, R1 = 28, x_R1 = 0</label>
+      <label kind="assignment">r1Home = false, R1_res = 12, R1 = 29, x_R1 = 0</label>
       <label kind="comments">B1: hold before W1</label>
     </transition>
     <transition>
@@ -326,7 +329,7 @@ int ti0 = 0; // temporary of a simultaneous update</declaration>
       <target ref="A_R1_H_0"/>
       <label kind="guard">((((!(run) &amp;&amp; (cnc == 2 || cnc == 3)) &amp;&amp; !(lock)) || (!(run) &amp;&amp; cnc == 0)) &amp;&amp; ((SUP == 3 || SUP == 4) || CAM_FAULT))</label>
       <label kind="synchronisation">hurry!</label>
-      <label kind="assignment">r1Home = false, R1_res = 4, R1 = 28, x_R1 = 0</label>
+      <label kind="assignment">r1Home = false, R1_res = 4, R1 = 29, x_R1 = 0</label>
       <label kind="comments">B2: hold before B3</label>
     </transition>
     <transition>
@@ -334,7 +337,7 @@ int ti0 = 0; // temporary of a simultaneous update</declaration>
       <target ref="A_R1_H_0"/>
       <label kind="guard">(!((((!(run) &amp;&amp; (cnc == 2 || cnc == 3)) &amp;&amp; !(lock)) || (!(run) &amp;&amp; cnc == 0))) &amp;&amp; ((SUP == 3 || SUP == 4) || CAM_FAULT))</label>
       <label kind="synchronisation">hurry!</label>
-      <label kind="assignment">r1Home = false, R1_res = 3, R1 = 28, x_R1 = 0</label>
+      <label kind="assignment">r1Home = false, R1_res = 3, R1 = 29, x_R1 = 0</label>
       <label kind="comments">B2: hold while waiting</label>
     </transition>
     <transition>
@@ -357,7 +360,7 @@ int ti0 = 0; // temporary of a simultaneous update</declaration>
       <target ref="A_R1_H_0"/>
       <label kind="guard">((door == 1 &amp;&amp; !(door == 0)) &amp;&amp; ((SUP == 3 || SUP == 4) || CAM_FAULT))</label>
       <label kind="synchronisation">hurry!</label>
-      <label kind="assignment">r1Home = false, R1_res = 5, R1 = 28, x_R1 = 0</label>
+      <label kind="assignment">r1Home = false, R1_res = 5, R1 = 29, x_R1 = 0</label>
       <label kind="comments">B3: hold before B4</label>
     </transition>
     <transition>
@@ -385,7 +388,7 @@ int ti0 = 0; // temporary of a simultaneous update</declaration>
       <source ref="A_R1_B4_1"/>
       <target ref="A_R1_F_x"/>
       <label kind="guard">x_R1 &gt;= 185 &amp;&amp; cnc == 0</label>
-      <label kind="assignment">R1 = 30, R1_res = 5, x_R1 = 0</label>
+      <label kind="assignment">R1 = 31, R1_res = 5, x_R1 = 0</label>
       <label kind="comments">B4: R1.unloadB done, confirmation missing</label>
     </transition>
     <transition>
@@ -408,7 +411,7 @@ int ti0 = 0; // temporary of a simultaneous update</declaration>
       <target ref="A_R1_H_0"/>
       <label kind="guard">((vise == 1 &amp;&amp; !(cnc == 0) &amp;&amp; r1A == 0) &amp;&amp; ((SUP == 3 || SUP == 4) || CAM_FAULT))</label>
       <label kind="synchronisation">hurry!</label>
-      <label kind="assignment">r1Home = false, R1_res = 6, R1 = 28, x_R1 = 0</label>
+      <label kind="assignment">r1Home = false, R1_res = 6, R1 = 29, x_R1 = 0</label>
       <label kind="comments">B4: hold before B5</label>
     </transition>
     <transition>
@@ -438,7 +441,7 @@ int ti0 = 0; // temporary of a simultaneous update</declaration>
       <target ref="A_R1_H_0"/>
       <label kind="guard">((door == 0 &amp;&amp; lock) &amp;&amp; ((SUP == 3 || SUP == 4) || CAM_FAULT))</label>
       <label kind="synchronisation">hurry!</label>
-      <label kind="assignment">r1Home = false, R1_res = 7, R1 = 28, x_R1 = 0</label>
+      <label kind="assignment">r1Home = false, R1_res = 7, R1 = 29, x_R1 = 0</label>
       <label kind="comments">B5: hold before B6</label>
     </transition>
     <transition>
@@ -454,7 +457,7 @@ int ti0 = 0; // temporary of a simultaneous update</declaration>
       <target ref="A_R1_H_0"/>
       <label kind="guard">(QH &amp;&amp; ((SUP == 3 || SUP == 4) || CAM_FAULT))</label>
       <label kind="synchronisation">hurry!</label>
-      <label kind="assignment">r1Home = false, R1_res = 7, R1 = 28, x_R1 = 0</label>
+      <label kind="assignment">r1Home = false, R1_res = 7, R1 = 29, x_R1 = 0</label>
       <label kind="comments">B6: hold while waiting</label>
     </transition>
     <transition>
@@ -485,7 +488,7 @@ int ti0 = 0; // temporary of a simultaneous update</declaration>
       <target ref="A_R1_H_0"/>
       <label kind="guard">((run || (!(run) &amp;&amp; (cnc == 2 || cnc == 3))) &amp;&amp; ((SUP == 3 || SUP == 4) || CAM_FAULT))</label>
       <label kind="synchronisation">hurry!</label>
-      <label kind="assignment">r1Home = false, R1_res = 8, R1 = 28, x_R1 = 0</label>
+      <label kind="assignment">r1Home = false, R1_res = 8, R1 = 29, x_R1 = 0</label>
       <label kind="comments">B6: hold before Q_B6</label>
     </transition>
     <transition>
@@ -524,7 +527,7 @@ int ti0 = 0; // temporary of a simultaneous update</declaration>
       <target ref="A_R1_H_0"/>
       <label kind="guard">(!((!(moving) &amp;&amp; (CONV == 3 || (CONV == 9 || CONV == 10)) &amp;&amp; !(partPlaced))) &amp;&amp; ((SUP == 3 || SUP == 4) || CAM_FAULT))</label>
       <label kind="synchronisation">hurry!</label>
-      <label kind="assignment">r1Home = false, R1_res = 9, R1 = 28, x_R1 = 0</label>
+      <label kind="assignment">r1Home = false, R1_res = 9, R1 = 29, x_R1 = 0</label>
       <label kind="comments">B7: hold while waiting</label>
     </transition>
     <transition>
@@ -548,7 +551,7 @@ int ti0 = 0; // temporary of a simultaneous update</declaration>
       <target ref="A_R1_F_x"/>
       <label kind="guard">!(beltEntry == 0)</label>
       <label kind="synchronisation">hurry!</label>
-      <label kind="assignment">R1 = 30, R1_res = 9, x_R1 = 0</label>
+      <label kind="assignment">R1 = 31, R1_res = 9, x_R1 = 0</label>
       <label kind="comments">B7: CP-2 agree, confirmation missing</label>
     </transition>
     <transition>
@@ -585,7 +588,7 @@ int ti0 = 0; // temporary of a simultaneous update</declaration>
       <target ref="A_R1_H_0"/>
       <label kind="guard">(res_R1_CP_2 &amp;&amp; ((SUP == 3 || SUP == 4) || CAM_FAULT))</label>
       <label kind="synchronisation">hurry!</label>
-      <label kind="assignment">r1Home = false, R1_res = 2, R1 = 28, x_R1 = 0</label>
+      <label kind="assignment">r1Home = false, R1_res = 2, R1 = 29, x_R1 = 0</label>
       <label kind="comments">B7: hold before B1</label>
     </transition>
     <transition>
@@ -608,7 +611,7 @@ int ti0 = 0; // temporary of a simultaneous update</declaration>
       <target ref="A_R1_H_0"/>
       <label kind="guard">((inPresent &amp;&amp; inParts) &amp;&amp; ((SUP == 3 || SUP == 4) || CAM_FAULT))</label>
       <label kind="synchronisation">hurry!</label>
-      <label kind="assignment">r1Home = false, R1_res = 2, R1 = 28, x_R1 = 0</label>
+      <label kind="assignment">r1Home = false, R1_res = 2, R1 = 29, x_R1 = 0</label>
       <label kind="comments">W1: hold before B1</label>
     </transition>
     <transition>
@@ -616,14 +619,30 @@ int ti0 = 0; // temporary of a simultaneous update</declaration>
       <target ref="A_R1_H_0"/>
       <label kind="guard">(!((inPresent &amp;&amp; inParts)) &amp;&amp; ((SUP == 3 || SUP == 4) || CAM_FAULT))</label>
       <label kind="synchronisation">hurry!</label>
-      <label kind="assignment">r1Home = false, R1_res = 12, R1 = 28, x_R1 = 0</label>
+      <label kind="assignment">r1Home = false, R1_res = 12, R1 = 29, x_R1 = 0</label>
       <label kind="comments">W1: hold while waiting</label>
+    </transition>
+    <transition>
+      <source ref="A_R1_W2_x"/>
+      <target ref="A_R1_B2_0"/>
+      <label kind="guard">!(((SUP == 3 || SUP == 4) || CAM_FAULT))</label>
+      <label kind="synchronisation">hurry!</label>
+      <label kind="assignment">r1Home = false, R1 = 6, R1_res = 0, x_R1 = 0</label>
+      <label kind="comments">W2 → B2</label>
+    </transition>
+    <transition>
+      <source ref="A_R1_W2_x"/>
+      <target ref="A_R1_H_0"/>
+      <label kind="guard">((SUP == 3 || SUP == 4) || CAM_FAULT)</label>
+      <label kind="synchronisation">hurry!</label>
+      <label kind="assignment">r1Home = false, R1_res = 3, R1 = 29, x_R1 = 0</label>
+      <label kind="comments">W2: hold before B2</label>
     </transition>
     <transition>
       <source ref="A_R1_H_0"/>
       <target ref="A_R1_H_x"/>
       <label kind="guard">x_R1 &gt;= 135</label>
-      <label kind="assignment">r1Home = true, R1 = 29, x_R1 = 0</label>
+      <label kind="assignment">r1Home = true, R1 = 30, x_R1 = 0</label>
       <label kind="comments">H: R1.park done</label>
     </transition>
     <transition>
@@ -763,6 +782,14 @@ int ti0 = 0; // temporary of a simultaneous update</declaration>
       <label kind="comments">H: resume W1@0</label>
     </transition>
     <transition>
+      <source ref="A_R1_H_x"/>
+      <target ref="A_R1_W2_x"/>
+      <label kind="guard">(!(((SUP == 3 || SUP == 4) || CAM_FAULT)) &amp;&amp; R1_res == 13)</label>
+      <label kind="synchronisation">hurry!</label>
+      <label kind="assignment">R1 = 28, R1_res = 0, x_R1 = 0</label>
+      <label kind="comments">H: resume W2@0</label>
+    </transition>
+    <transition>
       <source ref="A_R1_F_x"/>
       <target ref="A_R1_B0_0"/>
       <label kind="guard">((R1_res == 1 &amp;&amp; !(((SUP == 3 || SUP == 4) || CAM_FAULT))) &amp;&amp; !(r1Home))</label>
@@ -783,7 +810,7 @@ int ti0 = 0; // temporary of a simultaneous update</declaration>
       <target ref="A_R1_H_0"/>
       <label kind="guard">(R1_res == 1 &amp;&amp; ((SUP == 3 || SUP == 4) || CAM_FAULT))</label>
       <label kind="synchronisation">hurry!</label>
-      <label kind="assignment">r1Home = false, R1_res = 1, R1 = 28, x_R1 = 0</label>
+      <label kind="assignment">r1Home = false, R1_res = 1, R1 = 29, x_R1 = 0</label>
       <label kind="comments">F: cleared during a line stop</label>
     </transition>
     <transition>
@@ -799,7 +826,7 @@ int ti0 = 0; // temporary of a simultaneous update</declaration>
       <target ref="A_R1_H_0"/>
       <label kind="guard">(R1_res == 2 &amp;&amp; ((SUP == 3 || SUP == 4) || CAM_FAULT))</label>
       <label kind="synchronisation">hurry!</label>
-      <label kind="assignment">r1Home = false, R1_res = 2, R1 = 28, x_R1 = 0</label>
+      <label kind="assignment">r1Home = false, R1_res = 2, R1 = 29, x_R1 = 0</label>
       <label kind="comments">F: cleared during a line stop</label>
     </transition>
     <transition>
@@ -815,7 +842,7 @@ int ti0 = 0; // temporary of a simultaneous update</declaration>
       <target ref="A_R1_H_0"/>
       <label kind="guard">(R1_res == 3 &amp;&amp; ((SUP == 3 || SUP == 4) || CAM_FAULT))</label>
       <label kind="synchronisation">hurry!</label>
-      <label kind="assignment">r1Home = false, R1_res = 3, R1 = 28, x_R1 = 0</label>
+      <label kind="assignment">r1Home = false, R1_res = 3, R1 = 29, x_R1 = 0</label>
       <label kind="comments">F: cleared during a line stop</label>
     </transition>
     <transition>
@@ -831,7 +858,7 @@ int ti0 = 0; // temporary of a simultaneous update</declaration>
       <target ref="A_R1_H_0"/>
       <label kind="guard">(R1_res == 4 &amp;&amp; ((SUP == 3 || SUP == 4) || CAM_FAULT))</label>
       <label kind="synchronisation">hurry!</label>
-      <label kind="assignment">r1Home = false, R1_res = 4, R1 = 28, x_R1 = 0</label>
+      <label kind="assignment">r1Home = false, R1_res = 4, R1 = 29, x_R1 = 0</label>
       <label kind="comments">F: cleared during a line stop</label>
     </transition>
     <transition>
@@ -847,7 +874,7 @@ int ti0 = 0; // temporary of a simultaneous update</declaration>
       <target ref="A_R1_H_0"/>
       <label kind="guard">(R1_res == 5 &amp;&amp; ((SUP == 3 || SUP == 4) || CAM_FAULT))</label>
       <label kind="synchronisation">hurry!</label>
-      <label kind="assignment">r1Home = false, R1_res = 5, R1 = 28, x_R1 = 0</label>
+      <label kind="assignment">r1Home = false, R1_res = 5, R1 = 29, x_R1 = 0</label>
       <label kind="comments">F: cleared during a line stop</label>
     </transition>
     <transition>
@@ -863,7 +890,7 @@ int ti0 = 0; // temporary of a simultaneous update</declaration>
       <target ref="A_R1_H_0"/>
       <label kind="guard">(R1_res == 6 &amp;&amp; ((SUP == 3 || SUP == 4) || CAM_FAULT))</label>
       <label kind="synchronisation">hurry!</label>
-      <label kind="assignment">r1Home = false, R1_res = 6, R1 = 28, x_R1 = 0</label>
+      <label kind="assignment">r1Home = false, R1_res = 6, R1 = 29, x_R1 = 0</label>
       <label kind="comments">F: cleared during a line stop</label>
     </transition>
     <transition>
@@ -879,7 +906,7 @@ int ti0 = 0; // temporary of a simultaneous update</declaration>
       <target ref="A_R1_H_0"/>
       <label kind="guard">(R1_res == 7 &amp;&amp; ((SUP == 3 || SUP == 4) || CAM_FAULT))</label>
       <label kind="synchronisation">hurry!</label>
-      <label kind="assignment">r1Home = false, R1_res = 7, R1 = 28, x_R1 = 0</label>
+      <label kind="assignment">r1Home = false, R1_res = 7, R1 = 29, x_R1 = 0</label>
       <label kind="comments">F: cleared during a line stop</label>
     </transition>
     <transition>
@@ -903,7 +930,7 @@ int ti0 = 0; // temporary of a simultaneous update</declaration>
       <target ref="A_R1_H_0"/>
       <label kind="guard">(R1_res == 8 &amp;&amp; ((SUP == 3 || SUP == 4) || CAM_FAULT))</label>
       <label kind="synchronisation">hurry!</label>
-      <label kind="assignment">r1Home = false, R1_res = 8, R1 = 28, x_R1 = 0</label>
+      <label kind="assignment">r1Home = false, R1_res = 8, R1 = 29, x_R1 = 0</label>
       <label kind="comments">F: cleared during a line stop</label>
     </transition>
     <transition>
@@ -919,7 +946,7 @@ int ti0 = 0; // temporary of a simultaneous update</declaration>
       <target ref="A_R1_H_0"/>
       <label kind="guard">(R1_res == 9 &amp;&amp; ((SUP == 3 || SUP == 4) || CAM_FAULT))</label>
       <label kind="synchronisation">hurry!</label>
-      <label kind="assignment">r1Home = false, R1_res = 9, R1 = 28, x_R1 = 0</label>
+      <label kind="assignment">r1Home = false, R1_res = 9, R1 = 29, x_R1 = 0</label>
       <label kind="comments">F: cleared during a line stop</label>
     </transition>
     <transition>
@@ -951,7 +978,7 @@ int ti0 = 0; // temporary of a simultaneous update</declaration>
       <target ref="A_R1_H_0"/>
       <label kind="guard">(R1_res == 10 &amp;&amp; ((SUP == 3 || SUP == 4) || CAM_FAULT))</label>
       <label kind="synchronisation">hurry!</label>
-      <label kind="assignment">r1Home = false, R1_res = 10, R1 = 28, x_R1 = 0</label>
+      <label kind="assignment">r1Home = false, R1_res = 10, R1 = 29, x_R1 = 0</label>
       <label kind="comments">F: cleared during a line stop</label>
     </transition>
     <transition>
@@ -967,7 +994,7 @@ int ti0 = 0; // temporary of a simultaneous update</declaration>
       <target ref="A_R1_H_0"/>
       <label kind="guard">(R1_res == 11 &amp;&amp; ((SUP == 3 || SUP == 4) || CAM_FAULT))</label>
       <label kind="synchronisation">hurry!</label>
-      <label kind="assignment">r1Home = false, R1_res = 11, R1 = 28, x_R1 = 0</label>
+      <label kind="assignment">r1Home = false, R1_res = 11, R1 = 29, x_R1 = 0</label>
       <label kind="comments">F: cleared during a line stop</label>
     </transition>
     <transition>
@@ -991,7 +1018,23 @@ int ti0 = 0; // temporary of a simultaneous update</declaration>
       <target ref="A_R1_H_0"/>
       <label kind="guard">(R1_res == 12 &amp;&amp; ((SUP == 3 || SUP == 4) || CAM_FAULT))</label>
       <label kind="synchronisation">hurry!</label>
-      <label kind="assignment">r1Home = false, R1_res = 12, R1 = 28, x_R1 = 0</label>
+      <label kind="assignment">r1Home = false, R1_res = 12, R1 = 29, x_R1 = 0</label>
+      <label kind="comments">F: cleared during a line stop</label>
+    </transition>
+    <transition>
+      <source ref="A_R1_F_x"/>
+      <target ref="A_R1_W2_x"/>
+      <label kind="guard">(R1_res == 13 &amp;&amp; !(((SUP == 3 || SUP == 4) || CAM_FAULT)))</label>
+      <label kind="synchronisation">hurry!</label>
+      <label kind="assignment">R1 = 28, R1_res = 0, x_R1 = 0</label>
+      <label kind="comments">F: cleared, repeat W2@0</label>
+    </transition>
+    <transition>
+      <source ref="A_R1_F_x"/>
+      <target ref="A_R1_H_0"/>
+      <label kind="guard">(R1_res == 13 &amp;&amp; ((SUP == 3 || SUP == 4) || CAM_FAULT))</label>
+      <label kind="synchronisation">hurry!</label>
+      <label kind="assignment">r1Home = false, R1_res = 13, R1 = 29, x_R1 = 0</label>
       <label kind="comments">F: cleared during a line stop</label>
     </transition>
   </template>
@@ -2688,7 +2731,7 @@ int ti0 = 0; // temporary of a simultaneous update</declaration>
     <transition>
       <source ref="A_SUP_X3_x"/>
       <target ref="A_SUP_X4_x"/>
-      <label kind="guard">((r1Home &amp;&amp; !((R1 == 1 || R1 == 4 || R1 == 6 || R1 == 8 || R1 == 10 || R1 == 11 || R1 == 12 || R1 == 14 || R1 == 15 || R1 == 18 || R1 == 20 || R1 == 23 || R1 == 26 || R1 == 28))) &amp;&amp; (r2Home &amp;&amp; !((R2 == 1 || R2 == 4 || R2 == 5 || R2 == 8 || R2 == 9 || R2 == 11 || R2 == 14 || R2 == 17 || R2 == 19 || R2 == 21 || R2 == 23 || R2 == 24 || R2 == 26 || R2 == 30))) &amp;&amp; !(moving))</label>
+      <label kind="guard">((r1Home &amp;&amp; !((R1 == 1 || R1 == 4 || R1 == 6 || R1 == 8 || R1 == 10 || R1 == 11 || R1 == 12 || R1 == 14 || R1 == 15 || R1 == 18 || R1 == 20 || R1 == 23 || R1 == 26 || R1 == 29))) &amp;&amp; (r2Home &amp;&amp; !((R2 == 1 || R2 == 4 || R2 == 5 || R2 == 8 || R2 == 9 || R2 == 11 || R2 == 14 || R2 == 17 || R2 == 19 || R2 == 21 || R2 == 23 || R2 == 24 || R2 == 26 || R2 == 30))) &amp;&amp; !(moving))</label>
       <label kind="synchronisation">hurry!</label>
       <label kind="assignment">SUP = 4, x_SUP = 0</label>
       <label kind="comments">X3 → X4 [HMI.verify]</label>
@@ -3021,6 +3064,10 @@ int ti0 = 0; // temporary of a simultaneous update</declaration>
     <query>
       <formula>E&lt;&gt; (A_R1.W1_0 || A_R1.W1_x)</formula>
       <comment>R1 W1 reachable</comment>
+    </query>
+    <query>
+      <formula>E&lt;&gt; (A_R1.W2_x)</formula>
+      <comment>R1 W2 reachable</comment>
     </query>
     <query>
       <formula>E&lt;&gt; (A_R1.H_0 || A_R1.H_x)</formula>

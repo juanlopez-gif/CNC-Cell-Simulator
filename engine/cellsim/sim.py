@@ -19,7 +19,7 @@ from .model import load, plain
 INF = float("inf")
 EPS = 1e-9
 # causes of CNC time not machining, in the order of priority used by CellSim._loss_cause (A2.4)
-LOSS_CAUSES = ("start-up", "fault", "line stop", "quality hold", "material shortage", "pallet change", "exchange")
+LOSS_CAUSES = ("start-up", "fault", "CNC alarm", "line stop", "quality hold", "material shortage", "pallet change", "exchange")
 
 # Belt geometry. The browser simulator draws the belt 361 px long; the PLC sees a part at the entry
 # (CP-2) in the first 30 px and at the end stop (CP-3) in the last 12 px. Here the same zones in metres.
@@ -102,7 +102,7 @@ class CellSim:
 
     Disturbances: inject_glitch(cp), toggle_sensor_fault(cp), inject_camera_wrong(cp),
     inject_stale_image(cp), inject_bad_frame(), inject_camera_failure(), inject_grip_miss(),
-    inject_undersized(), set_sensor_miss(cp, q); nok_rate = p: every part undersized with
+    inject_undersized(), inject_cnc_alarm(), set_sensor_miss(cp, q); nok_rate = p: every part undersized with
     probability p (A5). rules={"CP-n": rule} overrides the fusion rule of the model at a
     checkpoint. Operator and technician:
     press("verify" | "resume" | "clear" | "qh" | "swap" | "load"), auto_operator.
@@ -140,7 +140,7 @@ class CellSim:
                      if s["kind"] == "var" and k != "mismatches"}
         self.cp_result = {}                  # slot -> {CP-n: fused result of its last check}
         self.inputs = {"verify": False, "reset": False, "release": False, "verify_fail": False, "clear_at": -1.0}
-        self.inject = {"under": 0, "band": 0, "master": False, "grip_miss": False, "frames": {"CAM-1": 0, "CAM-2": 0}}
+        self.inject = {"under": 0, "band": 0, "master": False, "grip_miss": False, "cnc_alarm": False, "frames": {"CAM-1": 0, "CAM-2": 0}}
         self.faults = {}                     # slot -> fault message
         self.cam_fault = None
         self.ask_at = None                   # checkpoint whose disagreement stopped the line (rule ask)
@@ -171,7 +171,7 @@ class CellSim:
         self.ok_parts = 0
         self.nok_parts = 0
         self.stats = {"run_time": 0.0, "first_start": None, "last_idle": None, "idle_sum": 0.0, "idle_n": 0,
-                      "idles": [], "idle_other": [], "qh": [], "cycles": 0, "mismatches": 0, "stops": 0, "jobs": 0, "violations": 0,
+                      "idles": [], "idle_other": [], "qh": [], "cycles": 0, "cnc_alarms": 0, "mismatches": 0, "stops": 0, "jobs": 0, "violations": 0,
                       "lost": {c: 0.0 for c in LOSS_CAUSES}}
         for i in range(3, 12):
             self._add_part("raw", {"k": "in", "slot": i})
@@ -280,6 +280,10 @@ class CellSim:
         self.inject["grip_miss"] = True
         self.log("info", "Test: Robot 1 will miss its next pick")
 
+    def inject_cnc_alarm(self):
+        self.inject["cnc_alarm"] = True
+        self.log("info", "Test: the CNC will raise an alarm in the middle of its running (or next) cycle")
+
     def inject_undersized(self):
         self.inject["under"] += 1
         self.log("info", "Test: the next part to finish will be undersized in one dimension")
@@ -368,6 +372,8 @@ class CellSim:
             return "start-up"
         if any(self.faults.values()):
             return "fault"
+        if self.cnc["state"] == "ALARM":
+            return "CNC alarm"
         if self.ev("HOLD.req"):
             return "line stop"
         if self.vars["QH"]:
@@ -444,7 +450,7 @@ class CellSim:
         if name == "R2.job":
             return self.mch["R2"]["job"]
         if name == "CNC.ready":
-            return True
+            return c["state"] != "ALARM"
         if name == "CNC.run":
             return c["state"] == "RUN"
         if name == "CNC.done":
@@ -1267,7 +1273,26 @@ class CellSim:
             if st["first_start"] is None:
                 st["first_start"] = self.t
             c["state"], c["run_start"] = "RUN", self.t
-            yield from self._wait(self.T["cncCycle"])
+            while True:
+                # an injected alarm (A6.3) stops the cycle at its half (one injected after the half
+                # stops the next cycle): spindle stopped, door stays locked; after the reset the
+                # program restarts from the start with the same part
+                cycle = self.T["cncCycle"]
+                end, half = self.t + cycle, self.t + cycle / 2
+                yield ("c", lambda: self.inject["cnc_alarm"] and self.t < half - EPS, end)
+                if self.t >= end - EPS:
+                    break
+                yield ("t", half)
+                self.inject["cnc_alarm"] = False
+                st["cnc_alarms"] += 1
+                # the faces cut so far are cut again (in air): this time is lost, not machining
+                st["run_time"] -= self.t - c["run_start"]
+                st["lost"]["CNC alarm"] += self.t - c["run_start"]
+                c["state"] = "ALARM"
+                self.log("fault", "CNC ALARM in the cycle → spindle stopped, CNC not ready, door stays locked")
+                yield from self._wait(self.T["cncReset"])
+                self.log("operator", "Operator removed the cause and reset the CNC alarm → the program restarts with the same part")
+                c["state"], c["run_start"] = "RUN", self.t
             p = c["part"]
             if p:
                 p.st = "fin"

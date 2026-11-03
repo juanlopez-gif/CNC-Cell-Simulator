@@ -42,7 +42,8 @@
   "r2Drop": 0.5,
   "blowOff": 0.5,
   "r2Master": 6,
-  "sensorReplace": 900
+  "sensorReplace": 900,
+  "cncReset": 300
  },
  "TKIND": {
   "robot": {
@@ -93,6 +94,13 @@
     2
    ],
    "text": "manual work of the technician or the operator (A6): often longer than planned"
+  },
+  "alarm": {
+   "f": [
+    0.4,
+    3
+   ],
+   "text": "operator answers a machine alarm: find the cause, fix it, reset (A6): very variable"
   }
  },
  "TSRC": {
@@ -285,6 +293,10 @@
    "kind": "robot",
    "src": "Estimate (A2.2): master cube from its stand to the nest and back, 3 readings"
   },
+  "cncReset": {
+   "kind": "alarm",
+   "src": "Estimate (A6.3): operator reads the alarm, removes the cause (broken tool, chips, coolant), resets at the CNC panel; 2–15 min"
+  },
   "sensorReplace": {
    "kind": "service",
    "src": "Estimate (A6.2): spare photoelectric sensor from the cabinet, unplug the M12 connector, mount, align with the alignment LED, re-test"
@@ -458,6 +470,10 @@
   "sensorReplace": [
    600,
    1800
+  ],
+  "cncReset": [
+   120,
+   900
   ]
  },
  "RULES": {
@@ -613,7 +629,8 @@
   },
   "CNC.ready": {
    "kind": "sensor",
-   "on": "CNC ready"
+   "on": "CNC ready",
+   "off": "CNC alarm (not ready)"
   },
   "CNC.run": {
    "kind": "sensor",
@@ -1002,6 +1019,15 @@
    "require": "GAUGE.zeroed"
   },
   {
+   "id": "P14",
+   "text": "Robot 1 enters the CNC and CYCLE START is sent only with the CNC ready (no alarm)",
+   "start": [
+    "R1.enterCnc",
+    "CNC.start"
+   ],
+   "require": "CNC.ready"
+  },
+  {
    "id": "P13",
    "text": "The line never resumes with a sensor whose test failed",
    "never": "SUP=X1 & TRUE.brokenFound"
@@ -1036,11 +1062,11 @@
    "text": "stack light red"
   },
   "LT-01.amber": {
-   "def": "!lineStop & !FAULT.any & (mismatches>0 | QH | R1=W1)",
+   "def": "!lineStop & !FAULT.any & (mismatches>0 | QH | R1=W1 | R1=W2)",
    "text": "stack light amber"
   },
   "LT-01.green": {
-   "def": "!lineStop & !FAULT.any & !(mismatches>0 | QH | R1=W1)",
+   "def": "!lineStop & !FAULT.any & !(mismatches>0 | QH | R1=W1 | R1=W2)",
    "text": "stack light green"
   }
  },
@@ -1368,7 +1394,8 @@
      "B7"
     ],
     "side": {
-     "W1": "B1"
+     "W1": "B1",
+     "W2": "B2"
     }
    },
    "states": {
@@ -1434,6 +1461,10 @@
       }
      ],
      "next": [
+      {
+       "to": "W2",
+       "when": "!CNC.ready"
+      },
       {
        "to": "B3",
        "when": "(CNC.done & !ZS-33) | CNC.empty"
@@ -1530,7 +1561,7 @@
      "next": [
       {
        "to": "Q_B6",
-       "when": "CNC.run | CNC.done"
+       "when": "CNC.run | CNC.done | !CNC.ready"
       }
      ]
     },
@@ -1608,6 +1639,28 @@
       {
        "to": "B1",
        "when": "HMI.loaded"
+      }
+     ]
+    },
+    "W2": {
+     "name": "WAIT FOR CNC",
+     "kind": "op",
+     "wait": true,
+     "desc": [
+      "CNC alarm: HMI \"Reset at the CNC panel\"",
+      "amber light · robot waits at the door"
+     ],
+     "log": "CNC alarm → HMI: \"Reset the alarm at the CNC panel\" · amber light · Robot 1 waits at the door",
+     "hmi": {
+      "cls": "op",
+      "title": "CNC alarm",
+      "text": "The CNC stopped its cycle with an alarm (tool, spindle load, coolant). Find the cause and reset it at the CNC panel; the program then restarts with the same part.",
+      "act": "cnc"
+     },
+     "next": [
+      {
+       "to": "B2",
+       "when": "CNC.ready"
       }
      ]
     }

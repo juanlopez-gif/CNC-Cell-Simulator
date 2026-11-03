@@ -24,6 +24,7 @@
     blowOff: 0.5,                            // air blow-off of nest and part before loading (A2.2)
     r2Master: 6.0,                           // Robot 2 puts MST-60 in the nest, 3 readings, puts it back
     sensorReplace: 900,                      // technician replaces a broken proximity sensor (A6.2)
+    cncReset: 300,                           // operator finds the cause of a CNC alarm and resets it (A6.3)
   };
   // Names of the time components, used in the CNC idle build-up table.
   const TLABEL = {
@@ -37,7 +38,7 @@
     r2ToExit: 'To conveyor exit', r2Pick: 'Grip and lift', r2ToPallet: 'To output pallet', r2Place: 'Place',
     r2Home: 'Home', r2ToGauge: 'To gauge', r2LoadGauge: 'Load gauge', measure: 'Measure', r2Repick: 'Re-pick',
     r2ToNok: 'To NOK chute', r2Drop: 'Drop', blowOff: 'Air blow-off', r2Master: 'Master cube check',
-    sensorReplace: 'Replace a broken sensor',
+    sensorReplace: 'Replace a broken sensor', cncReset: 'Reset a CNC alarm',
   };
 
   // Source and interval of every time (step A2.3, approved by the author 2026-10-30).
@@ -54,6 +55,7 @@
     sensing: { f: [0.8, 1.5], text: 'settle + sensor reading + PLC compare' },
     cnc: { f: [0.95, 1.05], text: 'CNC program cycle' },
     service: { f: [2 / 3, 2], text: 'manual work of the technician or the operator (A6): often longer than planned' },
+    alarm: { f: [0.4, 3], text: 'operator answers a machine alarm: find the cause, fix it, reset (A6): very variable' },
   };
   const UR = 'UR10e datasheet: base joint 120 °/s';
   const RG2 = 'OnRobot RG2 datasheet: gripping time 0.06–0.21 s (8 mm stroke)';
@@ -99,6 +101,7 @@
     r2ToNok: { kind: 'robot', bound: 1.26, src: `Estimate; bound: base turn 152° (${UR})` },
     r2Drop: { kind: 'robot', bound: 0.06, src: `Estimate: open over the chute; ${RG2}` },
     r2Master: { kind: 'robot', src: 'Estimate (A2.2): master cube from its stand to the nest and back, 3 readings' },
+    cncReset: { kind: 'alarm', src: 'Estimate (A6.3): operator reads the alarm, removes the cause (broken tool, chips, coolant), resets at the CNC panel; 2–15 min' },
     sensorReplace: { kind: 'service', src: 'Estimate (A6.2): spare photoelectric sensor from the cabinet, unplug the M12 connector, mount, align with the alignment LED, re-test' },
   };
   const r2 = (x) => Math.round(x * 100) / 100;
@@ -311,7 +314,7 @@
     'R2.clearConv': { kind: 'sensor', on: 'R2 clear of conveyor', off: 'R2 at the conveyor' },
     'R2.clearGauge': { kind: 'sensor', on: 'R2 clear of the laser paths', off: 'R2 in the gauge' },
     // CNC robot interface
-    'CNC.ready': { kind: 'sensor', on: 'CNC ready' },
+    'CNC.ready': { kind: 'sensor', on: 'CNC ready', off: 'CNC alarm (not ready)' },
     'CNC.run': { kind: 'sensor', on: 'CNC in cycle', off: 'CNC not in cycle' },
     'CNC.done': { kind: 'sensor', on: 'CNC cycle complete (M30) · spindle stopped' },
     'CNC.empty': { kind: 'sensor', on: 'CNC empty (first cycle)' },
@@ -420,6 +423,7 @@
     { id: 'P10', text: 'A camera fault always stops the line', never: 'CAM_FAULT & !lineStop' },
     { id: 'P11', text: 'Robot 2 loads the gauge nest (part or master cube) only when it is empty', start: ['R2.loadGauge', 'GAUGE.master'], require: '!TRUE.nestPart' },
     { id: 'P12', text: 'A part is measured only after a passed master check', start: ['GAUGE.measure'], require: 'GAUGE.zeroed' },
+    { id: 'P14', text: 'Robot 1 enters the CNC and CYCLE START is sent only with the CNC ready (no alarm)', start: ['R1.enterCnc', 'CNC.start'], require: 'CNC.ready' },
     { id: 'P13', text: 'The line never resumes with a sensor whose test failed', never: 'SUP=X1 & TRUE.brokenFound' },
     { id: 'L1', text: 'A new CNC cycle can always be started again', eventually: 'R1.job=CNC.start' },
     { id: 'L2', text: 'Robot 2 can always deliver a part again', eventually: 'R2.job=R2.placePallet' },
@@ -431,8 +435,8 @@
     'BELT.motor': { def: 'CONV=C3', text: 'conveyor motor ON' },
     'LT-53': { def: 'R2=E7', text: 'blue beacon: output pallet ready for pickup' },
     'LT-01.red': { def: 'lineStop | FAULT.any', text: 'stack light red' },
-    'LT-01.amber': { def: '!lineStop & !FAULT.any & (mismatches>0 | QH | R1=W1)', text: 'stack light amber' },
-    'LT-01.green': { def: '!lineStop & !FAULT.any & !(mismatches>0 | QH | R1=W1)', text: 'stack light green' },
+    'LT-01.amber': { def: '!lineStop & !FAULT.any & (mismatches>0 | QH | R1=W1 | R1=W2)', text: 'stack light amber' },
+    'LT-01.green': { def: '!lineStop & !FAULT.any & !(mismatches>0 | QH | R1=W1 | R1=W2)', text: 'stack light green' },
   };
 
   // Jobs: robot programs or device commands that a step starts and that report "done".
@@ -527,7 +531,7 @@
       sub: 'Gripper A carries the raw part, gripper B the finished part. The raw part is picked while the CNC is still machining.',
       initial: { to: 'B0', when: 'HMI.auto' },
       ...ROBOT_FH('R1'), note: HOLD_NOTE,
-      view: { main: ['B0', 'B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'Q_B6', 'B7'], side: { W1: 'B1' } },
+      view: { main: ['B0', 'B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'Q_B6', 'B7'], side: { W1: 'B1', W2: 'B2' } },
       states: {
         B0: { name: 'START-UP CHECKS', desc: ['Home robot · check CNC ready and', 'door closed ({ZS-32})'],
           do: [{ job: 'R1.home', when: '!R1.home' }],
@@ -539,7 +543,7 @@
         B2: { name: 'WAIT AT CNC DOOR', band: 'run', wait: true, short: '',
           desc: ['Raw part in gripper A, gripper B empty ·', 'wait at the door while the CNC finishes'],
           do: [{ job: 'R1.toDoorReady' }],
-          next: [{ to: 'B3', when: '(CNC.done & !ZS-33) | CNC.empty' }] },
+          next: [{ to: 'W2', when: '!CNC.ready' }, { to: 'B3', when: '(CNC.done & !ZS-33) | CNC.empty' }] },
         B3: { name: 'OPEN DOOR (B)', band: 'idle', short: 'door',
           desc: ['Empty gripper B grips the handle, slides', 'the door open, releases it'],
           do: [{ job: 'R1.openDoor' }],
@@ -555,7 +559,9 @@
         B6: { name: 'START CYCLE', band: 'idle', short: 'start',
           desc: ['Send CYCLE START (not during a quality', 'hold) · CNC idle time ends'],
           do: [{ await: '!QH' }, { job: 'CNC.start' }],
-          next: [{ to: 'Q_B6', when: 'CNC.run | CNC.done' }] },
+          // a CNC alarm right after CYCLE START also means the cycle has started (A6.3): otherwise B6
+          // would time out and its repetition would send a second CYCLE START
+          next: [{ to: 'Q_B6', when: 'CNC.run | CNC.done | !CNC.ready' }] },
         Q_B6: { choice: 'GR-21B', yes: 'B7', no: 'B1', yesText: 'finished part in B', noText: 'first cycle, B is empty' },
         B7: { name: 'PLACE ON CONVEYOR (B)', band: 'run', short: 'to belt',
           desc: ['Wait for {ENC-43} = 0 and [CP-2] entry clear', '· place the finished part · release'],
@@ -563,6 +569,11 @@
             { job: 'R1.placeConvB', when: 'GR-21B' }, { check: 'CP-2' }, { set: { partPlaced: true }, when: 'CP-2' }],
           next: [{ to: 'B1', when: 'CP-2 & R1.clearConv' }] },
         W1: W1('B1'),
+        W2: { name: 'WAIT FOR CNC', kind: 'op', wait: true,
+          desc: ['CNC alarm: HMI "Reset at the CNC panel"', 'amber light · robot waits at the door'],
+          log: 'CNC alarm → HMI: "Reset the alarm at the CNC panel" · amber light · Robot 1 waits at the door',
+          hmi: { cls: 'op', title: 'CNC alarm', text: 'The CNC stopped its cycle with an alarm (tool, spindle load, coolant). Find the cause and reset it at the CNC panel; the program then restarts with the same part.', act: 'cnc' },
+          next: [{ to: 'B2', when: 'CNC.ready' }] },
       },
     },
 

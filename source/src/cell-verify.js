@@ -35,11 +35,11 @@
     if (opts.faults === true) opts.faults = 'all';
     // fault classes: sensor = proximity sensor wrong (mismatch) and camera faults (invalid images);
     // process = missed picks, confirmation timeouts and timer faults, undersized parts (Setup 2),
-    //   a master check out of tolerance (gauge FAULT, A2.2);
+    //   a master check out of tolerance (gauge FAULT, A2.2), a CNC alarm during the cycle (A6.3);
     // camwrong = camera wrong with a valid image: false positive, false negative, stale image.
     // opts.faults is a group name, a class name or a list of them.
     const FL = { mismatch: ['sensor', 'all'], camera: ['sensor', 'all'], grip: ['process', 'all'], timeout: ['process', 'all'], nok: ['process', 'all'], master: ['process', 'all'],
-      camfp: ['camwrong'], camfn: ['camwrong'], stale: ['camwrong'] };
+      cncalarm: ['process', 'all'], camfp: ['camwrong'], camfn: ['camwrong'], stale: ['camwrong'] };
     const want = [].concat(opts.faults || []);
     const F = Object.fromEntries(Object.keys(FL).map((k) => [k, want.includes(k) || FL[k].some((g) => want.includes(g))]));
     // the rule that fuses camera and proximity at each checkpoint (model value, opts.rules overrides)
@@ -112,6 +112,7 @@
     addVar('vise', ['open', 'clamped'], 'open', 'vise');
     addVar('cnc', PART, 'none', 'part in the fixture');
     addVar('run', B, false, 'CNC machining');
+    if (F.cncalarm) addVar('alarm', B, false, 'CNC alarm: spindle stopped, the program restarts with the same part after the reset');
     ['r1A', 'r1B'].forEach((g) => addVar(g, PART, 'none', 'part in Robot 1 gripper ' + g.slice(2)));
     addVar('r2S', PART, 'none', 'part in the Robot 2 gripper');
     ['beltEntry', 'beltMid', 'beltExit'].forEach((b) => addVar(b, PART, 'none', 'part on the belt'));
@@ -137,7 +138,7 @@
       'R2.home': () => and(bv('r2Home'), not(inn('R2', jobLocs('R2')))),
       'R1.clearCnc': () => not(inn('R1', zoneLocs('R1', 'cnc'))), 'R1.clearConv': () => not(inn('R1', zoneLocs('R1', 'conv'))),
       'R2.clearConv': () => not(inn('R2', zoneLocs('R2', 'conv'))), 'R2.clearGauge': () => not(inn('R2', zoneLocs('R2', 'gauge'))),
-      'CNC.ready': () => TT, 'CNC.run': () => bv('run'),
+      'CNC.ready': () => (has('alarm') ? not(bv('alarm')) : TT), 'CNC.run': () => bv('run'),
       'CNC.done': () => and(not(bv('run')), inn('cnc', FIN)), 'CNC.empty': () => and(not(bv('run')), eq('cnc', 'none')),
       'ZS-31': () => eq('door', 'open'), 'ZS-32': () => eq('door', 'closed'), 'ZS-33': () => bv('lock'),
       'ZS-34': () => eq('vise', 'open'), 'ZS-35': () => eq('vise', 'clamped'), 'PS-36': () => not(eq('cnc', 'none')),
@@ -446,6 +447,11 @@
     const plant = (proc, label, guard, upd) => addCmd({ proc, at: null, guard, upd, label });
     plant('CNC', 'CNC: cycle complete (part OK or undersized)', and(bv('run'), eq('cnc', 'raw')), { run: VAL(false), cnc: F.nok ? ONEOF(['ok', 'nok']) : VAL('ok') });
     plant('CNC', 'CNC: cycle complete (empty)', and(bv('run'), not(eq('cnc', 'raw'))), { run: VAL(false) });
+    if (F.cncalarm) {
+      // an alarm stops a cycle with a raw part (not CNC.done, not CNC.empty); the door stays locked
+      plant('CNC', 'CNC: alarm during the cycle', and(bv('run'), eq('cnc', 'raw')), { run: VAL(false), alarm: VAL(true) });
+      plant('CNC', 'CNC: alarm reset, the program restarts with the same part', bv('alarm'), { alarm: VAL(false), run: VAL(true) });
+    }
     plant('CNC', 'CNC: guard lock released after the cycle', and(not(bv('run')), bv('lock'), inn('cnc', FIN)), { lock: VAL(false) });
     const MOTOR = SIG(M.OUTPUTS['BELT.motor'].def), LT53 = SIG(M.OUTPUTS['LT-53'].def);
     plant('BELT', 'belt starts', and(MOTOR, not(bv('moving'))), { moving: VAL(true) });

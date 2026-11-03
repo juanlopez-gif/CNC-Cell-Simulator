@@ -2,15 +2,17 @@
 
 run_random drives a cell like the conformance test of the browser simulator (source/test_sim.js):
 every 10 s of simulated time it may inject a disturbance (sensor glitch or fault, bad camera
-frame, camera failure, missed pick, undersized part, master check out of tolerance) or send the operator away, and an operator
-and a technician answer the HMI (clear a fault after 60 s, release a quality hold after 120 s,
-start the sensor verification and reset the line).
+frame, camera failure, missed pick, undersized part, master check out of tolerance, CNC alarm
+while it machines) or send the operator away, and an operator and a technician answer the HMI
+(clear a fault after 60 s, release a quality hold after 120 s, start the sensor verification and
+reset the line).
 """
 import random
 
 from .sim import CellSim
 
 BROKEN_SHARE = 0.3                 # share of the sensor faults that cleaning does not repair (A6.2)
+CNC_ALARM_RATE = 0.5               # CNC alarms per hour of machining (A6.3)
 
 
 def run_random(setup, hours, faults=True, seed=1, model=None, step=10.0, random_times=False):
@@ -18,6 +20,7 @@ def run_random(setup, hours, faults=True, seed=1, model=None, step=10.0, random_
     their intervals (A4.4)."""
     rnd = random.Random(seed)
     brk = random.Random(f"broken-{seed}")                       # own stream: the other draws stay as before A6.2
+    alm = random.Random(f"alarm-{seed}")                        # own stream for the CNC alarms (A6.3)
     sim = CellSim(setup=setup, seed=seed, model=model, instant_verify=True, random_times=random_times)
     injected, actions = {}, {"clear": 0, "verify": 0, "reset": 0, "release": 0}
 
@@ -47,6 +50,8 @@ def run_random(setup, hours, faults=True, seed=1, model=None, step=10.0, random_
                 sim.inject_undersized(); inj("undersized part")
             else:
                 sim.inject_master_fault(); inj("master check out of tolerance")
+        if faults and sim.cnc["state"] == "RUN" and not sim.inject["cnc_alarm"] and alm.random() < CNC_ALARM_RATE * step / 3600:
+            sim.inject_cnc_alarm(); inj("CNC alarm")
         # the operator is sometimes away: the input pallet runs empty (Robot 1 waits in W1)
         if faults and rnd.random() < 0.003:
             sim.auto_operator = not sim.auto_operator

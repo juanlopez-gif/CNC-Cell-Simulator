@@ -2,7 +2,7 @@
    Controller of the CNC machine-tending cell (Setup 2), IEC 61131-3 Structured Text.
    Execution semantics: PROJECT_STATUS.md section 5.16. *)
 
-(* States of R1 (R1_state): 0=initial H=98 F=99 B0=1 B1=2 B2=3 B3=4 B4=5 B5=6 B6=7 Q_B6=8 (choice) B7=9 W1=10 *)
+(* States of R1 (R1_state): 0=initial H=98 F=99 B0=1 B1=2 B2=3 B3=4 B4=5 B5=6 B6=7 Q_B6=8 (choice) B7=9 W1=10 W2=11 *)
 (* Fault codes of R1 (R1_fault):
    131 B0: communication lost during R1.home
    199 B0: missing confirmation: R1.home & CNC.ready & ZS-32
@@ -20,7 +20,7 @@
    632 B5: communication lost during DOOR.lock
    699 B5: missing confirmation: ZS-32 & ZS-33
    732 B6: communication lost during CNC.start
-   799 B6: missing confirmation: CNC.run | CNC.done
+   799 B6: missing confirmation: CNC.run | CNC.done | !CNC.ready
    931 B7: communication lost during R1.toConveyorB
    903 B7: missing confirmation at CP-2: !CP-2
    934 B7: communication lost during R1.placeConvB
@@ -301,7 +301,8 @@ FUNCTION_BLOCK FB_R1S2
       END_IF;
       IF stp = 1 AND NOT moved THEN
         tWait(IN := TRUE, PT := T#24h);
-        IF ((CNC_done AND NOT (ZS_33)) OR CNC_empty) THEN IF (((SUP_state = 3) OR (SUP_state = 4)) OR CAM_FAULT) THEN hRes := 4; hStep := 0; R1_state := 98; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; ELSE R1_state := 4; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; END_IF; (* to B3 *)
+        IF NOT (CNC_ready) THEN IF (((SUP_state = 3) OR (SUP_state = 4)) OR CAM_FAULT) THEN hRes := 11; hStep := 0; R1_state := 98; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; ELSE R1_state := 11; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; END_IF; (* to W2 *)
+        ELSIF ((CNC_done AND NOT (ZS_33)) OR CNC_empty) THEN IF (((SUP_state = 3) OR (SUP_state = 4)) OR CAM_FAULT) THEN hRes := 4; hStep := 0; R1_state := 98; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; ELSE R1_state := 4; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; END_IF; (* to B3 *)
         ELSIF (((SUP_state = 3) OR (SUP_state = 4)) OR CAM_FAULT) THEN hRes := 3; hStep := 0; R1_state := 98; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
         END_IF;
       END_IF;
@@ -427,7 +428,7 @@ FUNCTION_BLOCK FB_R1S2
       END_IF;
       IF stp = 2 AND NOT moved THEN
         tWait(IN := TRUE, PT := T#24h);
-        IF (CNC_run OR CNC_done) THEN IF (((SUP_state = 3) OR (SUP_state = 4)) OR CAM_FAULT) THEN hRes := 8; hStep := 0; R1_state := 98; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; ELSE R1_state := 8; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; END_IF; (* to Q_B6 *)
+        IF (CNC_run OR CNC_done OR NOT (CNC_ready)) THEN IF (((SUP_state = 3) OR (SUP_state = 4)) OR CAM_FAULT) THEN hRes := 8; hStep := 0; R1_state := 98; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; ELSE R1_state := 8; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; END_IF; (* to Q_B6 *)
         ELSIF tWait.ET >= T#1000ms THEN fRes := R1_state; R1_fault := 799; R1_Start := FALSE; R1_JobNo := 0; R1_CP_1_Trig := FALSE; R1_CP_2_Trig := FALSE; clr_HMI_clear := FALSE; R1_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
         END_IF;
       END_IF;
@@ -533,6 +534,13 @@ FUNCTION_BLOCK FB_R1S2
         tWait(IN := TRUE, PT := T#24h);
         IF HMI_loaded THEN IF (((SUP_state = 3) OR (SUP_state = 4)) OR CAM_FAULT) THEN hRes := 2; hStep := 0; R1_state := 98; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; ELSE R1_state := 2; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; END_IF; (* to B1 *)
         ELSIF (((SUP_state = 3) OR (SUP_state = 4)) OR CAM_FAULT) THEN hRes := 10; hStep := 0; R1_state := 98; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
+        END_IF;
+      END_IF;
+    11: (* W2 WAIT FOR CNC - waiting *)
+      IF stp = 0 AND NOT moved THEN
+        tWait(IN := TRUE, PT := T#24h);
+        IF CNC_ready THEN IF (((SUP_state = 3) OR (SUP_state = 4)) OR CAM_FAULT) THEN hRes := 3; hStep := 0; R1_state := 98; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; ELSE R1_state := 3; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; END_IF; (* to B2 *)
+        ELSIF (((SUP_state = 3) OR (SUP_state = 4)) OR CAM_FAULT) THEN hRes := 11; hStep := 0; R1_state := 98; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
         END_IF;
       END_IF;
     98: (* H HOLD: LINE STOP: finish the step, park, wait for the reset *)
@@ -2050,8 +2058,8 @@ PROGRAM CellMain
   BELT_motor := (CONV_state = 3) AND NOT COMM_LOST;
   LT_53 := (R2_state = 10);
   LT_01_red := (((SUP_state = 3) OR (SUP_state = 4)) OR ((R1_state = 99) OR (CONV_state = 99) OR (R2_state = 99)));
-  LT_01_amber := (NOT (((SUP_state = 3) OR (SUP_state = 4))) AND NOT (((R1_state = 99) OR (CONV_state = 99) OR (R2_state = 99))) AND ((mismatches > 0) OR QH OR (R1_state = 10)));
-  LT_01_green := (NOT (((SUP_state = 3) OR (SUP_state = 4))) AND NOT (((R1_state = 99) OR (CONV_state = 99) OR (R2_state = 99))) AND NOT (((mismatches > 0) OR QH OR (R1_state = 10))));
+  LT_01_amber := (NOT (((SUP_state = 3) OR (SUP_state = 4))) AND NOT (((R1_state = 99) OR (CONV_state = 99) OR (R2_state = 99))) AND ((mismatches > 0) OR QH OR (R1_state = 10) OR (R1_state = 11)));
+  LT_01_green := (NOT (((SUP_state = 3) OR (SUP_state = 4))) AND NOT (((R1_state = 99) OR (CONV_state = 99) OR (R2_state = 99))) AND NOT (((mismatches > 0) OR QH OR (R1_state = 10) OR (R1_state = 11))));
   V_partPlaced := partPlaced;
   V_pickAllowed := pickAllowed;
   V_partPicked := partPicked;

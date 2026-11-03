@@ -129,6 +129,33 @@ class EngineTest(unittest.TestCase):
         self.assertNotEqual(sim.state("R1"), "H")
         self.assertClean(sim)
 
+    def test_cnc_alarm_waits_and_restarts(self):
+        # A6.3: an alarm at half of the cycle; Robot 1 waits in W2 (not a FAULT), the operator resets
+        # the CNC after T.cncReset, the program restarts with the same part, the time is charged to
+        # the cause "CNC alarm"
+        sim = CellSim(seed=1, instant_verify=True)
+        sim.advance(300)
+        cycles = sim.stats["cycles"]
+        sim.inject_cnc_alarm()
+        sim.advance(sim.M.T["cncCycle"])
+        self.assertEqual(sim.cnc["state"], "ALARM")
+        self.assertFalse(sim.read("CNC.ready"))
+        self.assertTrue(sim.cnc["locked"], "the door stays locked")
+        self.assertEqual(sim.state("R1"), "W2")
+        self.assertFalse(any(sim.faults.values()))
+        part = sim.cnc["part"]
+        sim.advance(sim.T["cncReset"])
+        self.assertEqual(sim.cnc["state"], "RUN")
+        self.assertIs(sim.cnc["part"], part, "the same part")
+        self.assertEqual(sim.state("R1"), "B2")
+        sim.advance(sim.M.T["cncCycle"] + 30)
+        self.assertGreater(sim.stats["cycles"], cycles)
+        self.assertEqual(sim.stats["cnc_alarms"], 1)
+        lost = sim.measures()["lost_s"]["CNC alarm"]
+        self.assertGreater(lost, sim.T["cncReset"])
+        self.assertLess(lost, sim.T["cncReset"] + sim.M.T["cncCycle"])
+        self.assertClean(sim)
+
     def test_quality_hold_after_two_nok_parts(self):
         sim = CellSim(seed=1)
         sim.advance(600)

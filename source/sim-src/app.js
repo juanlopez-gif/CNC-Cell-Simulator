@@ -41,7 +41,7 @@
     S = {
       t: 0, speed: +$('#selSpeed').value || 10, running: true, setup: 2, step: false,
       autoOp: $('#chkAuto').checked, logAll: $('#chkAll').checked,
-      inject: { under: 0, band: 0, master: false, gripMiss: false, frames: { 'CAM-1': 0, 'CAM-2': 0 } }, faults: {}, camFault: null, askAt: null, verify: null,
+      inject: { under: 0, band: 0, master: false, gripMiss: false, cncAlarm: false, frames: { 'CAM-1': 0, 'CAM-2': 0 } }, faults: {}, camFault: null, askAt: null, verify: null,
       stopReason: '', vars: {}, cp: {}, inputs: { verify: false, reset: false, release: false, verifyFail: false, clearAt: -1 },
     };
     Object.keys(M.SIGNALS).forEach((k) => { const s = M.SIGNALS[k]; if (s.kind === 'var' && k !== 'mismatches') S.vars[k] = s.num ? 0 : false; });
@@ -119,7 +119,7 @@
     'R1.clearCnc': () => W.r1.zone !== 'cnc', 'R1.clearConv': () => W.r1.zone !== 'conv',
     'R2.clearConv': () => W.r2.zone !== 'conv', 'R2.clearGauge': () => W.r2.zone !== 'gauge',
     'R1.job': () => MCH.R1.job, 'R2.job': () => MCH.R2.job,
-    'CNC.ready': () => true,
+    'CNC.ready': () => W.cnc.state !== 'ALARM',
     'CNC.run': () => W.cnc.state === 'RUN',
     'CNC.done': () => W.cnc.state === 'DONE' && !!W.cnc.part && W.cnc.part.st === 'fin',
     'CNC.empty': () => !W.cnc.part && W.cnc.state !== 'RUN',
@@ -586,7 +586,21 @@
       if (W.cnc.doneAt != null) { st.lastIdle = S.t - W.cnc.doneAt; st.idleSum += st.lastIdle; st.idleN++; }
       if (st.firstStart == null) st.firstStart = S.t;
       W.cnc.state = 'RUN'; W.cnc.runStart = S.t;
-      yield* wait(T.cncCycle);
+      for (;;) {
+        // an injected alarm (A6.3) stops the cycle at its half (one injected after the half stops the
+        // next cycle): spindle stopped, door stays locked; after the reset the program restarts from
+        // the start with the same part
+        const cycle = T.cncCycle, end = S.t + cycle, half = S.t + cycle / 2;
+        yield { k: 'c', fn: () => S.inject.cncAlarm && S.t < half - 1e-9, until: end };
+        if (S.t >= end - 1e-9) break;
+        yield { k: 't', until: half };
+        S.inject.cncAlarm = false;
+        W.cnc.state = 'ALARM';
+        log('fault', 'CNC ALARM in the cycle → spindle stopped, CNC not ready, door stays locked');
+        yield* wait(T.cncReset);
+        log('operator', 'Operator removed the cause and reset the CNC alarm → the program restarts with the same part');
+        W.cnc.state = 'RUN'; W.cnc.runStart = S.t;
+      }
       const p = W.cnc.part;
       if (p) {
         p.st = 'fin';
@@ -757,6 +771,7 @@
   function cncLabel() {
     const c = W.cnc, p = c.part;
     if (c.state === 'RUN') return ['CNC', `MACHINING ${fmtMS(T.cncCycle - (S.t - c.runStart))}`, 'ok'];
+    if (c.state === 'ALARM') return ['CNC', 'ALARM · RESET AT THE PANEL', 'fault'];
     if (p && p.st === 'fin') return ['CNC', c.locked ? 'CYCLE COMPLETE' : 'DONE · DOOR UNLOCKED', 'warn'];
     if (p) return ['CNC', c.locked ? 'LOADED · WAIT START' : doorPos() > 0.01 ? 'LOADED · DOOR OPEN' : 'LOADED', ''];
     return ['CNC', doorPos() > 0.01 ? 'EMPTY · DOOR OPEN' : 'EMPTY · READY', ''];
@@ -917,7 +932,7 @@
     const lt = lightState();
     const st = $('#stText');
     const fault = SLOTS.find((k) => S.faults[k]);
-    const op = activeHmi('load') || activeHmi('swap');
+    const op = activeHmi('load') || activeHmi('swap') || activeHmi('cnc');
     let txt = 'Running', cls = 'ok';
     if (ev('lineStop')) { txt = 'Line stopped · verify sensors'; cls = 'bad'; }
     else if (fault) { txt = `Fault · ${M.SLOTS[fault].label}`; cls = 'bad'; }
@@ -962,10 +977,11 @@
     } else if (SUP.events.length) {
       key = 'mm:' + SUP.events.length; title = `Sensor mismatch warning · ${SUP.events.length} of ${RU.mismatchLimit} in 10 min`; text = `Disagreements: ${windowSummary()}. The rule of each checkpoint gives the value used and the line keeps running. A ${RU.mismatchLimit}rd mismatch within 10 minutes stops the line.`; cls = 'warn';
     } else {
-      const s = activeHmi('swap') || activeHmi('load');
+      const s = activeHmi('swap') || activeHmi('load') || activeHmi('cnc');
       if (s) {
         key = 'hmi:' + s.hmi.act; title = s.hmi.title; text = s.hmi.text; cls = s.hmi.cls;
-        acts = [[s.hmi.act === 'swap' ? 'Swap output pallet' : 'Load input pallet', s.hmi.act, '']];
+        // the CNC alarm is reset by the operator at the CNC panel (T.cncReset), not at the cell HMI
+        if (s.hmi.act !== 'cnc') acts = [[s.hmi.act === 'swap' ? 'Swap output pallet' : 'Load input pallet', s.hmi.act, '']];
       }
     }
     if (key === bannerKey) return;
@@ -1048,6 +1064,7 @@
     $('#btnBadFrame').addEventListener('click', () => { S.inject.frames['CAM-1'] = 1; log('info', 'Test: the next CAM-1 image will be invalid once'); });
     $('#btnCamFail').addEventListener('click', () => { S.inject.frames['CAM-2'] = 2; log('info', 'Test: CAM-2 will deliver two invalid images in a row'); });
     $('#btnGripMiss').addEventListener('click', () => { S.inject.gripMiss = true; log('info', 'Test: Robot 1 will miss its next pick'); });
+    $('#btnCncAlarm').addEventListener('click', () => { S.inject.cncAlarm = true; log('info', 'Test: the CNC will raise an alarm in the middle of its running (or next) cycle'); });
     $('#btnUnder').addEventListener('click', () => { S.inject.under++; log('info', 'Test: the next part to finish will be undersized in one dimension'); });
     $('#btnBand').addEventListener('click', () => { S.inject.band++; log('info', 'Test: the next part to finish will be in the guard band (48.00–48.05 mm) in one dimension'); });
     $('#btnMaster').addEventListener('click', () => { S.inject.master = true; log('info', 'Test: the next master check will read outside ± 0.010 mm'); });

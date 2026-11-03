@@ -439,6 +439,7 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
           <h3>Process</h3>
           <div class="bs">
             <button type="button" class="btn" id="btnGripMiss">Robot 1 misses a pick</button>
+            <button type="button" class="btn" id="btnCncAlarm">CNC alarm</button>
             <button type="button" class="btn" id="btnUnder">Next part undersized</button>
             <button type="button" class="btn" id="btnBand">Next part in the guard band</button>
             <button type="button" class="btn" id="btnMaster">Master check out of tolerance</button>
@@ -490,6 +491,7 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
     blowOff: 0.5,                            // air blow-off of nest and part before loading (A2.2)
     r2Master: 6.0,                           // Robot 2 puts MST-60 in the nest, 3 readings, puts it back
     sensorReplace: 900,                      // technician replaces a broken proximity sensor (A6.2)
+    cncReset: 300,                           // operator finds the cause of a CNC alarm and resets it (A6.3)
   };
   // Names of the time components, used in the CNC idle build-up table.
   const TLABEL = {
@@ -503,7 +505,7 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
     r2ToExit: 'To conveyor exit', r2Pick: 'Grip and lift', r2ToPallet: 'To output pallet', r2Place: 'Place',
     r2Home: 'Home', r2ToGauge: 'To gauge', r2LoadGauge: 'Load gauge', measure: 'Measure', r2Repick: 'Re-pick',
     r2ToNok: 'To NOK chute', r2Drop: 'Drop', blowOff: 'Air blow-off', r2Master: 'Master cube check',
-    sensorReplace: 'Replace a broken sensor',
+    sensorReplace: 'Replace a broken sensor', cncReset: 'Reset a CNC alarm',
   };
 
   // Source and interval of every time (step A2.3, approved by the author 2026-10-30).
@@ -520,6 +522,7 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
     sensing: { f: [0.8, 1.5], text: 'settle + sensor reading + PLC compare' },
     cnc: { f: [0.95, 1.05], text: 'CNC program cycle' },
     service: { f: [2 / 3, 2], text: 'manual work of the technician or the operator (A6): often longer than planned' },
+    alarm: { f: [0.4, 3], text: 'operator answers a machine alarm: find the cause, fix it, reset (A6): very variable' },
   };
   const UR = 'UR10e datasheet: base joint 120 °/s';
   const RG2 = 'OnRobot RG2 datasheet: gripping time 0.06–0.21 s (8 mm stroke)';
@@ -565,6 +568,7 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
     r2ToNok: { kind: 'robot', bound: 1.26, src: `Estimate; bound: base turn 152° (${UR})` },
     r2Drop: { kind: 'robot', bound: 0.06, src: `Estimate: open over the chute; ${RG2}` },
     r2Master: { kind: 'robot', src: 'Estimate (A2.2): master cube from its stand to the nest and back, 3 readings' },
+    cncReset: { kind: 'alarm', src: 'Estimate (A6.3): operator reads the alarm, removes the cause (broken tool, chips, coolant), resets at the CNC panel; 2–15 min' },
     sensorReplace: { kind: 'service', src: 'Estimate (A6.2): spare photoelectric sensor from the cabinet, unplug the M12 connector, mount, align with the alignment LED, re-test' },
   };
   const r2 = (x) => Math.round(x * 100) / 100;
@@ -777,7 +781,7 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
     'R2.clearConv': { kind: 'sensor', on: 'R2 clear of conveyor', off: 'R2 at the conveyor' },
     'R2.clearGauge': { kind: 'sensor', on: 'R2 clear of the laser paths', off: 'R2 in the gauge' },
     // CNC robot interface
-    'CNC.ready': { kind: 'sensor', on: 'CNC ready' },
+    'CNC.ready': { kind: 'sensor', on: 'CNC ready', off: 'CNC alarm (not ready)' },
     'CNC.run': { kind: 'sensor', on: 'CNC in cycle', off: 'CNC not in cycle' },
     'CNC.done': { kind: 'sensor', on: 'CNC cycle complete (M30) · spindle stopped' },
     'CNC.empty': { kind: 'sensor', on: 'CNC empty (first cycle)' },
@@ -886,6 +890,7 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
     { id: 'P10', text: 'A camera fault always stops the line', never: 'CAM_FAULT & !lineStop' },
     { id: 'P11', text: 'Robot 2 loads the gauge nest (part or master cube) only when it is empty', start: ['R2.loadGauge', 'GAUGE.master'], require: '!TRUE.nestPart' },
     { id: 'P12', text: 'A part is measured only after a passed master check', start: ['GAUGE.measure'], require: 'GAUGE.zeroed' },
+    { id: 'P14', text: 'Robot 1 enters the CNC and CYCLE START is sent only with the CNC ready (no alarm)', start: ['R1.enterCnc', 'CNC.start'], require: 'CNC.ready' },
     { id: 'P13', text: 'The line never resumes with a sensor whose test failed', never: 'SUP=X1 & TRUE.brokenFound' },
     { id: 'L1', text: 'A new CNC cycle can always be started again', eventually: 'R1.job=CNC.start' },
     { id: 'L2', text: 'Robot 2 can always deliver a part again', eventually: 'R2.job=R2.placePallet' },
@@ -897,8 +902,8 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
     'BELT.motor': { def: 'CONV=C3', text: 'conveyor motor ON' },
     'LT-53': { def: 'R2=E7', text: 'blue beacon: output pallet ready for pickup' },
     'LT-01.red': { def: 'lineStop | FAULT.any', text: 'stack light red' },
-    'LT-01.amber': { def: '!lineStop & !FAULT.any & (mismatches>0 | QH | R1=W1)', text: 'stack light amber' },
-    'LT-01.green': { def: '!lineStop & !FAULT.any & !(mismatches>0 | QH | R1=W1)', text: 'stack light green' },
+    'LT-01.amber': { def: '!lineStop & !FAULT.any & (mismatches>0 | QH | R1=W1 | R1=W2)', text: 'stack light amber' },
+    'LT-01.green': { def: '!lineStop & !FAULT.any & !(mismatches>0 | QH | R1=W1 | R1=W2)', text: 'stack light green' },
   };
 
   // Jobs: robot programs or device commands that a step starts and that report "done".
@@ -993,7 +998,7 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
       sub: 'Gripper A carries the raw part, gripper B the finished part. The raw part is picked while the CNC is still machining.',
       initial: { to: 'B0', when: 'HMI.auto' },
       ...ROBOT_FH('R1'), note: HOLD_NOTE,
-      view: { main: ['B0', 'B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'Q_B6', 'B7'], side: { W1: 'B1' } },
+      view: { main: ['B0', 'B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'Q_B6', 'B7'], side: { W1: 'B1', W2: 'B2' } },
       states: {
         B0: { name: 'START-UP CHECKS', desc: ['Home robot · check CNC ready and', 'door closed ({ZS-32})'],
           do: [{ job: 'R1.home', when: '!R1.home' }],
@@ -1005,7 +1010,7 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
         B2: { name: 'WAIT AT CNC DOOR', band: 'run', wait: true, short: '',
           desc: ['Raw part in gripper A, gripper B empty ·', 'wait at the door while the CNC finishes'],
           do: [{ job: 'R1.toDoorReady' }],
-          next: [{ to: 'B3', when: '(CNC.done & !ZS-33) | CNC.empty' }] },
+          next: [{ to: 'W2', when: '!CNC.ready' }, { to: 'B3', when: '(CNC.done & !ZS-33) | CNC.empty' }] },
         B3: { name: 'OPEN DOOR (B)', band: 'idle', short: 'door',
           desc: ['Empty gripper B grips the handle, slides', 'the door open, releases it'],
           do: [{ job: 'R1.openDoor' }],
@@ -1021,7 +1026,9 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
         B6: { name: 'START CYCLE', band: 'idle', short: 'start',
           desc: ['Send CYCLE START (not during a quality', 'hold) · CNC idle time ends'],
           do: [{ await: '!QH' }, { job: 'CNC.start' }],
-          next: [{ to: 'Q_B6', when: 'CNC.run | CNC.done' }] },
+          // a CNC alarm right after CYCLE START also means the cycle has started (A6.3): otherwise B6
+          // would time out and its repetition would send a second CYCLE START
+          next: [{ to: 'Q_B6', when: 'CNC.run | CNC.done | !CNC.ready' }] },
         Q_B6: { choice: 'GR-21B', yes: 'B7', no: 'B1', yesText: 'finished part in B', noText: 'first cycle, B is empty' },
         B7: { name: 'PLACE ON CONVEYOR (B)', band: 'run', short: 'to belt',
           desc: ['Wait for {ENC-43} = 0 and [CP-2] entry clear', '· place the finished part · release'],
@@ -1029,6 +1036,11 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
             { job: 'R1.placeConvB', when: 'GR-21B' }, { check: 'CP-2' }, { set: { partPlaced: true }, when: 'CP-2' }],
           next: [{ to: 'B1', when: 'CP-2 & R1.clearConv' }] },
         W1: W1('B1'),
+        W2: { name: 'WAIT FOR CNC', kind: 'op', wait: true,
+          desc: ['CNC alarm: HMI "Reset at the CNC panel"', 'amber light · robot waits at the door'],
+          log: 'CNC alarm → HMI: "Reset the alarm at the CNC panel" · amber light · Robot 1 waits at the door',
+          hmi: { cls: 'op', title: 'CNC alarm', text: 'The CNC stopped its cycle with an alarm (tool, spindle load, coolant). Find the cause and reset it at the CNC panel; the program then restarts with the same part.', act: 'cnc' },
+          next: [{ to: 'B2', when: 'CNC.ready' }] },
       },
     },
 
@@ -2551,7 +2563,7 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
     S = {
       t: 0, speed: +$('#selSpeed').value || 10, running: true, setup: 2, step: false,
       autoOp: $('#chkAuto').checked, logAll: $('#chkAll').checked,
-      inject: { under: 0, band: 0, master: false, gripMiss: false, frames: { 'CAM-1': 0, 'CAM-2': 0 } }, faults: {}, camFault: null, askAt: null, verify: null,
+      inject: { under: 0, band: 0, master: false, gripMiss: false, cncAlarm: false, frames: { 'CAM-1': 0, 'CAM-2': 0 } }, faults: {}, camFault: null, askAt: null, verify: null,
       stopReason: '', vars: {}, cp: {}, inputs: { verify: false, reset: false, release: false, verifyFail: false, clearAt: -1 },
     };
     Object.keys(M.SIGNALS).forEach((k) => { const s = M.SIGNALS[k]; if (s.kind === 'var' && k !== 'mismatches') S.vars[k] = s.num ? 0 : false; });
@@ -2629,7 +2641,7 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
     'R1.clearCnc': () => W.r1.zone !== 'cnc', 'R1.clearConv': () => W.r1.zone !== 'conv',
     'R2.clearConv': () => W.r2.zone !== 'conv', 'R2.clearGauge': () => W.r2.zone !== 'gauge',
     'R1.job': () => MCH.R1.job, 'R2.job': () => MCH.R2.job,
-    'CNC.ready': () => true,
+    'CNC.ready': () => W.cnc.state !== 'ALARM',
     'CNC.run': () => W.cnc.state === 'RUN',
     'CNC.done': () => W.cnc.state === 'DONE' && !!W.cnc.part && W.cnc.part.st === 'fin',
     'CNC.empty': () => !W.cnc.part && W.cnc.state !== 'RUN',
@@ -3096,7 +3108,21 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
       if (W.cnc.doneAt != null) { st.lastIdle = S.t - W.cnc.doneAt; st.idleSum += st.lastIdle; st.idleN++; }
       if (st.firstStart == null) st.firstStart = S.t;
       W.cnc.state = 'RUN'; W.cnc.runStart = S.t;
-      yield* wait(T.cncCycle);
+      for (;;) {
+        // an injected alarm (A6.3) stops the cycle at its half (one injected after the half stops the
+        // next cycle): spindle stopped, door stays locked; after the reset the program restarts from
+        // the start with the same part
+        const cycle = T.cncCycle, end = S.t + cycle, half = S.t + cycle / 2;
+        yield { k: 'c', fn: () => S.inject.cncAlarm && S.t < half - 1e-9, until: end };
+        if (S.t >= end - 1e-9) break;
+        yield { k: 't', until: half };
+        S.inject.cncAlarm = false;
+        W.cnc.state = 'ALARM';
+        log('fault', 'CNC ALARM in the cycle → spindle stopped, CNC not ready, door stays locked');
+        yield* wait(T.cncReset);
+        log('operator', 'Operator removed the cause and reset the CNC alarm → the program restarts with the same part');
+        W.cnc.state = 'RUN'; W.cnc.runStart = S.t;
+      }
       const p = W.cnc.part;
       if (p) {
         p.st = 'fin';
@@ -3267,6 +3293,7 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
   function cncLabel() {
     const c = W.cnc, p = c.part;
     if (c.state === 'RUN') return ['CNC', `MACHINING ${fmtMS(T.cncCycle - (S.t - c.runStart))}`, 'ok'];
+    if (c.state === 'ALARM') return ['CNC', 'ALARM · RESET AT THE PANEL', 'fault'];
     if (p && p.st === 'fin') return ['CNC', c.locked ? 'CYCLE COMPLETE' : 'DONE · DOOR UNLOCKED', 'warn'];
     if (p) return ['CNC', c.locked ? 'LOADED · WAIT START' : doorPos() > 0.01 ? 'LOADED · DOOR OPEN' : 'LOADED', ''];
     return ['CNC', doorPos() > 0.01 ? 'EMPTY · DOOR OPEN' : 'EMPTY · READY', ''];
@@ -3427,7 +3454,7 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
     const lt = lightState();
     const st = $('#stText');
     const fault = SLOTS.find((k) => S.faults[k]);
-    const op = activeHmi('load') || activeHmi('swap');
+    const op = activeHmi('load') || activeHmi('swap') || activeHmi('cnc');
     let txt = 'Running', cls = 'ok';
     if (ev('lineStop')) { txt = 'Line stopped · verify sensors'; cls = 'bad'; }
     else if (fault) { txt = `Fault · ${M.SLOTS[fault].label}`; cls = 'bad'; }
@@ -3472,10 +3499,11 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
     } else if (SUP.events.length) {
       key = 'mm:' + SUP.events.length; title = `Sensor mismatch warning · ${SUP.events.length} of ${RU.mismatchLimit} in 10 min`; text = `Disagreements: ${windowSummary()}. The rule of each checkpoint gives the value used and the line keeps running. A ${RU.mismatchLimit}rd mismatch within 10 minutes stops the line.`; cls = 'warn';
     } else {
-      const s = activeHmi('swap') || activeHmi('load');
+      const s = activeHmi('swap') || activeHmi('load') || activeHmi('cnc');
       if (s) {
         key = 'hmi:' + s.hmi.act; title = s.hmi.title; text = s.hmi.text; cls = s.hmi.cls;
-        acts = [[s.hmi.act === 'swap' ? 'Swap output pallet' : 'Load input pallet', s.hmi.act, '']];
+        // the CNC alarm is reset by the operator at the CNC panel (T.cncReset), not at the cell HMI
+        if (s.hmi.act !== 'cnc') acts = [[s.hmi.act === 'swap' ? 'Swap output pallet' : 'Load input pallet', s.hmi.act, '']];
       }
     }
     if (key === bannerKey) return;
@@ -3558,6 +3586,7 @@ footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-top
     $('#btnBadFrame').addEventListener('click', () => { S.inject.frames['CAM-1'] = 1; log('info', 'Test: the next CAM-1 image will be invalid once'); });
     $('#btnCamFail').addEventListener('click', () => { S.inject.frames['CAM-2'] = 2; log('info', 'Test: CAM-2 will deliver two invalid images in a row'); });
     $('#btnGripMiss').addEventListener('click', () => { S.inject.gripMiss = true; log('info', 'Test: Robot 1 will miss its next pick'); });
+    $('#btnCncAlarm').addEventListener('click', () => { S.inject.cncAlarm = true; log('info', 'Test: the CNC will raise an alarm in the middle of its running (or next) cycle'); });
     $('#btnUnder').addEventListener('click', () => { S.inject.under++; log('info', 'Test: the next part to finish will be undersized in one dimension'); });
     $('#btnBand').addEventListener('click', () => { S.inject.band++; log('info', 'Test: the next part to finish will be in the guard band (48.00–48.05 mm) in one dimension'); });
     $('#btnMaster').addEventListener('click', () => { S.inject.master = true; log('info', 'Test: the next master check will read outside ± 0.010 mm'); });

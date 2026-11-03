@@ -84,3 +84,19 @@ differences are all intended:
 
 The parity test has a fourth scenario, `cp2broken` (broken PE-41 from t = 300 s): browser and Python
 identical (351 state changes).
+
+## Step A6.3: CNC alarm, state W2 and P14
+
+Comparison of the code at the end of A6.3 with `setup2_a62.json` (13 differences). KPIs, nominal
+state times, the browser traces and the Python fingerprints are identical. The differences are all
+intended:
+
+- state times of Robot 1: the new state W2 WAIT FOR CNC (0 s, it is not entered in nominal operation);
+- NuSMV models of the five runs: the new property P14 and the W2 transitions; `process` also the
+  class `cncalarm` (one more variable `alarm` and the alarm and reset commands of the CNC);
+- figure `fig12` (Robot 1 diagram: W2 next to B2).
+
+The Python 8 h random run (seed 4) draws no CNC alarm: its CNC machines only 2.6 h (the absent
+operator), at 0.5 alarms per hour of machining. The 8 h run with seed 1 has 3 alarms, with no
+transition outside the model and no violation. The parity test has a fifth scenario, `cncalarm`
+(alarms injected at t = 300 s and 1500 s): browser and Python identical (359 state changes).

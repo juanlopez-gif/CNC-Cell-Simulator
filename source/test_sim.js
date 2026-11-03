@@ -113,7 +113,7 @@ function conformance(trace, setup) {
     if (mode === 'engine') {
       // the Python engine (engine/) must give the same state changes at the same instants
       await page.click('#btnRun');
-      for (const [setup, scenario] of [[2, 'nominal'], [2, 'cp2fault'], [2, 'cp2broken'], [2, 'camwrong']]) {
+      for (const [setup, scenario] of [[2, 'nominal'], [2, 'cp2fault'], [2, 'cp2broken'], [2, 'cncalarm'], [2, 'camwrong']]) {
         const errsBefore = errors.length;
         const js = await page.evaluate((setup, scenario) => {
           const C = window.CellSim;
@@ -125,6 +125,7 @@ function conformance(trace, setup) {
             1500: ['camwrong', 'CP-1'], 1800: ['stale', 'CP-4'], 2100: ['camwrong', 'CP-2'], 2400: ['glitch', 'CP-3'] };
           for (let t = 0; t < 3600; t += 10) {
             if ((scenario === 'cp2fault' || scenario === 'cp2broken') && t === 300) document.querySelector(`#cpTable tr[data-cp="CP-2"] button[data-inj="${scenario === 'cp2broken' ? 'broken' : 'fault'}"]`).click();
+            if (scenario === 'cncalarm' && (t === 300 || t === 1500)) document.querySelector('#btnCncAlarm').click();   // A6.3
             if (scenario === 'camwrong' && CAMWRONG[t]) document.querySelector(`#cpTable tr[data-cp="${CAMWRONG[t][1]}"] button[data-inj="${CAMWRONG[t][0]}"]`).click();
             C.advance(10);
             if (scenario !== 'nominal' && Object.keys(C.S.faults).some((k) => C.S.faults[k])) C.press('clear');
@@ -166,6 +167,8 @@ function conformance(trace, setup) {
           const C = window.CellSim, rnd = Math.random;
           let b = (run.seed * 40503 + 7) >>> 0;                         // own stream for the broken sensors (A6.2)
           const rndB = () => { b = (b + 0x6D2B79F5) >>> 0; let t = b; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+          let a2 = (run.seed * 69069 + 13) >>> 0;                       // own stream for the CNC alarms (A6.3)
+          const rndA = () => { a2 = (a2 + 0x6D2B79F5) >>> 0; let t = a2; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
           C.instantVerify = true;
           C.newSim(run.setup);
           C.S.running = false;
@@ -191,6 +194,8 @@ function conformance(trace, setup) {
               else if (k < 0.95) { document.querySelector('#btnUnder').click(); inj('undersized part'); }
               else { document.querySelector('#btnMaster').click(); inj('master check out of tolerance'); }
             }
+            // CNC alarms: 0.5 per hour of machining (A6.3)
+            if (run.faults && C.W.cnc.state === 'RUN' && !S.inject.cncAlarm && rndA() < 0.5 * 10 / 3600) { document.querySelector('#btnCncAlarm').click(); inj('CNC alarm'); }
             // the operator is sometimes away: the input pallet runs empty (Robot 1 waits in W1)
             if (run.faults && rnd() < 0.003) { S.autoOp = !S.autoOp; inj(S.autoOp ? 'operator back' : 'operator away'); }
             // operator and technician
