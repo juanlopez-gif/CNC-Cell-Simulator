@@ -1203,6 +1203,10 @@ below **48.20 mm**; the five safety states with reduced speed × 2; the times pr
 - Tests: `test_engine` `test_broken_sensor_is_replaced`; parity scenario `cp2broken`, browser and
   Python identical; the random conformance runs now contain broken sensors. Regression re-recorded
   (`regression/README.md`, step A6.2: only the NuSMV models and the Python 8 h random run differ).
+- PLC run (OpenPLC in CI, workflow `plc run`, scenario `cp2broken`, 1 h real time, 2026-11-03):
+  PASS; 351 state changes compared with the model run, 19 CNC cycles, final lag
+  17.2 s, largest increment 0.32 s. The generated program goes through the new path (test fails,
+  `VERIFY.fail` pulse, replacement, re-test, reset) without change.
 - Verification re-run (explicit search, 2026-11-03): in all 5 runs the same states and transitions as
   before, all 16 properties hold, 0 deadlocks; the `.smv` files in `verification/` are the new ones.
   `verification/results.md` / `.json` stay those of A2.2 with the NuSMV comparison until the NuSMV
