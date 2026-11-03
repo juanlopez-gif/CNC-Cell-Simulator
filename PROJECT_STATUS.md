@@ -1234,7 +1234,8 @@ below **48.20 mm**; the five safety states with reduced speed × 2; the times pr
   with a raw part at any instant of the cycle (`run` false, the door stays locked) and the reset that
   restarts it. The other runs have no alarm (`CNC.ready` true) and the same state space.
 - PLC: the program is regenerated (W2, the B6 guard); scenario `cncalarm` of `plc_compare.py` (two
-  alarms) and of the workflow `plc run`.
+  alarms) and of the workflow `plc run`. OpenPLC run of `cncalarm` (GitHub Actions, 2026-11-03): PASS,
+  359 state changes compared, final lag 16.9 s, largest increment 0.33 s.
 - Tests: `test_engine` `test_cnc_alarm_waits_and_restarts`; parity scenario `cncalarm` (alarms at
   300 s and 1500 s), browser and Python identical (359 state changes); the random conformance runs
   contain alarms (the Python 8 h run with seed 1: 3 alarms, every state visited, no error). Regression
