@@ -27,6 +27,8 @@ from .scenarios import conformance
 SCENARIOS = {
     "nominal": [],
     "cp2fault": [(("R1", "B2", 4), "fault", "CP-2")],
+    # A6.2: a broken PE-41; its test fails in the verification and the technician replaces it
+    "cp2broken": [(("R1", "B2", 4), "broken", "CP-2")],
     "camwrong": [(("R1", "B2", 4), "camwrong", "CP-4"), (("R1", "B2", 6), "stale", "CP-2"),
                  (("R1", "B2", 8), "camwrong", "CP-3"), (("R1", "B2", 10), "camwrong", "CP-5"),
                  (("R1", "B2", 12), "camwrong", "CP-1"), (("R1", "B2", 14), "stale", "CP-4"),
@@ -57,7 +59,8 @@ class Driver:
             for item in list(self.todo):
                 (slot, sid, n), kind, cp = item
                 if (slot, sid) == key and self.count[key] == n:
-                    {"fault": sim.toggle_sensor_fault, "camwrong": sim.inject_camera_wrong,
+                    {"fault": sim.toggle_sensor_fault, "broken": lambda c: sim.toggle_sensor_fault(c, broken=True),
+                     "camwrong": sim.inject_camera_wrong,
                      "stale": sim.inject_stale_image, "glitch": sim.inject_glitch}[kind](cp)
                     self.actions.append([round(sim.t, 3), kind, cp])
                     self.todo.remove(item)

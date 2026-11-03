@@ -1,7 +1,7 @@
 """Print the state-change trace of one scenario as JSON (used by source/test_sim.js engine to
 compare the Python engine with the browser simulator).
 
-    python trace.py 2 <seconds> <nominal|cp2fault|camwrong>      (2 = Setup 2, the only setup)
+    python trace.py 2 <seconds> <nominal|cp2fault|cp2broken|camwrong>      (2 = Setup 2, the only setup)
 """
 import json
 import sys
@@ -17,16 +17,16 @@ def scenario_trace(setup, seconds, scenario):
     sim = CellSim(setup=setup, seed=1, instant_verify=True)
     t = 0
     while t < seconds:
-        if scenario == "cp2fault" and t == 300:
-            sim.toggle_sensor_fault("CP-2")       # faulty PE-41 from t = 300 s
+        if scenario in ("cp2fault", "cp2broken") and t == 300:
+            sim.toggle_sensor_fault("CP-2", broken=scenario == "cp2broken")   # faulty (or broken, A6.2) PE-41 from t = 300 s
         if scenario == "camwrong" and t in CAMWRONG:
             k, cp = CAMWRONG[t]
             {"camwrong": sim.inject_camera_wrong, "stale": sim.inject_stale_image, "glitch": sim.inject_glitch}[k](cp)
         sim.advance(10)
         t += 10
-        if scenario in ("cp2fault", "camwrong") and any(sim.faults.values()):
+        if scenario != "nominal" and any(sim.faults.values()):
             sim.press("clear")
-        if scenario in ("cp2fault", "camwrong"):
+        if scenario != "nominal":
             if sim.state("SUP") == "X3" and not sim.inputs["verify"]:
                 sim.press("verify")
             if sim.state("SUP") == "X4" and sim.verify and sim.verify["done"] and not sim.inputs["reset"]:

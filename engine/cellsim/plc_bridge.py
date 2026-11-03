@@ -141,7 +141,8 @@ class Bridge:
                     j["ready_at"] = sim.ext["done"][slot] + sim.RU["debounce"] + self.scan
                 if sim.t >= j["ready_at"]:
                     j["running"], j["done"], j["ready_at"] = False, True, None
-        for key, flag in (("HMI.verify", "verify"), ("HMI.reset", "reset"), ("HMI.release", "release")):
+        for key, flag in (("HMI.verify", "verify"), ("HMI.reset", "reset"), ("HMI.release", "release"),
+                          ("VERIFY.fail", "verify_fail")):
             if sim.inputs[flag]:
                 sim.inputs[flag] = False
                 self.pulse[key] = sim.t

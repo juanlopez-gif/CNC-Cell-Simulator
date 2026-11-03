@@ -27,7 +27,7 @@
   const SLOTS = Object.keys(M.SLOTS);                     // R1, CONV, R2, SUP
   const CPS = M.CHECKPOINTS.map((c) => Object.assign({}, c));
   const CP = {}; CPS.forEach((c) => { CP[c.id] = c; });
-  const LATCH = { 'HMI.verify': 'verify', 'HMI.reset': 'reset', 'HMI.release': 'release' };
+  const LATCH = { 'HMI.verify': 'verify', 'HMI.reset': 'reset', 'HMI.release': 'release', 'VERIFY.fail': 'verifyFail' };
 
   let S, W, SUP, procs = [];
   let instant = false;                                    // tests: the technician finishes at once
@@ -42,7 +42,7 @@
       t: 0, speed: +$('#selSpeed').value || 10, running: true, setup: 2, step: false,
       autoOp: $('#chkAuto').checked, logAll: $('#chkAll').checked,
       inject: { under: 0, band: 0, master: false, gripMiss: false, frames: { 'CAM-1': 0, 'CAM-2': 0 } }, faults: {}, camFault: null, askAt: null, verify: null,
-      stopReason: '', vars: {}, cp: {}, inputs: { verify: false, reset: false, release: false, clearAt: -1 },
+      stopReason: '', vars: {}, cp: {}, inputs: { verify: false, reset: false, release: false, verifyFail: false, clearAt: -1 },
     };
     Object.keys(M.SIGNALS).forEach((k) => { const s = M.SIGNALS[k]; if (s.kind === 'var' && k !== 'mismatches') S.vars[k] = s.num ? 0 : false; });
     W = {
@@ -54,7 +54,7 @@
       ok: 0, nok: 0, pe65: -9,
       stats: { runTime: 0, firstStart: null, lastIdle: null, idleSum: 0, idleN: 0, cycles: 0, mism: 0, stops: 0, jobs: 0, violations: 0 },
     };
-    CPS.forEach((c) => { c.fault = false; c.glitch = false; c.camWrong = false; c.stale = false; c.last = null; c.count = 0; });
+    CPS.forEach((c) => { c.fault = false; c.broken = false; c.found = false; c.glitch = false; c.camWrong = false; c.stale = false; c.last = null; c.count = 0; });
     for (let i = 3; i < 12; i++) addPart('raw', { k: 'in', slot: i });
     for (let i = 0; i < 8; i++) addPart('fin', { k: 'out', slot: i });
     SUP = { events: [] };
@@ -135,11 +135,12 @@
     'PE-65': () => S.t - W.pe65 < 0.8,
     'TRUE.entryPart': () => truth['CP-2'](), 'TRUE.outPallet': () => W.palletOut.present,
     'TRUE.r2Nok': () => undersized(W.r2.hold.S), 'TRUE.nestPart': () => truth['CP-5'](),
+    'TRUE.brokenFound': () => CPS.some((c) => c.found),
   };
   const INPUT = {
     'HMI.clear': (slot) => !!slot && S.inputs.clearAt >= MCH[slot].since,
     'HMI.verify': () => S.inputs.verify, 'HMI.reset': () => S.inputs.reset, 'HMI.release': () => S.inputs.release,
-    'VERIFY.pass': () => !!(S.verify && S.verify.done), 'VERIFY.fail': () => false,
+    'VERIFY.pass': () => !!(S.verify && S.verify.done), 'VERIFY.fail': () => S.inputs.verifyFail,
   };
   function read(name, slot) {
     if (M.SLOTS[name]) return MCH[name].state;
@@ -819,7 +820,7 @@
       <td><span class="led"></span><span class="tag">${c.prox}</span><span class="flt" hidden>FAULT</span></td>
       <td><span class="tag">${c.cam}</span> <span class="cr"></span></td>
       <td><span class="res"></span><span class="ago"></span></td>
-      <td><div class="inj"><button type="button" class="btn sm" data-inj="glitch">Glitch</button><button type="button" class="btn sm" data-inj="fault">Fault</button><button type="button" class="btn sm" data-inj="camwrong" title="The next ${c.cam} answer at ${c.id} is wrong although the image is valid">Cam wrong</button><button type="button" class="btn sm" data-inj="stale" title="The next ${c.cam} answer at ${c.id} comes from the previous image">Stale</button></div></td></tr>`).join('');
+      <td><div class="inj"><button type="button" class="btn sm" data-inj="glitch">Glitch</button><button type="button" class="btn sm" data-inj="fault" title="Dirty / misaligned: it misses the object; cleaning repairs it">Fault</button><button type="button" class="btn sm" data-inj="broken" title="Broken: it misses the object; its test fails in the verification and the technician replaces it">Broken</button><button type="button" class="btn sm" data-inj="camwrong" title="The next ${c.cam} answer at ${c.id} is wrong although the image is valid">Cam wrong</button><button type="button" class="btn sm" data-inj="stale" title="The next ${c.cam} answer at ${c.id} comes from the previous image">Stale</button></div></td></tr>`).join('');
     buildChips();
     showTab(tab);
     statesDirty = true; logDirty = true; bannerKey = '';
@@ -882,7 +883,8 @@
         cr.textContent = c.last.cam ? (c.id === 'CP-1' || c.id === 'CP-4' ? '✓ pallet' : '✓ part') : '– none';
       } else { res.textContent = 'waiting'; res.className = 'res'; ago.textContent = ''; cr.textContent = ''; }
       $$('[data-inj]', tr).forEach((b) => {
-        if (b.dataset.inj === 'fault') { b.textContent = c.fault ? 'Faulty' : 'Fault'; b.classList.toggle('bad', c.fault); }
+        if (b.dataset.inj === 'fault') { b.textContent = c.fault && !c.broken ? 'Faulty' : 'Fault'; b.classList.toggle('bad', c.fault && !c.broken); }
+        else if (b.dataset.inj === 'broken') b.classList.toggle('bad', !!c.broken);
         else b.classList.toggle('warn', !!c[{ glitch: 'glitch', camwrong: 'camWrong', stale: 'stale' }[b.dataset.inj]]);
       });
     });
@@ -979,27 +981,43 @@
 
   // ------------------------------------------------------------------ sensor verification (technician, plant side of X4)
   function startVerify() {
-    const faulty = CPS.filter((c) => c.fault).map((c) => c.prox);
+    const faulty = CPS.filter((c) => c.fault && !c.broken).map((c) => c.prox);
     const tags = Array.from(new Set(SUP.events.map((e) => e.tag).concat(faulty)));
     const steps = [];
     if (tags.length) steps.push(`Inspect ${tags.join(', ')}: ${faulty.length ? 'dirty / misaligned lens found on ' + faulty.join(', ') + ' → cleaned and realigned' : 'lens cleaned, bracket tight'}`);
     if (S.camFault) steps.push(`${S.camFault}: cable reseated, lens cleaned, trigger test OK`);
     steps.push('Check brackets and the alignment LEDs of the through-beams');
-    CPS.forEach((c) => steps.push(`Test ${c.id} with a test part: ${c.prox} ON and ${c.cam} part · removed: both OFF`));
+    CPS.forEach((c) => steps.push(c.broken ? `Test ${c.id} with a test part: ${c.prox} does not switch → test FAILED, sensor replaced and re-tested`
+      : `Test ${c.id} with a test part: ${c.prox} ON and ${c.cam} part · removed: both OFF`));
     steps.push('Camera calibration target: CAM-1 and CAM-2 position error < 1 mm');
     steps.push('Master cube 50.000 mm: LS-61 / LS-62 / LS-63 within ±0.010 mm');
-    S.verify = { steps, i: 0, done: false };
+    const v = S.verify = { steps, i: 0, done: false };
     log('stop', 'Sensor verification started: all equipment stopped, technician in the cell');
-    if (instant) { S.verify.i = steps.length - 1; }
+    const anyBroken = CPS.some((c) => c.broken);
+    if (instant && !anyBroken) { v.i = steps.length - 1; }
+    // a broken sensor fails its test (VERIFY.fail) and is replaced in T.sensorReplace of simulated time (A6.2)
+    function* replace(c) {
+      c.found = true; S.inputs.verifyFail = true;
+      log('stop', `Test of ${c.id} FAILED: ${c.prox} does not switch (broken) → the technician replaces it`);
+      yield* wait(T.sensorReplace);
+      c.broken = false; c.found = false; c.fault = false;
+      log('stop', `${c.prox} replaced and aligned; ${c.id} re-tested: OK`);
+      if (S.verify === v) next();
+    }
     const tick = () => {
-      if (!S.verify) return;
-      S.verify.i++;
-      if (S.verify.i >= S.verify.steps.length) {
-        S.verify.done = true;
-        CPS.forEach((c) => { c.fault = false; c.glitch = false; c.camWrong = false; c.stale = false; });   // the technician repaired the sensors
+      if (S.verify !== v) return;
+      const c = CPS.find((x) => x.broken && v.steps[v.i].startsWith(`Test ${x.id} `));
+      if (c) { spawn(replace(c)); bannerKey = ''; return; }
+      next();
+    };
+    const next = () => {
+      v.i++;
+      if (v.i >= v.steps.length) {
+        v.done = true;
+        CPS.forEach((c) => { c.fault = false; c.broken = false; c.found = false; c.glitch = false; c.camWrong = false; c.stale = false; });   // the technician repaired the sensors
         S.inject.frames = { 'CAM-1': 0, 'CAM-2': 0 };
         log('stop', 'All checkpoint tests passed');
-      } else setTimeout(tick, 650);
+      } else if (instant) tick(); else setTimeout(tick, 650);
       bannerKey = '';
     };
     if (instant) tick(); else setTimeout(tick, 650);
@@ -1021,7 +1039,11 @@
       if (b.dataset.inj === 'glitch') { c.glitch = true; log('info', `Test: next ${c.id} reading of ${c.prox} will be wrong (single glitch)`); }
       else if (b.dataset.inj === 'camwrong') { c.camWrong = true; log('info', `Test: next ${c.id} answer of ${c.cam} will be wrong with a valid image`); }
       else if (b.dataset.inj === 'stale') { c.stale = true; log('info', `Test: next ${c.id} answer of ${c.cam} will come from the previous image`); }
-      else { c.fault = !c.fault; log('info', c.fault ? `Test: ${c.prox} made faulty (dirty / misaligned: it misses the object)` : `Test: ${c.prox} fault removed`); }
+      else {
+        const broken = b.dataset.inj === 'broken';
+        c.fault = !c.fault; c.broken = c.fault && broken;
+        log('info', c.fault ? (broken ? `Test: ${c.prox} broken (it misses the object; cleaning does not repair it)` : `Test: ${c.prox} made faulty (dirty / misaligned: it misses the object)`) : `Test: ${c.prox} fault removed`);
+      }
     });
     $('#btnBadFrame').addEventListener('click', () => { S.inject.frames['CAM-1'] = 1; log('info', 'Test: the next CAM-1 image will be invalid once'); });
     $('#btnCamFail').addEventListener('click', () => { S.inject.frames['CAM-2'] = 2; log('info', 'Test: CAM-2 will deliver two invalid images in a row'); });
@@ -1068,7 +1090,7 @@
   requestAnimationFrame(frame);
   // hooks for the headless tests: run without drawing, read the trace and the counters
   window.CellSim = {
-    get S() { return S; }, get W() { return W; }, MCH, TRACE, logs, ev,
+    get S() { return S; }, get W() { return W; }, MCH, TRACE, logs, ev, CP,
     newSim, advance: (sec) => { const run = S.running; S.running = true; advance(sec); S.running = run; },
     set instantVerify(v) { instant = !!v; },
     press: (act) => { const b = document.createElement('button'); b.dataset.act = act; $('#bnActions').appendChild(b); b.click(); b.remove(); },

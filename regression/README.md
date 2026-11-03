@@ -16,7 +16,8 @@ node regress.js --compare ../regression/setup2_baseline.json # compare with anot
 | `setup2_baseline.json` | 2026-10-23, commit `2d3173b` | Setup 2 **before** step A1 removed Setup 1 from the code |
 | `setup2_a1.json` | 2026-10-23, end of step A1 | Setup 2 after A1 (was `setup2_reference.json` until A2.1) |
 | `setup2_a21.json` | 2026-10-28, end of step A2.1 | Setup 2 after A2.1 (was `setup2_reference.json` until A2.2) |
-| `setup2_reference.json` | 2026-10-29, end of step A2.2 | The current reference; `npm run regress` and CI compare with it |
+| `setup2_a5.json` | 2026-10-29, end of step A2.2 | Setup 2 after A2.2, unchanged through A2.3–A5 (was `setup2_reference.json` until A6.2) |
+| `setup2_reference.json` | 2026-11-02, end of step A6.2 | The current reference; `npm run regress` and CI compare with it |
 
 ## Step A1: removing Setup 1
 
@@ -67,3 +68,19 @@ nominal state times of Robot 1 and the conveyor are identical. The differences a
 - Python random runs: the 2 h nominal run has one more job; the 8 h run injects "master check out of
   tolerance" (a new disturbance, 5 % of them, taken from the share of undersized parts), so its
   counts differ (2 master faults, 1 undersized part instead of 3).
+
+## Step A6.2: a broken sensor and `VERIFY.fail`
+
+Comparison of the code at the end of A6.2 with `setup2_a5.json` (17 differences). KPIs, nominal
+state times, figures, the browser traces and the deterministic Python traces are identical. The
+differences are all intended:
+
+- NuSMV models of the five runs: the new invariant P13 (no other change: `VERIFY.fail` was already a
+  free input of the abstract model, so the state space is the same);
+- Python 8 h random run: 30 % of the new sensor faults are broken sensors (`BROKEN_SHARE`, drawn from
+  a stream of their own, so the other draws are as before). In this run 3 of the 6 sensor faults are
+  broken; each costs a sensor replacement of 15 min during the line stop, so the run has 77 CNC cycles
+  instead of 89 (1385 instead of 1596 state changes).
+
+The parity test has a fourth scenario, `cp2broken` (broken PE-41 from t = 300 s): browser and Python
+identical (351 state changes).

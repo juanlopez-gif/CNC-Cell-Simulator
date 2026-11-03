@@ -29,7 +29,7 @@ ENTRY_ZONE = 30 * _PX                   # part "at the entry" while x < this
 EXIT_ZONE = 12 * _PX                    # part "at the end stop" while x > BELT_LENGTH - this
 ENC_MIN_SPEED = 0.5 * _PX               # m/s, ENC-43 reports "moving" above this speed
 
-LATCH = {"HMI.verify": "verify", "HMI.reset": "reset", "HMI.release": "release"}
+LATCH = {"HMI.verify": "verify", "HMI.reset": "reset", "HMI.release": "release", "VERIFY.fail": "verify_fail"}
 # value used when proximity and camera disagree, by checkpoint rule (rule "ask" stops the line instead)
 FUSE = {"camera": lambda prox, cam: cam, "prox": lambda prox, cam: prox,
         "present": lambda prox, cam: True, "absent": lambda prox, cam: False}
@@ -139,7 +139,7 @@ class CellSim:
         self.vars = {k: (0 if s.get("num") else False) for k, s in self.M.SIGNALS.items()
                      if s["kind"] == "var" and k != "mismatches"}
         self.cp_result = {}                  # slot -> {CP-n: fused result of its last check}
-        self.inputs = {"verify": False, "reset": False, "release": False, "clear_at": -1.0}
+        self.inputs = {"verify": False, "reset": False, "release": False, "verify_fail": False, "clear_at": -1.0}
         self.inject = {"under": 0, "band": 0, "master": False, "grip_miss": False, "frames": {"CAM-1": 0, "CAM-2": 0}}
         self.faults = {}                     # slot -> fault message
         self.cam_fault = None
@@ -148,7 +148,7 @@ class CellSim:
         self.stop_reason = ""
         self.events = []                     # mismatches in the 10-minute window: {t, cp, tag}
         self.cps = {c["id"]: dict(c, fault=False, glitch=False, cam_wrong=False, stale=False, last=None, count=0,
-                                  miss=0.0, miss_now=False)
+                                  miss=0.0, miss_now=False, broken=False, found=False)
                     for c in self.M.CHECKPOINTS}
         for cid, rule in (rules or {}).items():
             if rule not in ("camera", "prox", "present", "absent", "ask"):
@@ -252,10 +252,14 @@ class CellSim:
         self.cps[cp]["stale"] = True
         self.log("info", f"Test: next {cp} answer of {self.cps[cp]['cam']} will come from the previous image")
 
-    def toggle_sensor_fault(self, cp):
+    def toggle_sensor_fault(self, cp, broken=False):
+        """A dirty / misaligned sensor (cleaning repairs it) or, with broken=True, a broken one: its
+        checkpoint test fails in the verification and the technician replaces it (A6.2)."""
         c = self.cps[cp]
         c["fault"] = not c["fault"]
-        self.log("info", f"Test: {c['prox']} made faulty (dirty / misaligned: it misses the object)" if c["fault"]
+        c["broken"] = c["fault"] and broken
+        self.log("info", (f"Test: {c['prox']} broken (it misses the object; cleaning does not repair it)" if broken
+                          else f"Test: {c['prox']} made faulty (dirty / misaligned: it misses the object)") if c["fault"]
                  else f"Test: {c['prox']} fault removed")
 
     def set_sensor_miss(self, cp, q):
@@ -495,6 +499,8 @@ class CellSim:
             return self._undersized(r2.hold["S"])
         if name == "TRUE.nestPart":
             return self._truth("CP-5")
+        if name == "TRUE.brokenFound":
+            return any(c["found"] for c in self.cps.values())
         raise KeyError("no plant reader for signal " + name)
 
     def _input(self, name, slot):
@@ -509,7 +515,7 @@ class CellSim:
         if name == "VERIFY.pass":
             return bool(self.verify and self.verify["done"])
         if name == "VERIFY.fail":
-            return False
+            return self.inputs["verify_fail"]
         raise KeyError("no input for signal " + name)
 
     def read(self, name, slot=None):
@@ -942,7 +948,7 @@ class CellSim:
 
     # ================================================================== sensor verification (technician)
     def _start_verify(self):
-        faulty = [c["prox"] for c in self.cps.values() if c["fault"] or c["miss"]]
+        faulty = [c["prox"] for c in self.cps.values() if (c["fault"] and not c["broken"]) or c["miss"]]
         tags = list(dict.fromkeys([e["tag"] for e in self.events] + faulty))
         steps = []
         if tags:
@@ -951,31 +957,51 @@ class CellSim:
             steps.append(f"{self.cam_fault}: cable reseated, lens cleaned, trigger test OK")
         steps.append("Check brackets and the alignment LEDs of the through-beams")
         for c in self.cps.values():
-            steps.append(f"Test {c['id']} with a test part: {c['prox']} ON and {c['cam']} part · removed: both OFF")
+            if c["broken"]:
+                steps.append(f"Test {c['id']} with a test part: {c['prox']} does not switch → test FAILED, sensor replaced and re-tested")
+            else:
+                steps.append(f"Test {c['id']} with a test part: {c['prox']} ON and {c['cam']} part · removed: both OFF")
         steps.append("Camera calibration target: CAM-1 and CAM-2 position error < 1 mm")
         steps.append("Master cube 50.000 mm: LS-61 / LS-62 / LS-63 within ±0.010 mm")
         self.verify = {"steps": steps, "i": 0, "done": False}
         self.log("stop", "Sensor verification started: all equipment stopped, technician in the cell")
-        if self.instant_verify:
+        if self.instant_verify and not any(c["broken"] for c in self.cps.values()):
             self._finish_verify()
         else:
             self.spawn(self._technician(), "technician")
 
     def _technician(self):
+        """Steps of the verification at verify_step_time each (none with instant_verify); a broken
+        sensor fails its test (VERIFY.fail), is replaced in T.sensorReplace and passes the re-test."""
         v = self.verify
+        step = 0.0 if self.instant_verify else self.verify_step_time
         while v is self.verify and not v["done"]:
-            yield from self._wait(self.verify_step_time)
+            yield from self._wait(step)
             if v is not self.verify:
                 return
+            text = v["steps"][min(v["i"], len(v["steps"]) - 1)]
+            c = next((c for c in self.cps.values() if c["broken"] and text.startswith(f"Test {c['id']} ")), None)
+            if c:
+                yield from self._replace_sensor(c)
+                if v is not self.verify:
+                    return
             v["i"] += 1
             if v["i"] >= len(v["steps"]):
                 self._finish_verify()
+
+    def _replace_sensor(self, c):
+        c["found"] = True
+        self.inputs["verify_fail"] = True
+        self.log("stop", f"Test of {c['id']} FAILED: {c['prox']} does not switch (broken) → the technician replaces it")
+        yield from self._wait(self.T["sensorReplace"])
+        c["broken"] = c["found"] = c["fault"] = False
+        self.log("stop", f"{c['prox']} replaced and aligned; {c['id']} re-tested: OK")
 
     def _finish_verify(self):
         self.verify["i"] = len(self.verify["steps"])
         self.verify["done"] = True
         for c in self.cps.values():                     # the technician repaired the sensors
-            c["fault"] = False
+            c["fault"] = c["broken"] = c["found"] = False
             c["miss"], c["miss_now"] = 0.0, False
             c["glitch"] = False
             c["cam_wrong"] = False

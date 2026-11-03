@@ -41,7 +41,8 @@
   "r2ToNok": 1.5,
   "r2Drop": 0.5,
   "blowOff": 0.5,
-  "r2Master": 6
+  "r2Master": 6,
+  "sensorReplace": 900
  },
  "TKIND": {
   "robot": {
@@ -85,6 +86,13 @@
     1.05
    ],
    "text": "CNC program cycle"
+  },
+  "service": {
+   "f": [
+    0.6666666666666666,
+    2
+   ],
+   "text": "manual work of the technician or the operator (A6): often longer than planned"
   }
  },
  "TSRC": {
@@ -276,6 +284,10 @@
   "r2Master": {
    "kind": "robot",
    "src": "Estimate (A2.2): master cube from its stand to the nest and back, 3 readings"
+  },
+  "sensorReplace": {
+   "kind": "service",
+   "src": "Estimate (A6.2): spare photoelectric sensor from the cabinet, unplug the M12 connector, mount, align with the alignment LED, re-test"
   }
  },
  "TRANGE": {
@@ -442,6 +454,10 @@
   "r2Master": [
    5.4,
    7.8
+  ],
+  "sensorReplace": [
+   600,
+   1800
   ]
  },
  "RULES": {
@@ -878,6 +894,10 @@
   "TRUE.nestPart": {
    "kind": "truth",
    "on": "a part is in the gauge nest"
+  },
+  "TRUE.brokenFound": {
+   "kind": "truth",
+   "on": "a sensor test failed and the sensor is not replaced yet"
   }
  },
  "CONST": {
@@ -980,6 +1000,11 @@
     "GAUGE.measure"
    ],
    "require": "GAUGE.zeroed"
+  },
+  {
+   "id": "P13",
+   "text": "The line never resumes with a sensor whose test failed",
+   "never": "SUP=X1 & TRUE.brokenFound"
   },
   {
    "id": "L1",

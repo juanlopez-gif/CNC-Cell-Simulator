@@ -23,6 +23,7 @@
     r2ToGauge: 1.5, r2LoadGauge: 1.5, measure: 1.0, r2Repick: 1.0, r2ToNok: 1.5, r2Drop: 0.5,
     blowOff: 0.5,                            // air blow-off of nest and part before loading (A2.2)
     r2Master: 6.0,                           // Robot 2 puts MST-60 in the nest, 3 readings, puts it back
+    sensorReplace: 900,                      // technician replaces a broken proximity sensor (A6.2)
   };
   // Names of the time components, used in the CNC idle build-up table.
   const TLABEL = {
@@ -36,6 +37,7 @@
     r2ToExit: 'To conveyor exit', r2Pick: 'Grip and lift', r2ToPallet: 'To output pallet', r2Place: 'Place',
     r2Home: 'Home', r2ToGauge: 'To gauge', r2LoadGauge: 'Load gauge', measure: 'Measure', r2Repick: 'Re-pick',
     r2ToNok: 'To NOK chute', r2Drop: 'Drop', blowOff: 'Air blow-off', r2Master: 'Master cube check',
+    sensorReplace: 'Replace a broken sensor',
   };
 
   // Source and interval of every time (step A2.3, approved by the author 2026-10-30).
@@ -51,6 +53,7 @@
     beltRamp: { f: [0.5, 1.5], text: 'drive ramp or zero-speed window, set at commissioning' },
     sensing: { f: [0.8, 1.5], text: 'settle + sensor reading + PLC compare' },
     cnc: { f: [0.95, 1.05], text: 'CNC program cycle' },
+    service: { f: [2 / 3, 2], text: 'manual work of the technician or the operator (A6): often longer than planned' },
   };
   const UR = 'UR10e datasheet: base joint 120 °/s';
   const RG2 = 'OnRobot RG2 datasheet: gripping time 0.06–0.21 s (8 mm stroke)';
@@ -96,6 +99,7 @@
     r2ToNok: { kind: 'robot', bound: 1.26, src: `Estimate; bound: base turn 152° (${UR})` },
     r2Drop: { kind: 'robot', bound: 0.06, src: `Estimate: open over the chute; ${RG2}` },
     r2Master: { kind: 'robot', src: 'Estimate (A2.2): master cube from its stand to the nest and back, 3 readings' },
+    sensorReplace: { kind: 'service', src: 'Estimate (A6.2): spare photoelectric sensor from the cabinet, unplug the M12 connector, mount, align with the alignment LED, re-test' },
   };
   const r2 = (x) => Math.round(x * 100) / 100;
   // [min, max] of every time; TMIN / TMAX are T with every value at its minimum / maximum.
@@ -370,6 +374,7 @@
     'TRUE.outPallet': { kind: 'truth', on: 'the output pallet is in place' },
     'TRUE.r2Nok': { kind: 'truth', on: 'Robot 2 holds an undersized part' },
     'TRUE.nestPart': { kind: 'truth', on: 'a part is in the gauge nest' },
+    'TRUE.brokenFound': { kind: 'truth', on: 'a sensor test failed and the sensor is not replaced yet' },
   };
   const CONST = { limit: RULES.mismatchLimit, slots: RULES.palletSlots, nokHold: RULES.consecutiveNokHold };
 
@@ -415,6 +420,7 @@
     { id: 'P10', text: 'A camera fault always stops the line', never: 'CAM_FAULT & !lineStop' },
     { id: 'P11', text: 'Robot 2 loads the gauge nest (part or master cube) only when it is empty', start: ['R2.loadGauge', 'GAUGE.master'], require: '!TRUE.nestPart' },
     { id: 'P12', text: 'A part is measured only after a passed master check', start: ['GAUGE.measure'], require: 'GAUGE.zeroed' },
+    { id: 'P13', text: 'The line never resumes with a sensor whose test failed', never: 'SUP=X1 & TRUE.brokenFound' },
     { id: 'L1', text: 'A new CNC cycle can always be started again', eventually: 'R1.job=CNC.start' },
     { id: 'L2', text: 'Robot 2 can always deliver a part again', eventually: 'R2.job=R2.placePallet' },
     { id: 'L3', text: 'After any stop the supervisor can return to NORMAL', eventually: 'SUP=X1' },

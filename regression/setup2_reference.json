@@ -37,27 +37,27 @@
   "none": {
    "vars": 45,
    "commands": 307,
-   "sha256": "45522e3ad939202e5640cab5cac811ac7100c7597775aed8c16552c49d9792be"
+   "sha256": "6aadc649946c68f14e18bbd5880d610004cf1c5c16c5686cf64fcd26b6516db3"
   },
   "sensor": {
    "vars": 45,
    "commands": 357,
-   "sha256": "18c1b2b0a9bf9969d4182b83a66d49ced4cd18da93bab03e4014a388b11b0f28"
+   "sha256": "6027cd4262c1edb1838a1878deda8c3827eb7db1333fc15b6bc9405023be7477"
   },
   "process": {
    "vars": 45,
    "commands": 327,
-   "sha256": "bb1d108bc3b0ca73e18eff8acb95dcc85bc46d7562a49c185c0afb16cc20c230"
+   "sha256": "4651ec66a93f79a958f31eaffb2aa3a3c38ae9793f0ad7418ff94babfcbfdfdd"
   },
   "camwrong": {
    "vars": 45,
    "commands": 376,
-   "sha256": "5a5be9450e8314a3e30c0758dba2876905a558beffbf3fd06b3ba22f956bbcd2"
+   "sha256": "25b881c419e035f86b10e96764361c7120e748ba5f0c66a241ea9bcb9920f058"
   },
   "sensor_camwrong": {
    "vars": 45,
    "commands": 405,
-   "sha256": "93b22d66a77536de75a9806e1490a5af4c9d88eb9ccf3280a315a8ddb6259341"
+   "sha256": "a2ae1ed8c0467f6b22e466fb7ba2e5e9d9c86a7724cdd7b4beceb49a54b1bfe9"
   }
  },
  "figures": {
@@ -130,9 +130,9 @@
    }
   },
   "random_faults_8h": {
-   "changes": 1596,
-   "sha256": "fcff5402ce45dfe03201f7d578257e3a0c7ad1b109b367da2ceb20068056f36f",
-   "cycles": 89,
+   "changes": 1385,
+   "sha256": "78be66e196d8b1d2d4e9bdc65e8a2ba5b812907ee243a7d94a0e075bdc6a340a",
+   "cycles": 77,
    "errors": 0,
    "injected": {
     "grip miss": 3,
@@ -140,8 +140,9 @@
     "bad frame": 3,
     "glitch": 8,
     "undersized part": 1,
-    "sensor fault": 6,
+    "broken sensor": 3,
     "camera failure": 3,
+    "sensor fault": 3,
     "master check out of tolerance": 2,
     "operator back": 4
    },
@@ -153,16 +154,16 @@
    },
    "kpis": {
     "sim_time_h": 8,
-    "parts_on_pallet": 87,
+    "parts_on_pallet": 75,
     "nok_parts": 1,
-    "cnc_cycles": 89,
-    "cnc_utilization": 0.371812,
-    "mean_cnc_idle_s": 203.105618,
+    "cnc_cycles": 77,
+    "cnc_utilization": 0.321769,
+    "mean_cnc_idle_s": 253.45974,
     "design_cnc_idle_s": 20.5,
-    "parts_per_hour": 11.141868,
-    "mismatches": 13,
+    "parts_per_hour": 9.639593,
+    "mismatches": 11,
     "line_stops": 5,
-    "jobs": 1544,
+    "jobs": 1340,
     "property_violations": 0
    }
   }

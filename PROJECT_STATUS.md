@@ -30,7 +30,7 @@ reference behind it.
 | Python engine tests | `python -m unittest test_engine` | 7 tests OK (new in A2.2: gauge policy; in A2.4: KPI measures) |
 | Browser tests | `npm test` (basic, fault, quality hold, phone width, 20 h conformance, Python parity in 3 scenarios) | all pass, no page errors, no property violation |
 | Regression | `npm run regress` | identical to `regression/setup2_reference.json` (recorded at the end of A2.2, unchanged by A2.3 and A2.4; the A2.1 reference kept as `regression/setup2_a21.json`); differences all intended (`regression/README.md`) |
-| Exhaustive verification | `npm run verify` | 5 runs, 15 properties (P1–P12, L1–L3) hold, no deadlock (§9.3). NuSMV 2.7.1 agrees on every specification it decided (48 per model) and on the reachable states of all 5 runs; in `sensor_camwrong` P11 and P12 got no NuSMV result within 12 h (run locally, 2026-10-30, §9.4) |
+| Exhaustive verification | `npm run verify` | 5 runs, 16 properties (P1–P13, L1–L3) hold, no deadlock (§9.3; re-run in A6.2 on 2026-11-03 with P13: the same states and transitions in all 5 runs). NuSMV 2.7.1 agrees on every specification it decided (48 per model) and on the reachable states of all 5 runs; in `sensor_camwrong` P11 and P12 got no NuSMV result within 12 h (run locally, 2026-10-30, §9.4) |
 | Pallet capacity and combined faults (A2.5) | `node --max-old-space-size=4000 verify_pallet.js` | output pallet of any capacity: same states as capacity 2 in all 5 runs, 15 properties hold; counter game L1–L3 holds in 3 runs; capacity 3 in 3 runs; combined run without undersized parts 79,680,713 states, all hold (`verification/pallet_capacity.md`) |
 | Environment of this check | — | local: Node.js 24, Python 3.11, Google Chrome |
 | KPIs | `M.KPI` | idle 20.5 s, cycle 140.5 s, 85.4 % of the cycle machining, 25.6 parts/h; baseline `M.BASELINE` 36.5 s |
@@ -84,7 +84,7 @@ formal verification are all generated from or interpret that file.
 | The browser and Python simulators run the same controller logic | Export check; identical traces in 3 deterministic scenarios (1 h each, one with camera errors) | Shows that the Python port reproduces the browser in those scenarios. Python is a line-by-line port, so an error in the original would be reproduced, not detected |
 | The generated PLC program behaves as the model (A3.4) | OpenPLC (software PLC, CI) against the Python plant: same sequence of state changes per machine as the Python interpreter in 3 scenarios × 1 h (nominal, stuck PE-41, camera errors and a glitch), every lag increment within its bound, every change a model transition | Shows that the generator and the PLC semantics of §5.16 reproduce the interpreter in those scenarios, with the delays explained by scan, polling and handshakes. A software PLC and a simulated plant: not industrial hardware, not real I/O timing |
 | Both simulators follow the model | Conformance runs, 20 h with random faults | Only with the simulated plant and the faults it can inject |
-| 15 properties hold and there is no deadlock | Exhaustive search of the abstract model, 5 runs (nominal, sensor faults, process faults, camera wrong, all sensor faults together; §9.3) | Untimed plant; one source wrong at a time (common mode not modelled); L1–L3 are AG EF: the goal can always still be reached, not that it will be reached |
+| 16 properties hold and there is no deadlock | Exhaustive search of the abstract model, 5 runs (nominal, sensor faults, process faults, camera wrong, all sensor faults together; §9.3) | Untimed plant; one source wrong at a time (common mode not modelled); L1–L3 are AG EF: the goal can always still be reached, not that it will be reached |
 | The verdicts hold for an output pallet of any capacity (12 included) | Abstract count (empty / partly filled / full) with exactly the states of capacity 2 in all 5 runs; counter game for L1–L3 in 3 runs; capacity 3 compared in 3 runs (`verification/pallet_capacity.md`) | Rests on the logic reading the count only as `= 0`, `>= slots`, `< slots` (not checked by `lint()`). L1–L3 for any capacity not proved in `sensor` and `sensor_camwrong` (the game does not fit in memory) |
 | Sensor and process faults together | One run with every class of `all` except undersized parts: 79,680,713 states, 15 properties hold, no deadlock | `faults: 'all'` itself is about 1.4 × 10⁹ states (about 140 GB), out of reach; the rest is an argument (`pallet_capacity.md` §5) |
 | The search and the NuSMV export agree | Same verdicts on every specification NuSMV decided and same state counts in all 5 runs (48 specifications each; P11 and P12 of `sensor_camwrong` undecided after 12 h, §9.3) | Additional evidence of consistency. Both start from the same intermediate representation (`build()`), so an error made there would be shared |
@@ -270,6 +270,7 @@ stateTime, lint`.
 | Checks | `check` 0.5 (settle + snapshot + compare) |
 | Belt | `beltTravel` 8.0 (2 m at 0.25 m/s) · `beltStart` 0.3 · `beltStop` 0.3 · `zeroSpeed` 0.2 |
 | Robot 2 | `r2ToExit` 1.5 · `r2Pick` 1.0 · `r2ToPallet` 1.5 · `r2Place` 1.0 · `r2Home` 1.0 · `r2ToGauge` 1.5 · `blowOff` 0.5 · `r2LoadGauge` 1.5 · `measure` 1.0 · `r2Repick` 1.0 · `r2ToNok` 1.5 · `r2Drop` 0.5 · `r2Master` 6.0 (A2.2, estimates) |
+| Technician | `sensorReplace` 900 (A6.2, estimate: replace a broken proximity sensor) |
 
 `TLABEL` gives each key a readable name for the CNC-idle build-up table.
 
@@ -290,6 +291,7 @@ are unchanged. The intervals feed A4 and A5.
 | `beltRamp` | −50 % / +50 % | drive ramp or zero-speed window, set at commissioning |
 | `sensing` | −20 % / +50 % | settle + sensor reading + PLC compare |
 | `cnc` | −5 % / +5 % | CNC program cycle |
+| `service` | −33 % / +100 % | manual work of the technician or the operator (A6): often longer than planned |
 
 Datasheets used: Universal Robots UR10e (base and shoulder joints 120 °/s, other joints 180 °/s,
 typical TCP speed 1 m/s), OnRobot RG2 v1.8 (gripping time 0.06–0.21 s for 8 mm), Cognex In-Sight 2800
@@ -342,6 +344,7 @@ nominal value was found below its bound; the closest is `r2ToNok` (1.5 s against
 | `r2Drop` | 0.5 | 0.45 – 0.65 | robot | 0.06 | Estimate: open over the chute; OnRobot RG2 datasheet: gripping time 0.06–0.21 s (8 mm stroke) |
 | `blowOff` | 0.5 | 0.25 – 0.75 | actuator |  | Estimate (A2.2): SMC VQ110 valve (response 12–15 ms, distributor data) + air pulse |
 | `r2Master` | 6 | 5.4 – 7.8 | robot |  | Estimate (A2.2): master cube from its stand to the nest and back, 3 readings |
+| `sensorReplace` | 900 | 600 – 1800 | service |  | Estimate (A6.2): spare photoelectric sensor from the cabinet, unplug the M12 connector, mount, align with the alignment LED, re-test |
 
 CNC idle per part with every time at its minimum / maximum at once: 17 / 27.5 s (`KPI.idle2Range`;
 nominal 20.5 s). These are extremes, not a distribution: all times at one end together is
@@ -537,6 +540,7 @@ FAULT.any` · `LT-01.amber` = no red and (`mismatches>0 | QH | R1=W1`) · `LT-01
 | P10 | never | `CAM_FAULT & !lineStop` |
 | P11 | at start of `R2.loadGauge`, `GAUGE.master` | `!TRUE.nestPart` (added in A2.1: no part is loaded onto another; A2.2: nor the master cube) |
 | P12 | at start of `GAUGE.measure` | `GAUGE.zeroed` (added in A2.2: no part is measured without a passed master check) |
+| P13 | never | `SUP=X1 & TRUE.brokenFound` (added in A6.2: the line never resumes with a sensor whose test failed). Checked by the simulators and the PLC run; holds trivially in the verifier, whose sensor faults are wrong values at single checks, not sensors that stay broken |
 | L1 | AG EF (goal stays reachable) | `R1.job=CNC.start` |
 | L2 | AG EF | `R2.job=R2.placePallet` |
 | L3 | AG EF | `SUP=X1` |
@@ -1074,7 +1078,7 @@ violation; tables, plots and reading in `engine/studies/STUDIES.md`):
 What the author decides: the factors and their ranges, n and the 8-h shift, the definition of logic
 availability, the scenarios (a) and (b) of S3, and that the rates are chosen values.
 
-### 5.19 More realistic plant (A6.1 proposed 2026-11-02, waiting for the author's review)
+### 5.19 More realistic plant (A6.1 approved 2026-11-02; A6.2 done)
 
 The four items of §15 A6 close the limitations 4, 5 and 6 of §13 and the tool-wear warning placed in
 A6 by A2.2. Each item is one step (A6.2–A6.5) and goes through the whole chain: model, both
@@ -1171,6 +1175,39 @@ CNC restart (from the start with the same part) against aborting the part; calli
 an offset drift instead of tool wear, and whether to add an upper limit; the tool life N and the
 warning limit; the five safety states and the reduced-speed factor; every chosen rate and time.
 
+**Decided by the author (2026-11-02):** everything as proposed and as recommended by Claude: the
+order above; 30 % broken sensors, replacement 15 min (10–30 min); the CNC restarts with the same
+part; the size drift is an offset drift, **no upper limit** is added (the oversize of real tool wear
+is a stated limitation, §13); tool life N = 400 parts; warning when the mean of the last 5 sizes is
+below **48.20 mm**; the five safety states with reduced speed × 2; the times proposed (CNC reset
+5 min, tool change 3 min, offset check 2 min), all estimates.
+
+**A6.2 as built (2026-11-02).**
+
+- Model: time `sensorReplace` 900 s, kind `service` (−33 % / +100 %: 600–1800 s); truth signal
+  `TRUE.brokenFound`; property P13 (§5.11). The machines are unchanged: the X4 loop on `VERIFY.fail`
+  was already there, and the PLC program `cell.st` is the same (it already latched `VERIFY.fail`).
+- Both simulators: `toggle_sensor_fault(cp, broken=True)` (browser: button "Broken" per checkpoint)
+  makes a sensor that misses the object like a faulty one, but cleaning does not repair it. In the
+  verification its test fails: `VERIFY.fail` is pulsed (latched like the HMI buttons), the
+  technician replaces it in `T.sensorReplace` of simulated time (also with the instant verification
+  of the tests), then the re-test passes and the line can be reset. A reset pressed during the
+  replacement stays latched and resets the line when the re-test has passed.
+- Random runs (`run_random`, the browser `conform` test): 30 % of the new sensor faults are broken
+  (`BROKEN_SHARE`), drawn from a stream of their own so that the other draws are as before.
+- PLC bridge: `VERIFY.fail` is passed to the PLC as a pulse like the HMI buttons; new scenario
+  `cp2broken` of `plc_compare.py` and of the workflow `plc run`.
+- Verifier: `TRUE.brokenFound` is always false in the abstract plant (no persistent sensor state),
+  so P13 holds trivially there; the simulators and the PLC run check it. The state space is
+  unchanged.
+- Tests: `test_engine` `test_broken_sensor_is_replaced`; parity scenario `cp2broken`, browser and
+  Python identical; the random conformance runs now contain broken sensors. Regression re-recorded
+  (`regression/README.md`, step A6.2: only the NuSMV models and the Python 8 h random run differ).
+- Verification re-run (explicit search, 2026-11-03): in all 5 runs the same states and transitions as
+  before, all 16 properties hold, 0 deadlocks; the `.smv` files in `verification/` are the new ones.
+  `verification/results.md` / `.json` stay those of A2.2 with the NuSMV comparison until the NuSMV
+  re-run at the end of A6.
+
 **Done when** (A6 as a whole): the four items are in the model, both simulators (parity identical),
 the verifier (every property holds in every run, the new runs included), the PLC program (compiled
 by matiec, the OpenPLC comparison passes in its scenarios), the figures and the KPI causes; NuSMV
@@ -1241,6 +1278,9 @@ sim.state("R2"); sim.kpis(); sim.measures(); sim.trace; sim.logs; sim.stats; sim
   check with probability q until the technician's verification repairs it; `sim.stats["qh"]`: the
   instants of every quality hold and its release. Off by default: every existing run is identical.
   The studies of §5.18 are in `engine/studies/` (`studies.common.drive` plays operator and technician).
+- `sim.toggle_sensor_fault(cp, broken=True)` (A6.2): a broken sensor; its test fails in the
+  verification (`VERIFY.fail`) and the technician replaces it in `T.sensorReplace`. `run_random` makes
+  30 % of its sensor faults broken (`scenarios.BROKEN_SHARE`, own random stream).
 - `scenarios.run_random(setup, hours, faults, seed, random_times=False)` (about one disturbance every 14 min) and
   `scenarios.conformance(sim)` (every state change must be a model transition).
 - Tests (`test_engine.py`): export current; nominal idle = KPI every cycle; faulty CP-2 (dead
@@ -1410,7 +1450,7 @@ branch `legacy-setup1-setup2`.
 | `node test_sim.js s2` | Two undersized parts → NOK chute and quality hold |
 | `node test_sim.js mobile` | No horizontal scroll at 400 px |
 | `node test_sim.js conform` | 20 h of simulated operation (2 h nominal; 2 h, 8 h and 8 h with random faults; seeds 1–4): every state change is a model transition, every job takes its model time, no property violated, nominal idle = KPI |
-| `node test_sim.js engine` | Browser and Python traces identical (3 scenarios × 1 h: nominal; dead PE-41; camera wrong / stale image / proximity glitch at all five checkpoints), same property violations |
+| `node test_sim.js engine` | Browser and Python traces identical (4 scenarios × 1 h: nominal; dead PE-41; broken PE-41 replaced in the verification (A6.2); camera wrong / stale image / proximity glitch at all five checkpoints), same property violations |
 | `npm test` | All the `test_sim.js` modes |
 | `npm run regress` | Setup 2 fingerprint identical to `regression/setup2_reference.json` (KPIs, state times, NuSMV models, figures, browser and Python traces, no page errors) |
 | `python -m unittest test_engine` (in `engine/`) | §7 |
@@ -1482,8 +1522,12 @@ Gotchas met before:
    2-slot pallet. Timing properties (cycle time, idle time) come only from the simulators.
 3. **Simulated plant, not hardware.** Sensor behaviour, robot motions and the CNC interface are
    idealized; prices and part numbers come from vendor catalogues (September 2026), never tested.
-4. **`VERIFY.fail` is never true** in the simulators (the technician always succeeds); the
-   verifier allows it.
+4. **`VERIFY.fail`** (resolved in A6.2, §5.19): a broken sensor fails its test and is replaced.
+   Open: the share of broken sensors (30 %) and the replacement time are chosen; one spare is
+   always at hand; the verifier has no persistent sensor state, so P13 is checked by the simulators
+   and the PLC run only. **Tool wear** (A6.4) leaves real parts oversize, which the gauge cannot
+   reject (no upper limit, decided 2026-11-02); the model covers the offset drift that makes parts
+   undersized.
 5. **`CNC.ready` is always true** in the simulators; no CNC alarm model.
 6. **Safety (E-stop, scanners SC-01/02, door interlock circuit)** is described as hardwired and not
    modelled in the state machines; properties P1–P4 check the PLC logic only.
@@ -1595,7 +1639,7 @@ green. Effort figures are indicative only.
 | A3 PLC demonstration | In progress: A3.1 execution semantics approved (2026-10-30); A3.2 generator done (2026-10-31); A3.3 OpenPLC and bridge done, A3.4 comparison passed in 3 scenarios × 1 h (2026-10-31); recorded demo prepared (`engine/PLC_DEMO.md`), not recorded yet. Merged into `main` 2026-10-31 | `a3-plc` → `main` | |
 | A4 Timed verification (UPPAAL) | Done: A4.1 timed model approved (2026-10-31); A4.2 generator and UPPAAL models done, checked by simulation (2026-10-31); A4.3 bounds with `verifyta` in CI (2026-11-01): idle 17.00–27.45 s, period 131.00–153.45 s, raw pick to output pallet up to 335.70 s; A4.4 Python engine with random step times inside the bounds (19.50–25.38 s in 3 × 24 h) (2026-11-01). Merged into `main` 2026-11-01 | `a4-uppaal` → `main` | |
 | A5 Studies with the Python engine | Done: A5.1 study design approved (2026-11-01, §5.18); A5.2 engine options, harness, S1 and S4; A5.3 S2, S3, workflow `studies`, `engine/studies/STUDIES.md` (2026-11-01): 1 620 runs of 8 h, no model error or violation. Merged into `main` 2026-11-01 | `a5-studies` → `main` | 2026-11-01 |
-| A6 More realistic plant | In progress: A6.1 design proposed (2026-11-02, §5.19), waiting for the author's review | `a6-plant` | |
+| A6 More realistic plant | In progress: A6.1 design approved (2026-11-02, §5.19); A6.2 `VERIFY.fail` and broken sensor done (2026-11-02); next A6.3 CNC alarm | `a6-plant` | |
 | B Element framework (types, three levels of detail) | Not started | | |
 | C Factory and scheduling | Not started | | |
 
@@ -1965,3 +2009,5 @@ Newest last. Every change to the plan or to a design rule is written here first 
 | 2026-11-01 | **A5.2–A5.3 done**, choices made by Claude within the approved design (§5.18 point 6): the intermittent sensor as `set_sensor_miss(cp, q)` from t = 1 h instead of a constructor option; line stops and FAULTs read from the trace, only the quality-hold instants added to `stats`; S3 (b) reports FAULTs before detection instead of wrong placements; S2 keeps the operator present (FAULT cleared after 60 s, hold released after 120 s) and a sensor fault stays until repaired; robot speed factor divides the robot times; NOK decided when the CNC finishes a part; the workflow `studies` also starts on a push of its own file; CSVs and plots committed in `engine/studies/out/`; the Wilson intervals drawn as they are (not symmetric). Results in §5.18 point 7. Nothing in the model or the plan changes; open for the author: the cross-check rule (3 in 10 min misses about 1 in 5 sensors that fail 10 % of checks), CNC cycles below 90 s (outside the approved range) | A constructor option would make the sensor faulty from the start; the trace already has every instant, so counters would duplicate it; no property was violated, so no wrong placement occurred to count; a dispatch-only workflow cannot be started from a branch |
 | 2026-11-01 | **A5 merged into `main`** at the author's request, after CI (`checks` with `test_studies`) was green on `a5-studies`: A5.1–A5.3 done. The open points of A5 (cross-check rule, CNC cycles below 90 s) stay with the author | — |
 | 2026-11-02 | **A6 started; A6.1 design proposed** (§5.19), pending the author's review. Proposed by Claude: four steps in the order `VERIFY.fail` (broken sensor replaced), CNC alarm (Robot 1 waits in a new state W2, the program restarts with the same part), size drift with tool life counter and early warning, safety status machine SAF (E-stop, scanners); the PLC stays non-safety; NuSMV re-run once at the end with `slots: 'any'`. The plan's "tool wear that makes undersized parts" is proposed as an offset drift, because wear on outside faces makes parts oversize | Smallest items first keep each regression change small; a CNC alarm is not a robot fault; aborting a part would need per-part tracking and the gauge has no upper limit to catch it |
+| 2026-11-02 | **A6.1 approved by the author** with Claude's recommendations (§5.19): the order, 30 % broken sensors and 15 min replacement, CNC restart with the same part, offset drift without an upper limit on the gauge (oversize from real wear stated in §13), tool life 400 parts, warning at a mean of the last 5 sizes below 48.20 mm, five safety states with reduced speed × 2, the proposed times. A change of the cross-check rule (A5, S3) is not part of this approval | The author accepted the recommendations as a whole |
+| 2026-11-02 | **A6.2 done**, choices made by Claude within the approved design: no new state (the X4 loop exists) and P13 as a `never` property over a truth signal `TRUE.brokenFound`, trivially true in the verifier (its sensor faults are single wrong values, not broken sensors) and checked by the simulators and the PLC run; new kind of time `service` (−33 % / +100 %) for manual work; the replacement takes simulated time also with the instant verification of the tests; a reset pressed during the replacement stays latched; broken sensors drawn from their own random stream in the random runs; parity and PLC scenario `cp2broken`. Regression re-recorded: only the NuSMV models (P13) and the Python 8 h random run (3 of its 6 sensor faults now broken) differ | A property over a transition would need a new kind of property in every checker; with the instant verification a broken sensor would otherwise cost no time; the own stream keeps the other disturbances of the random runs where they were |

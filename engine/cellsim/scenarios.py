@@ -10,11 +10,14 @@ import random
 
 from .sim import CellSim
 
+BROKEN_SHARE = 0.3                 # share of the sensor faults that cleaning does not repair (A6.2)
+
 
 def run_random(setup, hours, faults=True, seed=1, model=None, step=10.0, random_times=False):
     """setup must be 2 (kept as a parameter for the callers); random_times: step times drawn in
     their intervals (A4.4)."""
     rnd = random.Random(seed)
+    brk = random.Random(f"broken-{seed}")                       # own stream: the other draws stay as before A6.2
     sim = CellSim(setup=setup, seed=seed, model=model, instant_verify=True, random_times=random_times)
     injected, actions = {}, {"clear": 0, "verify": 0, "reset": 0, "release": 0}
 
@@ -32,7 +35,8 @@ def run_random(setup, hours, faults=True, seed=1, model=None, step=10.0, random_
             if k < 0.3:
                 sim.inject_glitch(cp); inj("glitch")
             elif k < 0.45:
-                sim.toggle_sensor_fault(cp); inj("sensor fault")
+                broken = not sim.cps[cp]["fault"] and brk.random() < BROKEN_SHARE
+                sim.toggle_sensor_fault(cp, broken=broken); inj("broken sensor" if broken else "sensor fault")
             elif k < 0.6:
                 sim.inject_bad_frame(); inj("bad frame")
             elif k < 0.7:

@@ -97,6 +97,38 @@ class EngineTest(unittest.TestCase):
         self.assertNotEqual(sim.state("R1"), "H")
         self.assertClean(sim)
 
+    def test_broken_sensor_is_replaced(self):
+        # A6.2: a broken PE-41 fails its test in the verification (VERIFY.fail), the technician
+        # replaces it in T.sensorReplace, the re-test passes and only then the line can be reset
+        sim = CellSim(seed=1, instant_verify=True)
+        sim.advance(300)
+        sim.toggle_sensor_fault("CP-2", broken=True)
+        while sim.state("SUP") != "X3" and sim.t < 3600:
+            sim.advance(5)
+            if sim.faults.get("R1"):
+                sim.press("clear")
+        self.assertEqual(sim.state("SUP"), "X3", "no line stop")
+        sim.advance(200)
+        sim.press("verify")
+        sim.advance(1)
+        self.assertEqual(sim.state("SUP"), "X4")
+        self.assertTrue(sim.cps["CP-2"]["found"], "the test of CP-2 fails")
+        self.assertFalse(sim.verify["done"])
+        t_fail = sim.t
+        sim.press("resume")                                 # pressed early: it stays latched, no reset before the re-test
+        sim.advance(sim.T["sensorReplace"] - 10)
+        self.assertEqual(sim.state("SUP"), "X4")
+        self.assertTrue(sim.ev("TRUE.brokenFound"))
+        sim.advance(20)
+        self.assertEqual(sim.state("SUP"), "X1", "reset as soon as the re-test passed")
+        reset_at = [e["t"] for e in sim.trace if e["slot"] == "SUP" and e["to"] == "X1"][-1]
+        self.assertGreaterEqual(reset_at - t_fail, sim.T["sensorReplace"] - 1)
+        self.assertFalse(sim.cps["CP-2"]["fault"] or sim.cps["CP-2"]["broken"], "the sensor is replaced")
+        self.assertTrue(any("FAILED" in m for _, c, m in sim.logs))
+        sim.advance(1800)
+        self.assertNotEqual(sim.state("R1"), "H")
+        self.assertClean(sim)
+
     def test_quality_hold_after_two_nok_parts(self):
         sim = CellSim(seed=1)
         sim.advance(600)

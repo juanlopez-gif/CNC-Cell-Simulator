@@ -113,7 +113,7 @@ function conformance(trace, setup) {
     if (mode === 'engine') {
       // the Python engine (engine/) must give the same state changes at the same instants
       await page.click('#btnRun');
-      for (const [setup, scenario] of [[2, 'nominal'], [2, 'cp2fault'], [2, 'camwrong']]) {
+      for (const [setup, scenario] of [[2, 'nominal'], [2, 'cp2fault'], [2, 'cp2broken'], [2, 'camwrong']]) {
         const errsBefore = errors.length;
         const js = await page.evaluate((setup, scenario) => {
           const C = window.CellSim;
@@ -124,11 +124,11 @@ function conformance(trace, setup) {
           const CAMWRONG = { 300: ['camwrong', 'CP-4'], 600: ['stale', 'CP-2'], 900: ['camwrong', 'CP-3'], 1200: ['camwrong', 'CP-5'],
             1500: ['camwrong', 'CP-1'], 1800: ['stale', 'CP-4'], 2100: ['camwrong', 'CP-2'], 2400: ['glitch', 'CP-3'] };
           for (let t = 0; t < 3600; t += 10) {
-            if (scenario === 'cp2fault' && t === 300) document.querySelector('#cpTable tr[data-cp="CP-2"] button[data-inj="fault"]').click();
+            if ((scenario === 'cp2fault' || scenario === 'cp2broken') && t === 300) document.querySelector(`#cpTable tr[data-cp="CP-2"] button[data-inj="${scenario === 'cp2broken' ? 'broken' : 'fault'}"]`).click();
             if (scenario === 'camwrong' && CAMWRONG[t]) document.querySelector(`#cpTable tr[data-cp="${CAMWRONG[t][1]}"] button[data-inj="${CAMWRONG[t][0]}"]`).click();
             C.advance(10);
-            if ((scenario === 'cp2fault' || scenario === 'camwrong') && Object.keys(C.S.faults).some((k) => C.S.faults[k])) C.press('clear');
-            if (scenario === 'cp2fault' || scenario === 'camwrong') {
+            if (scenario !== 'nominal' && Object.keys(C.S.faults).some((k) => C.S.faults[k])) C.press('clear');
+            if (scenario !== 'nominal') {
               if (C.MCH.SUP.state === 'X3' && !C.S.inputs.verify) C.press('verify');
               if (C.MCH.SUP.state === 'X4' && C.S.verify && C.S.verify.done && !C.S.inputs.reset) C.press('resume');
             }
@@ -164,6 +164,8 @@ function conformance(trace, setup) {
           let a = run.seed * 2654435761 >>> 0;                       // seeded random numbers (mulberry32)
           Math.random = () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
           const C = window.CellSim, rnd = Math.random;
+          let b = (run.seed * 40503 + 7) >>> 0;                         // own stream for the broken sensors (A6.2)
+          const rndB = () => { b = (b + 0x6D2B79F5) >>> 0; let t = b; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
           C.instantVerify = true;
           C.newSim(run.setup);
           C.S.running = false;
@@ -179,7 +181,10 @@ function conformance(trace, setup) {
               const cp = cps[Math.floor(rnd() * cps.length)];
               const row = document.querySelector(`#cpTable tr[data-cp="${cp}"]`);
               if (k < 0.3) { row.querySelector('button[data-inj="glitch"]').click(); inj('glitch'); }
-              else if (k < 0.45) { row.querySelector('button[data-inj="fault"]').click(); inj('sensor fault'); }
+              else if (k < 0.45) {                                       // 30 % of the new sensor faults are broken sensors
+                const broken = !C.CP[cp].fault && rndB() < 0.3;
+                row.querySelector(`button[data-inj="${broken ? 'broken' : 'fault'}"]`).click(); inj(broken ? 'broken sensor' : 'sensor fault');
+              }
               else if (k < 0.6) { document.querySelector('#btnBadFrame').click(); inj('bad frame'); }
               else if (k < 0.7) { document.querySelector('#btnCamFail').click(); inj('camera failure'); }
               else if (k < 0.85) { document.querySelector('#btnGripMiss').click(); inj('grip miss'); }

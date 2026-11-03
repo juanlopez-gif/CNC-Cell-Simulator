@@ -13,7 +13,7 @@ on:
         default: "3600"
       scenarios:
         description: Scenarios of plc_compare.py, as a JSON list (the demo scenario is "demo")
-        default: '["nominal", "cp2fault", "camwrong"]'
+        default: '["nominal", "cp2fault", "cp2broken", "camwrong"]'
   push:
     branches: [a3-plc]
     paths:
@@ -28,7 +28,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # a push runs the nominal scenario only; by hand the scenarios given (all three by default)
+        # a push runs the nominal scenario only; by hand the scenarios given (all four by default)
         scenario: ${{ fromJSON(github.event_name == 'push' && '["nominal"]' || inputs.scenarios) }}
     env:
       SECONDS_RUN: ${{ inputs.seconds || '900' }}

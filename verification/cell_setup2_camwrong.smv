@@ -1808,6 +1808,8 @@ INVARSPEC NAME P10 := !urgent -> !((CAM_FAULT & !((SUP = X3_x | SUP = X4_x))));
 INVARSPEC NAME P11 := ((next(R2) != R2 & (next(R2) in {E0_3, E1_1, E3_0}))) -> next(nest = none);
 -- P12: A part is measured only after a passed master check
 INVARSPEC NAME P12 := ((next(R2) != R2 & (next(R2) in {E4_0}))) -> next(zeroed);
+-- P13: The line never resumes with a sensor whose test failed
+INVARSPEC NAME P13 := !urgent -> !(FALSE);
 -- L1: A new CNC cycle can always be started again
 SPEC NAME L1 := AG EF (R1 = B6_1);
 -- L2: Robot 2 can always deliver a part again

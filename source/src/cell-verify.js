@@ -148,6 +148,9 @@
       'GAUGE.zeroed': () => bv('zeroed'), 'GAUGE.due': () => bv('due'), 'GAUGE.valid': () => bv('measured'), 'GAUGE.ok': () => eq('nest', 'ok'), 'PE-65': () => bv('pe65'),
       'TRUE.entryPart': () => not(eq('beltEntry', 'none')), 'TRUE.outPallet': () => bv('outPresent'), 'TRUE.r2Nok': () => eq('r2S', 'nok'),
       'TRUE.nestPart': () => not(eq('nest', 'none')),
+      // a sensor fault here is a wrong value at one check, not a sensor that stays broken: no broken
+      // sensor is ever found, so P13 holds trivially here and is checked by the simulators (A6.2)
+      'TRUE.brokenFound': () => FF,
     };
     const TRUTH = {
       'CP-1': bv('inPresent'), 'CP-2': not(eq('beltEntry', 'none')), 'CP-3': not(eq('beltExit', 'none')),
