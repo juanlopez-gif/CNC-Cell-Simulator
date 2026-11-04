@@ -1281,7 +1281,8 @@ below **48.20 mm**; the five safety states with reduced speed × 2; the times pr
   count (0 in its life, 1 change due); each CYCLE START may be the last one of the tool. The other
   runs keep the counter in its life. `GAUGE.warn` is read only by the light and is left out.
 - PLC: regenerated (W3, the B6 guard, the counter, the rung, `GAUGE.warn` and `HMI.tool` as I/O);
-  the bridge pulses `HMI.tool`. The tool change is not in an OpenPLC scenario (§13 item 4).
+  the bridge pulses `HMI.tool`. The tool change is not in an OpenPLC scenario (§13 item 4); the
+  OpenPLC run of `nominal` with the new program passed (2026-11-04, run 41791457833).
 - Tests: `test_engine` `test_tool_change_and_size_warning`; parity scenario `toolwear` (tool life
   end at 300 s, offset error at 1200 s), browser and Python identical. The random conformance runs
   with faults start with a tool that has 20–119 parts of life left (browser `conform`; Python
