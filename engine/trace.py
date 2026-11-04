@@ -1,7 +1,7 @@
 """Print the state-change trace of one scenario as JSON (used by source/test_sim.js engine to
 compare the Python engine with the browser simulator).
 
-    python trace.py 2 <seconds> <nominal|cp2fault|cp2broken|cncalarm|camwrong>      (2 = Setup 2, the only setup)
+    python trace.py 2 <seconds> <nominal|cp2fault|cp2broken|cncalarm|toolwear|camwrong>      (2 = Setup 2, the only setup)
 """
 import json
 import sys
@@ -21,6 +21,10 @@ def scenario_trace(setup, seconds, scenario):
             sim.toggle_sensor_fault("CP-2", broken=scenario == "cp2broken")   # faulty (or broken, A6.2) PE-41 from t = 300 s
         if scenario == "cncalarm" and t in (300, 1500):
             sim.inject_cnc_alarm()                                            # A6.3
+        if scenario == "toolwear" and t == 300:
+            sim.inject_tool_life_end()                                        # A6.4
+        if scenario == "toolwear" and t == 1200:
+            sim.inject_offset_error()                                         # A6.4
         if scenario == "camwrong" and t in CAMWRONG:
             k, cp = CAMWRONG[t]
             {"camwrong": sim.inject_camera_wrong, "stale": sim.inject_stale_image, "glitch": sim.inject_glitch}[k](cp)

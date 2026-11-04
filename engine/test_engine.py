@@ -156,6 +156,47 @@ class EngineTest(unittest.TestCase):
         self.assertLess(lost, sim.T["cncReset"] + sim.M.T["cncCycle"])
         self.assertClean(sim)
 
+    def test_tool_change_and_size_warning(self):
+        # A6.4: at the end of the tool life Robot 1 waits in W3 before opening the door, the operator
+        # changes the tool (T.toolChange), the counter starts again; no CYCLE START while it is due.
+        # An offset error lowers the sizes (still OK): the mean of the last 5 falls below the warning
+        # limit, the light turns amber, the operator corrects the offset (T.offsetCheck), no stop.
+        sim = CellSim(seed=1, instant_verify=True)
+        sim.advance(300)
+        sim.inject_tool_life_end()
+        cycles = sim.stats["cycles"]
+        t0 = sim.t
+        while sim.state("R1") != "W3" and sim.t - t0 < 600:
+            sim.advance(1)
+        self.assertEqual(sim.state("R1"), "W3")
+        self.assertTrue(sim.ev("TOOL.due"))
+        self.assertTrue(sim.output("LT-01.amber"))
+        self.assertEqual(sim.cnc["state"], "DONE", "between two cycles")
+        sim.advance(sim.T["toolChange"] - 5)
+        self.assertEqual(sim.state("R1"), "W3", "no CYCLE START while the change is due")
+        self.assertEqual(sim.stats["cycles"], cycles + 1)
+        sim.advance(10)
+        self.assertNotEqual(sim.state("R1"), "W3")
+        self.assertEqual(sim.vars["toolCount"], 0)
+        self.assertEqual(sim.stats["tool_changes"], 1)
+        self.assertGreater(sim.measures()["lost_s"]["tool change"], sim.T["toolChange"] - 6)
+        sim.advance(300)
+        self.assertIn(sim.vars["toolCount"], (1, 2, 3))
+        sim.inject_offset_error()
+        t0 = sim.t
+        while not sim.read("GAUGE.warn") and sim.t - t0 < 3600:
+            sim.advance(1)
+        self.assertTrue(sim.read("GAUGE.warn"))
+        self.assertTrue(sim.output("LT-01.amber"))
+        self.assertEqual(sim.nok_parts, 0, "the warning comes before a NOK part")
+        sim.advance(sim.T["offsetCheck"] + 1)
+        self.assertFalse(sim.read("GAUGE.warn"))
+        self.assertEqual(sim.stats["offset_checks"], 1)
+        self.assertEqual(sim.cnc["offset_err"], 0.0)
+        sim.advance(1800)
+        self.assertEqual(sim.nok_parts, 0)
+        self.assertClean(sim)
+
     def test_quality_hold_after_two_nok_parts(self):
         sim = CellSim(seed=1)
         sim.advance(600)

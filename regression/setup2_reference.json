@@ -16,6 +16,7 @@
   "R1S2.B7": 5,
   "R1S2.W1": 1.5,
   "R1S2.W2": 0,
+  "R1S2.W3": 0,
   "CONV.C1": 0,
   "CONV.C2": 0,
   "CONV.C3": 8.3,
@@ -37,28 +38,28 @@
  "smv": {
   "none": {
    "vars": 45,
-   "commands": 312,
-   "sha256": "6270bfc2003246473995fd34a65cdffcee07372ce67d0267ae096ff36d916a7e"
+   "commands": 317,
+   "sha256": "54e74631d87445e951e59c18794afa01de58e5b221e732d1f51e8d4567d726c1"
   },
   "sensor": {
    "vars": 45,
-   "commands": 362,
-   "sha256": "15b21d83d2a1e3c7afbb2498f611c8f0c56730d975997be5ae0cc77f3316fe18"
+   "commands": 367,
+   "sha256": "4c2976b66496877acb1321f512924f8ee5ebe177351cfd58d74a5dbf5e4ca51f"
   },
   "process": {
-   "vars": 46,
-   "commands": 337,
-   "sha256": "da78f180ed63b36f6bc3b2828933cd4319048bcf6242014147f1bb3327cd35f9"
+   "vars": 47,
+   "commands": 346,
+   "sha256": "881d885cea76c3f770735ecbc1930f9b0261c494b6bfa1aa8ae6a13e46f1e39e"
   },
   "camwrong": {
    "vars": 45,
-   "commands": 381,
-   "sha256": "fb44145975761893930be303a87a83612cbc0c16f7717efb95fd69632cdbdbe0"
+   "commands": 386,
+   "sha256": "fb1400766f61195254fff7c0046c694ed85c58e131b6c1dc4b855cc851bae2be"
   },
   "sensor_camwrong": {
    "vars": 45,
-   "commands": 410,
-   "sha256": "2636afae02a6a22247adcdcb44c09bab59fdc5560c9411b5c7c93aa0157f1e89"
+   "commands": 415,
+   "sha256": "85f2be983db92a935d57e7c2dda52edd97b5ae4b3cabb314ca53045185efa1fa"
   }
  },
  "figures": {
@@ -69,7 +70,7 @@
   "fig09_layout_setup2": "645dab2066c935213f672bb950488f7d943f1fa8257db427e9229f8729d4c7f9",
   "fig10_timing_setup1_vs_setup2": "81ab67bce9466a602eee7fdbf899249a170fdc1063a03bd3bed3b450c9d247de",
   "fig11_flow_setup2": "7ee1a46b9af8cdd21ea200cdc459e4a6b5b2891a86b35bc62ee638c0b505475e",
-  "fig12_states_robot1_setup2": "5ba67e6d468cecd5b63e87bff4bc01a4160990c70f620a0cffa047d4664123a7",
+  "fig12_states_robot1_setup2": "59b02538453131469b76203853f90c31f79e0385b0269213c02e185f74535f8c",
   "fig13_states_robot2_setup2": "dd1558206c5925d8d1f975ba7269a20aa4d89abce9639d58652cdce9c55d6229",
   "fig14_dual_gripper_exchange": "0c69d4de1e45b5dfeb12f5e36d03c477dd73a7bd9e7f459bed2de5416759c3d8"
  },

@@ -43,7 +43,9 @@
   "blowOff": 0.5,
   "r2Master": 6,
   "sensorReplace": 900,
-  "cncReset": 300
+  "cncReset": 300,
+  "toolChange": 180,
+  "offsetCheck": 120
  },
  "TKIND": {
   "robot": {
@@ -297,6 +299,14 @@
    "kind": "alarm",
    "src": "Estimate (A6.3): operator reads the alarm, removes the cause (broken tool, chips, coolant), resets at the CNC panel; 2–15 min"
   },
+  "toolChange": {
+   "kind": "service",
+   "src": "Estimate (A6.4): operator takes the worn end mill out of the holder, fits a preset one, enters its offset; 2–6 min"
+  },
+  "offsetCheck": {
+   "kind": "service",
+   "src": "Estimate (A6.4): operator measures a part, corrects the wear offset at the CNC panel; 80 s–4 min"
+  },
   "sensorReplace": {
    "kind": "service",
    "src": "Estimate (A6.2): spare photoelectric sensor from the cabinet, unplug the M12 connector, mount, align with the alignment LED, re-test"
@@ -474,6 +484,14 @@
   "cncReset": [
    120,
    900
+  ],
+  "toolChange": [
+   120,
+   360
+  ],
+  "offsetCheck": [
+   80,
+   240
   ]
  },
  "RULES": {
@@ -494,7 +512,11 @@
   ],
   "masterDist": 80,
   "consecutiveNokHold": 2,
-  "palletSlots": 12
+  "palletSlots": 12,
+  "toolLife": 400,
+  "offsetDrift": 0.002,
+  "warnMean": 5,
+  "warnLimit": 48.2
  },
  "CHECKPOINTS": [
   {
@@ -588,6 +610,10 @@
   "HMI.release": {
    "kind": "input",
    "on": "tool and offsets checked"
+  },
+  "HMI.tool": {
+   "kind": "input",
+   "on": "operator: \"tool changed\""
   },
   "VERIFY.pass": {
    "kind": "input",
@@ -823,6 +849,16 @@
     "LS-63"
    ]
   },
+  "GAUGE.warn": {
+   "kind": "sensor",
+   "on": "size warning: mean of the last 5 sizes < 48.20 mm",
+   "off": "sizes in date",
+   "tags": [
+    "LS-61",
+    "LS-62",
+    "LS-63"
+   ]
+  },
   "PE-65": {
    "kind": "sensor",
    "on": "{PE-65} part dropped"
@@ -850,6 +886,18 @@
    "on": "quality hold",
    "off": "no quality hold",
    "logOn": "QUALITY HOLD: 2 NOK parts in a row → the CNC finishes its part and does not start a new cycle until the tool and offsets are checked"
+  },
+  "toolCount": {
+   "kind": "var",
+   "num": true,
+   "max": 400,
+   "text": "CYCLE STARTs with this tool"
+  },
+  "TOOL.due": {
+   "kind": "derived",
+   "def": "toolCount>=toolLife",
+   "on": "tool change due (400 parts)",
+   "off": "tool in its life"
   },
   "mismatches": {
    "kind": "var",
@@ -920,7 +968,8 @@
  "CONST": {
   "limit": 3,
   "slots": 12,
-  "nokHold": 2
+  "nokHold": 2,
+  "toolLife": 400
  },
  "RUNGS": [
   {
@@ -930,6 +979,13 @@
     "consecNok": 0
    },
    "text": "tool and offsets checked → quality hold released"
+  },
+  {
+   "when": "HMI.tool & R1=W3",
+   "set": {
+    "toolCount": 0
+   },
+   "text": "tool changed → tool life counter reset"
   }
  ],
  "PROPERTIES": [
@@ -1028,6 +1084,14 @@
    "require": "CNC.ready"
   },
   {
+   "id": "P15",
+   "text": "No CYCLE START while the tool change is due",
+   "start": [
+    "CNC.start"
+   ],
+   "require": "!TOOL.due"
+  },
+  {
    "id": "P13",
    "text": "The line never resumes with a sensor whose test failed",
    "never": "SUP=X1 & TRUE.brokenFound"
@@ -1062,11 +1126,11 @@
    "text": "stack light red"
   },
   "LT-01.amber": {
-   "def": "!lineStop & !FAULT.any & (mismatches>0 | QH | R1=W1 | R1=W2)",
+   "def": "!lineStop & !FAULT.any & (mismatches>0 | QH | R1=W1 | R1=W2 | R1=W3 | GAUGE.warn)",
    "text": "stack light amber"
   },
   "LT-01.green": {
-   "def": "!lineStop & !FAULT.any & !(mismatches>0 | QH | R1=W1 | R1=W2)",
+   "def": "!lineStop & !FAULT.any & !(mismatches>0 | QH | R1=W1 | R1=W2 | R1=W3 | GAUGE.warn)",
    "text": "stack light green"
   }
  },
@@ -1395,7 +1459,8 @@
     ],
     "side": {
      "W1": "B1",
-     "W2": "B2"
+     "W2": "B2",
+     "W3": "B2"
     }
    },
    "states": {
@@ -1464,6 +1529,10 @@
       {
        "to": "W2",
        "when": "!CNC.ready"
+      },
+      {
+       "to": "W3",
+       "when": "TOOL.due & (CNC.done | CNC.empty)"
       },
       {
        "to": "B3",
@@ -1548,14 +1617,17 @@
      "short": "start",
      "desc": [
       "Send CYCLE START (not during a quality",
-      "hold) · CNC idle time ends"
+      "hold or a due tool change) · tool count + 1"
      ],
      "do": [
       {
-       "await": "!QH"
+       "await": "!QH & !TOOL.due"
       },
       {
        "job": "CNC.start"
+      },
+      {
+       "inc": "toolCount"
       }
      ],
      "next": [
@@ -1661,6 +1733,28 @@
       {
        "to": "B2",
        "when": "CNC.ready"
+      }
+     ]
+    },
+    "W3": {
+     "name": "TOOL CHANGE",
+     "kind": "op",
+     "wait": true,
+     "desc": [
+      "Tool life reached: HMI \"Change the tool\"",
+      "amber light · robot waits at the door"
+     ],
+     "log": "Tool life reached → HMI: \"Change the tool\" · amber light · Robot 1 waits at the door",
+     "hmi": {
+      "cls": "op",
+      "title": "Tool change due",
+      "text": "The tool has machined 400 parts. Change it at the CNC and confirm \"tool changed\"; the counter starts again and the next cycle is started.",
+      "act": "tool"
+     },
+     "next": [
+      {
+       "to": "B2",
+       "when": "!TOOL.due"
       }
      ]
     }

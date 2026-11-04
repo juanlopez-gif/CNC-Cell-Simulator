@@ -25,6 +25,8 @@
     r2Master: 6.0,                           // Robot 2 puts MST-60 in the nest, 3 readings, puts it back
     sensorReplace: 900,                      // technician replaces a broken proximity sensor (A6.2)
     cncReset: 300,                           // operator finds the cause of a CNC alarm and resets it (A6.3)
+    toolChange: 180,                         // operator changes the tool at the end of its life (A6.4)
+    offsetCheck: 120,                        // operator checks and corrects the tool offset after a size warning (A6.4)
   };
   // Names of the time components, used in the CNC idle build-up table.
   const TLABEL = {
@@ -39,6 +41,7 @@
     r2Home: 'Home', r2ToGauge: 'To gauge', r2LoadGauge: 'Load gauge', measure: 'Measure', r2Repick: 'Re-pick',
     r2ToNok: 'To NOK chute', r2Drop: 'Drop', blowOff: 'Air blow-off', r2Master: 'Master cube check',
     sensorReplace: 'Replace a broken sensor', cncReset: 'Reset a CNC alarm',
+    toolChange: 'Tool change', offsetCheck: 'Offset check',
   };
 
   // Source and interval of every time (step A2.3, approved by the author 2026-10-30).
@@ -102,6 +105,8 @@
     r2Drop: { kind: 'robot', bound: 0.06, src: `Estimate: open over the chute; ${RG2}` },
     r2Master: { kind: 'robot', src: 'Estimate (A2.2): master cube from its stand to the nest and back, 3 readings' },
     cncReset: { kind: 'alarm', src: 'Estimate (A6.3): operator reads the alarm, removes the cause (broken tool, chips, coolant), resets at the CNC panel; 2–15 min' },
+    toolChange: { kind: 'service', src: 'Estimate (A6.4): operator takes the worn end mill out of the holder, fits a preset one, enters its offset; 2–6 min' },
+    offsetCheck: { kind: 'service', src: 'Estimate (A6.4): operator measures a part, corrects the wear offset at the CNC panel; 80 s–4 min' },
     sensorReplace: { kind: 'service', src: 'Estimate (A6.2): spare photoelectric sensor from the cabinet, unplug the M12 connector, mount, align with the alignment LED, re-test' },
   };
   const r2 = (x) => Math.round(x * 100) / 100;
@@ -131,6 +136,12 @@
     masterDist: 80.0,        // mm distance of the lasers to the master cube face (IL-065 mid-range)
     consecutiveNokHold: 2,   // consecutive NOK parts that hold the CNC
     palletSlots: 12,         // 3 x 4 positions, input and output pallets
+    // tool life and size drift (A6.4, approved 2026-11-02)
+    toolLife: 400,           // parts per tool: at this count the PLC asks for a tool change before the next CYCLE START
+    offsetDrift: 0.002,      // mm per part: the effective tool offset drifts, the mean size moves down (thermal growth,
+                             //    wear compensation in excess); a tool change or an offset correction resets it
+    warnMean: 5,             // the gauge station keeps the mean of the smallest size of the last 5 measured parts
+    warnLimit: 48.20,        // mm below this mean the HMI asks for an offset check (amber light, no stop)
   };
 
   // ---------------------------------------------------------------- checkpoints
@@ -304,6 +315,7 @@
     'HMI.verify': { kind: 'input', on: 'technician starts the check' },
     'HMI.reset': { kind: 'input', on: 'operator reset' },
     'HMI.release': { kind: 'input', on: 'tool and offsets checked' },
+    'HMI.tool': { kind: 'input', on: 'operator: "tool changed"' },
     'VERIFY.pass': { kind: 'input', on: 'all CP tests pass' },
     'VERIFY.fail': { kind: 'input', on: 'test fails' },
     // robots: UR controller status and safety planes
@@ -352,6 +364,7 @@
     'GAUGE.due': { kind: 'sensor', on: '4 h since the last master check', off: 'master check in date', tags: ['MST-60'] },
     'GAUGE.valid': { kind: 'sensor', on: '3 valid readings (45–52 mm)', tags: ['LS-61', 'LS-62', 'LS-63'] },
     'GAUGE.ok': { kind: 'sensor', on: 'OK part', off: 'NOK (undersized or in the guard band)', ask: ['L, W and H', '≥ 48.05 mm?'], tags: ['LS-61', 'LS-62', 'LS-63'] },
+    'GAUGE.warn': { kind: 'sensor', on: 'size warning: mean of the last 5 sizes < 48.20 mm', off: 'sizes in date', tags: ['LS-61', 'LS-62', 'LS-63'] },
     'PE-65': { kind: 'sensor', on: '{PE-65} part dropped' },
     // PLC variables
     // handshakes: the sender sets them only after its own check confirmed the fact
@@ -361,6 +374,8 @@
     'consecNok': { kind: 'var', num: true, max: RULES.consecutiveNokHold, text: 'NOK parts in a row' },
     'QH': { kind: 'var', on: 'quality hold', off: 'no quality hold',
       logOn: 'QUALITY HOLD: 2 NOK parts in a row → the CNC finishes its part and does not start a new cycle until the tool and offsets are checked' },
+    'toolCount': { kind: 'var', num: true, max: RULES.toolLife, text: 'CYCLE STARTs with this tool' },
+    'TOOL.due': { kind: 'derived', def: 'toolCount>=toolLife', on: 'tool change due (400 parts)', off: 'tool in its life' },
     'mismatches': { kind: 'var', num: true, max: RULES.mismatchLimit, text: 'mismatches in 10 min',
       phrases: { '>0': 'mismatch at any CP', '>=limit': '3rd mismatch within 10 min', '=0': 'no mismatch for 10 min (window empty)' } },
     'CAM_FAULT': { kind: 'var', on: 'camera fault (after 1 retry)', off: 'cameras OK' },
@@ -379,11 +394,13 @@
     'TRUE.nestPart': { kind: 'truth', on: 'a part is in the gauge nest' },
     'TRUE.brokenFound': { kind: 'truth', on: 'a sensor test failed and the sensor is not replaced yet' },
   };
-  const CONST = { limit: RULES.mismatchLimit, slots: RULES.palletSlots, nokHold: RULES.consecutiveNokHold };
+  const CONST = { limit: RULES.mismatchLimit, slots: RULES.palletSlots, nokHold: RULES.consecutiveNokHold, toolLife: RULES.toolLife };
 
   // PLC logic outside the state machines: rungs evaluated every scan.
   const RUNGS = [
     { when: 'HMI.release & QH', set: { QH: false, consecNok: 0 }, text: 'tool and offsets checked → quality hold released' },
+    // accepted only while Robot 1 waits for the change, never while the tool is cutting (A6.4)
+    { when: 'HMI.tool & R1=W3', set: { toolCount: 0 }, text: 'tool changed → tool life counter reset' },
   ];
 
   // How the PLC runs the machines (step A3, PROJECT_STATUS.md §5.16, approved 2026-10-30); read by
@@ -391,7 +408,8 @@
   const PLC = {
     scanMs: 10,                          // cyclic task interval
     heartbeatTimeout: 0.5,               // s without a heartbeat toggle from the bridge = communication lost
-    retain: ['QH', 'consecNok'],         // kept over a cold restart: a power cycle must not release a quality hold
+    retain: ['QH', 'consecNok', 'toolCount'], // kept over a cold restart: a power cycle must not release a quality hold
+                                         // nor reset the tool life
     pulse: ['PE-65'],                    // inputs that may be shorter than a scan: latched on the rising edge
     stopOnCommLoss: ['BELT.motor'],      // outputs forced off while communication with the plant is lost
     mismatchCount: 'mismatches',         // check disagreements within RULES.mismatchWindow
@@ -424,6 +442,7 @@
     { id: 'P11', text: 'Robot 2 loads the gauge nest (part or master cube) only when it is empty', start: ['R2.loadGauge', 'GAUGE.master'], require: '!TRUE.nestPart' },
     { id: 'P12', text: 'A part is measured only after a passed master check', start: ['GAUGE.measure'], require: 'GAUGE.zeroed' },
     { id: 'P14', text: 'Robot 1 enters the CNC and CYCLE START is sent only with the CNC ready (no alarm)', start: ['R1.enterCnc', 'CNC.start'], require: 'CNC.ready' },
+    { id: 'P15', text: 'No CYCLE START while the tool change is due', start: ['CNC.start'], require: '!TOOL.due' },
     { id: 'P13', text: 'The line never resumes with a sensor whose test failed', never: 'SUP=X1 & TRUE.brokenFound' },
     { id: 'L1', text: 'A new CNC cycle can always be started again', eventually: 'R1.job=CNC.start' },
     { id: 'L2', text: 'Robot 2 can always deliver a part again', eventually: 'R2.job=R2.placePallet' },
@@ -435,8 +454,8 @@
     'BELT.motor': { def: 'CONV=C3', text: 'conveyor motor ON' },
     'LT-53': { def: 'R2=E7', text: 'blue beacon: output pallet ready for pickup' },
     'LT-01.red': { def: 'lineStop | FAULT.any', text: 'stack light red' },
-    'LT-01.amber': { def: '!lineStop & !FAULT.any & (mismatches>0 | QH | R1=W1 | R1=W2)', text: 'stack light amber' },
-    'LT-01.green': { def: '!lineStop & !FAULT.any & !(mismatches>0 | QH | R1=W1 | R1=W2)', text: 'stack light green' },
+    'LT-01.amber': { def: '!lineStop & !FAULT.any & (mismatches>0 | QH | R1=W1 | R1=W2 | R1=W3 | GAUGE.warn)', text: 'stack light amber' },
+    'LT-01.green': { def: '!lineStop & !FAULT.any & !(mismatches>0 | QH | R1=W1 | R1=W2 | R1=W3 | GAUGE.warn)', text: 'stack light green' },
   };
 
   // Jobs: robot programs or device commands that a step starts and that report "done".
@@ -531,7 +550,7 @@
       sub: 'Gripper A carries the raw part, gripper B the finished part. The raw part is picked while the CNC is still machining.',
       initial: { to: 'B0', when: 'HMI.auto' },
       ...ROBOT_FH('R1'), note: HOLD_NOTE,
-      view: { main: ['B0', 'B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'Q_B6', 'B7'], side: { W1: 'B1', W2: 'B2' } },
+      view: { main: ['B0', 'B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'Q_B6', 'B7'], side: { W1: 'B1', W2: 'B2', W3: 'B2' } },
       states: {
         B0: { name: 'START-UP CHECKS', desc: ['Home robot · check CNC ready and', 'door closed ({ZS-32})'],
           do: [{ job: 'R1.home', when: '!R1.home' }],
@@ -543,7 +562,9 @@
         B2: { name: 'WAIT AT CNC DOOR', band: 'run', wait: true, short: '',
           desc: ['Raw part in gripper A, gripper B empty ·', 'wait at the door while the CNC finishes'],
           do: [{ job: 'R1.toDoorReady' }],
-          next: [{ to: 'W2', when: '!CNC.ready' }, { to: 'B3', when: '(CNC.done & !ZS-33) | CNC.empty' }] },
+          // tool change (A6.4) between two cycles: the CNC has finished, before the door is opened
+          next: [{ to: 'W2', when: '!CNC.ready' }, { to: 'W3', when: 'TOOL.due & (CNC.done | CNC.empty)' },
+            { to: 'B3', when: '(CNC.done & !ZS-33) | CNC.empty' }] },
         B3: { name: 'OPEN DOOR (B)', band: 'idle', short: 'door',
           desc: ['Empty gripper B grips the handle, slides', 'the door open, releases it'],
           do: [{ job: 'R1.openDoor' }],
@@ -557,8 +578,8 @@
           do: [{ job: 'R1.closeDoor' }, { job: 'DOOR.lock' }],
           next: [{ to: 'B6', when: 'ZS-32 & ZS-33' }] },
         B6: { name: 'START CYCLE', band: 'idle', short: 'start',
-          desc: ['Send CYCLE START (not during a quality', 'hold) · CNC idle time ends'],
-          do: [{ await: '!QH' }, { job: 'CNC.start' }],
+          desc: ['Send CYCLE START (not during a quality', 'hold or a due tool change) · tool count + 1'],
+          do: [{ await: '!QH & !TOOL.due' }, { job: 'CNC.start' }, { inc: 'toolCount' }],
           // a CNC alarm right after CYCLE START also means the cycle has started (A6.3): otherwise B6
           // would time out and its repetition would send a second CYCLE START
           next: [{ to: 'Q_B6', when: 'CNC.run | CNC.done | !CNC.ready' }] },
@@ -574,6 +595,11 @@
           log: 'CNC alarm → HMI: "Reset the alarm at the CNC panel" · amber light · Robot 1 waits at the door',
           hmi: { cls: 'op', title: 'CNC alarm', text: 'The CNC stopped its cycle with an alarm (tool, spindle load, coolant). Find the cause and reset it at the CNC panel; the program then restarts with the same part.', act: 'cnc' },
           next: [{ to: 'B2', when: 'CNC.ready' }] },
+        W3: { name: 'TOOL CHANGE', kind: 'op', wait: true,
+          desc: ['Tool life reached: HMI "Change the tool"', 'amber light · robot waits at the door'],
+          log: 'Tool life reached → HMI: "Change the tool" · amber light · Robot 1 waits at the door',
+          hmi: { cls: 'op', title: 'Tool change due', text: 'The tool has machined 400 parts. Change it at the CNC and confirm "tool changed"; the counter starts again and the next cycle is started.', act: 'tool' },
+          next: [{ to: 'B2', when: '!TOOL.due' }] },
       },
     },
 

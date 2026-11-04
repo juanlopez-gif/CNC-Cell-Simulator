@@ -19,7 +19,7 @@ from .model import load, plain
 INF = float("inf")
 EPS = 1e-9
 # causes of CNC time not machining, in the order of priority used by CellSim._loss_cause (A2.4)
-LOSS_CAUSES = ("start-up", "fault", "CNC alarm", "line stop", "quality hold", "material shortage", "pallet change", "exchange")
+LOSS_CAUSES = ("start-up", "fault", "CNC alarm", "line stop", "quality hold", "tool change", "material shortage", "pallet change", "exchange")
 
 # Belt geometry. The browser simulator draws the belt 361 px long; the PLC sees a part at the entry
 # (CP-2) in the first 30 px and at the end stop (CP-3) in the last 12 px. Here the same zones in metres.
@@ -29,7 +29,7 @@ ENTRY_ZONE = 30 * _PX                   # part "at the entry" while x < this
 EXIT_ZONE = 12 * _PX                    # part "at the end stop" while x > BELT_LENGTH - this
 ENC_MIN_SPEED = 0.5 * _PX               # m/s, ENC-43 reports "moving" above this speed
 
-LATCH = {"HMI.verify": "verify", "HMI.reset": "reset", "HMI.release": "release", "VERIFY.fail": "verify_fail"}
+LATCH = {"HMI.verify": "verify", "HMI.reset": "reset", "HMI.release": "release", "HMI.tool": "tool", "VERIFY.fail": "verify_fail"}
 # value used when proximity and camera disagree, by checkpoint rule (rule "ask" stops the line instead)
 FUSE = {"camera": lambda prox, cam: cam, "prox": lambda prox, cam: prox,
         "present": lambda prox, cam: True, "absent": lambda prox, cam: False}
@@ -102,7 +102,7 @@ class CellSim:
 
     Disturbances: inject_glitch(cp), toggle_sensor_fault(cp), inject_camera_wrong(cp),
     inject_stale_image(cp), inject_bad_frame(), inject_camera_failure(), inject_grip_miss(),
-    inject_undersized(), inject_cnc_alarm(), set_sensor_miss(cp, q); nok_rate = p: every part undersized with
+    inject_undersized(), inject_cnc_alarm(), inject_offset_error(), inject_tool_life_end(), set_sensor_miss(cp, q); nok_rate = p: every part undersized with
     probability p (A5). rules={"CP-n": rule} overrides the fusion rule of the model at a
     checkpoint. Operator and technician:
     press("verify" | "resume" | "clear" | "qh" | "swap" | "load"), auto_operator.
@@ -139,7 +139,7 @@ class CellSim:
         self.vars = {k: (0 if s.get("num") else False) for k, s in self.M.SIGNALS.items()
                      if s["kind"] == "var" and k != "mismatches"}
         self.cp_result = {}                  # slot -> {CP-n: fused result of its last check}
-        self.inputs = {"verify": False, "reset": False, "release": False, "verify_fail": False, "clear_at": -1.0}
+        self.inputs = {"verify": False, "reset": False, "release": False, "tool": False, "verify_fail": False, "clear_at": -1.0}
         self.inject = {"under": 0, "band": 0, "master": False, "grip_miss": False, "cnc_alarm": False, "frames": {"CAM-1": 0, "CAM-2": 0}}
         self.faults = {}                     # slot -> fault message
         self.cam_fault = None
@@ -159,19 +159,19 @@ class CellSim:
         self.pallet_in = {"present": True, "busy": False}
         self.pallet_out = {"present": True, "busy": False}
         self.cnc = {"state": "EMPTY", "part": None, "locked": False, "start_cmd": False, "vise": "open",
-                    "run_start": 0.0, "done_at": None}
+                    "run_start": 0.0, "done_at": None, "drift_n": 0, "offset_err": 0.0}
         self.door = {"pos": 0.0, "anim": None}
         self.belt = {"cmd": False, "v": 0.0}
         self.v_max = BELT_LENGTH / self.M.T["beltTravel"]
         self.acc = self.v_max / self.M.T["beltStart"]
         self.r1, self.r2 = Robot("R1", True), Robot("R2", False)
-        self.gauge = {"zeroed": False, "due": False, "valid": False, "ok": False, "d_master": None, "master_at": None}
+        self.gauge = {"zeroed": False, "due": False, "valid": False, "ok": False, "d_master": None, "master_at": None, "hist": []}
         self.last_slot = None
         self.pe65 = -9.0
         self.ok_parts = 0
         self.nok_parts = 0
         self.stats = {"run_time": 0.0, "first_start": None, "last_idle": None, "idle_sum": 0.0, "idle_n": 0,
-                      "idles": [], "idle_other": [], "qh": [], "cycles": 0, "cnc_alarms": 0, "mismatches": 0, "stops": 0, "jobs": 0, "violations": 0,
+                      "idles": [], "idle_other": [], "qh": [], "cycles": 0, "cnc_alarms": 0, "tool_changes": 0, "offset_checks": 0, "mismatches": 0, "stops": 0, "jobs": 0, "violations": 0,
                       "lost": {c: 0.0 for c in LOSS_CAUSES}}
         for i in range(3, 12):
             self._add_part("raw", {"k": "in", "slot": i})
@@ -195,6 +195,7 @@ class CellSim:
             self.spawn(self._run_machine("SUP"), "SUP")
         self.spawn(self._operator_proc(), "operator")
         self.spawn(self._gauge_clock(), "gauge clock")
+        self.spawn(self._tool_proc(), "tool")
         self.log("info", f"Setup {setup} started · input pallet 9 raw parts · output pallet 8 of 12 · CNC empty")
 
     # ================================================================== public API
@@ -283,6 +284,14 @@ class CellSim:
     def inject_cnc_alarm(self):
         self.inject["cnc_alarm"] = True
         self.log("info", "Test: the CNC will raise an alarm in the middle of its running (or next) cycle")
+
+    def inject_offset_error(self):
+        self.cnc["offset_err"] = -1.85
+        self.log("info", "Test: the tool offset is wrong by 1.85 mm: the next parts are 48.15 mm (still OK) until it is corrected")
+
+    def inject_tool_life_end(self):
+        self.vars["toolCount"] = self.RU["toolLife"] - 1
+        self.log("info", "Test: the tool life counter is set to its last part")
 
     def inject_undersized(self):
         self.inject["under"] += 1
@@ -378,6 +387,8 @@ class CellSim:
             return "line stop"
         if self.vars["QH"]:
             return "quality hold"
+        if self.mch["R1"]["state"] == "W3":
+            return "tool change"
         if self.mch["R1"]["state"] == "W1":
             return "material shortage"
         if self.mch["R2"]["state"] == "E7":
@@ -495,6 +506,9 @@ class CellSim:
             return self.gauge["valid"]
         if name == "GAUGE.ok":
             return self.gauge["ok"]
+        if name == "GAUGE.warn":
+            h = self.gauge["hist"]
+            return len(h) >= self.RU["warnMean"] and sum(h) / len(h) < self.RU["warnLimit"]
         if name == "PE-65":
             return self.t - self.pe65 < 0.8
         if name == "TRUE.entryPart":
@@ -518,6 +532,8 @@ class CellSim:
             return self.inputs["reset"]
         if name == "HMI.release":
             return self.inputs["release"]
+        if name == "HMI.tool":
+            return self.inputs["tool"]
         if name == "VERIFY.pass":
             return bool(self.verify and self.verify["done"])
         if name == "VERIFY.fail":
@@ -805,7 +821,7 @@ class CellSim:
             if self.ev(r["when"]):
                 self._apply_set(r)
                 self._consume_inputs(r["when"])
-                self.log("quality", r["text"])
+                self.log("quality" if "QH" in r["set"] else "operator", r["text"])
                 fired = True
         return fired
 
@@ -1155,6 +1171,7 @@ class CellSim:
                 return
             accept = RU["minSize"] + RU["guardBand"]
             self.gauge["ok"] = all(v >= accept for v in m)
+            self.gauge["hist"] = (self.gauge["hist"] + [min(m)])[-RU["warnMean"]:]
             verdict = (f"OK, all ≥ {accept:.2f}" if self.gauge["ok"]
                        else "NOK, undersized" if any(v < RU["minSize"] for v in m) else "NOK, rejected in guard band")
             self.log("measure", f"Part #{p.id}: L {m[0]:.3f} · W {m[1]:.3f} · H {m[2]:.3f} mm → {verdict}")
@@ -1296,7 +1313,11 @@ class CellSim:
             p = c["part"]
             if p:
                 p.st = "fin"
-                p.dims = [50 + (self.rnd.random() - 0.5) * 0.04 for _ in range(3)]
+                # mean size: the offset drift since the last tool change or offset correction, and an
+                # injected offset error (A6.4)
+                mean = 50 - self.RU["offsetDrift"] * c["drift_n"] + c["offset_err"]
+                c["drift_n"] += 1
+                p.dims = [mean + (self.rnd.random() - 0.5) * 0.04 for _ in range(3)]
                 if self.inject["under"] > 0:
                     self.inject["under"] -= 1
                     p.dims[int(self.rnd.random() * 3)] = 47.35 + self.rnd.random() * 0.5
@@ -1348,6 +1369,30 @@ class CellSim:
             if g["zeroed"] and not g["due"] and g["master_at"] == at:
                 g["due"] = True
                 self.log("measure", "4 h since the last master check → master check due")
+
+    def _reset_offset(self):
+        self.cnc["drift_n"], self.cnc["offset_err"] = 0, 0.0
+        self.gauge["hist"] = []
+
+    def _tool_proc(self):
+        """Operator at the CNC (A6.4): changes the tool when Robot 1 waits for it and confirms on the HMI;
+        corrects the tool offset after a size warning (no stop). Both reset the size drift."""
+        RU, st = self.RU, self.stats
+        while True:
+            yield from self._until(lambda: self.state("R1") == "W3" or self.read("GAUGE.warn"))
+            if self.state("R1") == "W3":
+                yield from self._wait(self.T["toolChange"])
+                self._reset_offset()
+                st["tool_changes"] += 1
+                self.log("operator", f"Operator changed the tool ({RU['toolLife']} parts) and confirmed → tool life counter reset")
+                self.inputs["tool"] = True
+                yield from self._until(lambda: self.state("R1") != "W3")
+            else:
+                self.log("operator", f"Size warning: mean of the last {RU['warnMean']} sizes below {RU['warnLimit']:.2f} mm → operator checks the offset")
+                yield from self._wait(self.T["offsetCheck"])
+                self._reset_offset()
+                st["offset_checks"] += 1
+                self.log("operator", "Operator measured a part and corrected the tool offset → size drift reset, warning cleared")
 
     def _operator_proc(self):
         while True:

@@ -27,7 +27,7 @@
   const SLOTS = Object.keys(M.SLOTS);                     // R1, CONV, R2, SUP
   const CPS = M.CHECKPOINTS.map((c) => Object.assign({}, c));
   const CP = {}; CPS.forEach((c) => { CP[c.id] = c; });
-  const LATCH = { 'HMI.verify': 'verify', 'HMI.reset': 'reset', 'HMI.release': 'release', 'VERIFY.fail': 'verifyFail' };
+  const LATCH = { 'HMI.verify': 'verify', 'HMI.reset': 'reset', 'HMI.release': 'release', 'HMI.tool': 'tool', 'VERIFY.fail': 'verifyFail' };
 
   let S, W, SUP, procs = [];
   let instant = false;                                    // tests: the technician finishes at once
@@ -42,17 +42,17 @@
       t: 0, speed: +$('#selSpeed').value || 10, running: true, setup: 2, step: false,
       autoOp: $('#chkAuto').checked, logAll: $('#chkAll').checked,
       inject: { under: 0, band: 0, master: false, gripMiss: false, cncAlarm: false, frames: { 'CAM-1': 0, 'CAM-2': 0 } }, faults: {}, camFault: null, askAt: null, verify: null,
-      stopReason: '', vars: {}, cp: {}, inputs: { verify: false, reset: false, release: false, verifyFail: false, clearAt: -1 },
+      stopReason: '', vars: {}, cp: {}, inputs: { verify: false, reset: false, release: false, tool: false, verifyFail: false, clearAt: -1 },
     };
     Object.keys(M.SIGNALS).forEach((k) => { const s = M.SIGNALS[k]; if (s.kind === 'var' && k !== 'mismatches') S.vars[k] = s.num ? 0 : false; });
     W = {
       parts: [], nextId: 1, palletIn: { present: true, busy: false }, palletOut: { present: true, busy: false },
-      cnc: { state: 'EMPTY', part: null, locked: false, startCmd: false, vise: 'open', runStart: 0, doneAt: null },
+      cnc: { state: 'EMPTY', part: null, locked: false, startCmd: false, vise: 'open', runStart: 0, doneAt: null, driftN: 0, offsetErr: 0 },
       door: { pos: 0, anim: null }, belt: { cmd: false, v: 0, off: 0 },
       r1: robot(L.r1, true), r2: robot(L.r2, false),
-      gauge: { zeroed: false, due: false, valid: false, ok: false, dMaster: null, masterAt: null }, lastSlot: null, beacon: false,
+      gauge: { zeroed: false, due: false, valid: false, ok: false, dMaster: null, masterAt: null, hist: [] }, lastSlot: null, beacon: false,
       ok: 0, nok: 0, pe65: -9,
-      stats: { runTime: 0, firstStart: null, lastIdle: null, idleSum: 0, idleN: 0, cycles: 0, mism: 0, stops: 0, jobs: 0, violations: 0 },
+      stats: { runTime: 0, firstStart: null, lastIdle: null, idleSum: 0, idleN: 0, cycles: 0, toolChanges: 0, offsetChecks: 0, mism: 0, stops: 0, jobs: 0, violations: 0 },
     };
     CPS.forEach((c) => { c.fault = false; c.broken = false; c.found = false; c.glitch = false; c.camWrong = false; c.stale = false; c.last = null; c.count = 0; });
     for (let i = 3; i < 12; i++) addPart('raw', { k: 'in', slot: i });
@@ -70,6 +70,7 @@
     spawn(runMachine('SUP'));
     spawn(operatorProc());
     spawn(gaugeClock());
+    spawn(toolProc());
     logs.length = 0; logDirty = true;
     log('info', `Setup 2 started · input pallet 9 raw parts · output pallet 8 of 12 · CNC empty`);
     buildUi();
@@ -131,7 +132,7 @@
     'PX-52': () => proxLive('CP-4'),
     'CAM-2.slot': () => W.lastSlot != null && W.parts.some((p) => p.loc.k === 'out' && p.loc.slot === W.lastSlot),
     'outCount': () => outCount(),
-    'GAUGE.zeroed': () => W.gauge.zeroed, 'GAUGE.due': () => W.gauge.due, 'GAUGE.valid': () => W.gauge.valid, 'GAUGE.ok': () => W.gauge.ok,
+    'GAUGE.zeroed': () => W.gauge.zeroed, 'GAUGE.due': () => W.gauge.due, 'GAUGE.valid': () => W.gauge.valid, 'GAUGE.ok': () => W.gauge.ok, 'GAUGE.warn': () => gaugeWarn(),
     'PE-65': () => S.t - W.pe65 < 0.8,
     'TRUE.entryPart': () => truth['CP-2'](), 'TRUE.outPallet': () => W.palletOut.present,
     'TRUE.r2Nok': () => undersized(W.r2.hold.S), 'TRUE.nestPart': () => truth['CP-5'](),
@@ -139,7 +140,7 @@
   };
   const INPUT = {
     'HMI.clear': (slot) => !!slot && S.inputs.clearAt >= MCH[slot].since,
-    'HMI.verify': () => S.inputs.verify, 'HMI.reset': () => S.inputs.reset, 'HMI.release': () => S.inputs.release,
+    'HMI.verify': () => S.inputs.verify, 'HMI.reset': () => S.inputs.reset, 'HMI.release': () => S.inputs.release, 'HMI.tool': () => S.inputs.tool,
     'VERIFY.pass': () => !!(S.verify && S.verify.done), 'VERIFY.fail': () => S.inputs.verifyFail,
   };
   function read(name, slot) {
@@ -320,7 +321,7 @@
   function consumeInputs(expr) { X.names(expr, true).forEach((n) => { if (LATCH[n]) S.inputs[LATCH[n]] = false; }); }
   function evalRungs() {
     let fired = false;
-    M.RUNGS.forEach((r) => { if (ev(r.when)) { applySet(r); consumeInputs(r.when); log('quality', r.text); fired = true; } });
+    M.RUNGS.forEach((r) => { if (ev(r.when)) { applySet(r); consumeInputs(r.when); log('QH' in r.set ? 'quality' : 'operator', r.text); fired = true; } });
     return fired;
   }
   function* runJob(slot, name) {
@@ -515,6 +516,7 @@
       W.gauge.valid = meas.every((v) => v >= RU.validRange[0] && v <= RU.validRange[1]);
       if (!W.gauge.valid) { log('measure', `Part #${p.id}: reading outside ${RU.validRange[0]}–${RU.validRange[1]} mm → invalid, not a part size`); return; }
       W.gauge.ok = meas.every((v) => v >= RU.minSize + RU.guardBand);
+      W.gauge.hist = W.gauge.hist.concat([Math.min(...meas)]).slice(-RU.warnMean);
       const verdict = W.gauge.ok ? `OK, all ≥ ${(RU.minSize + RU.guardBand).toFixed(2)}` : meas.some((v) => v < RU.minSize) ? 'NOK, undersized' : 'NOK, rejected in guard band';
       log('measure', `Part #${p.id}: L ${meas[0].toFixed(3)} · W ${meas[1].toFixed(3)} · H ${meas[2].toFixed(3)} mm → ${verdict}`);
     },
@@ -604,7 +606,11 @@
       const p = W.cnc.part;
       if (p) {
         p.st = 'fin';
-        p.dims = [0, 1, 2].map(() => 50 + (Math.random() - 0.5) * 0.04);
+        // mean size: the offset drift since the last tool change or offset correction, and an injected
+        // offset error (A6.4)
+        const mean = 50 - RU.offsetDrift * W.cnc.driftN + W.cnc.offsetErr;
+        W.cnc.driftN++;
+        p.dims = [0, 1, 2].map(() => mean + (Math.random() - 0.5) * 0.04);
         if (S.inject.under > 0) { S.inject.under--; p.dims[Math.floor(Math.random() * 3)] = 47.35 + Math.random() * 0.5; }
         else if (S.inject.band > 0) { S.inject.band--; p.dims[Math.floor(Math.random() * 3)] = 48.01 + Math.random() * 0.03; }
       }
@@ -623,6 +629,29 @@
       if (W.gauge.zeroed && !W.gauge.due && W.gauge.masterAt === at) {
         W.gauge.due = true;
         log('measure', '4 h since the last master check → master check due');
+      }
+    }
+  }
+
+  // ------------------------------------------------------------------ tool life and size drift (A6.4)
+  function gaugeWarn() { const h = W.gauge.hist; return h.length >= RU.warnMean && h.reduce((a, b) => a + b, 0) / h.length < RU.warnLimit; }
+  function resetOffset() { W.cnc.driftN = 0; W.cnc.offsetErr = 0; W.gauge.hist = []; }
+  // operator at the CNC: changes the tool when Robot 1 waits for it and confirms on the HMI; corrects the
+  // tool offset after a size warning (no stop). Both reset the size drift.
+  function* toolProc() {
+    for (;;) {
+      yield* until(() => MCH.R1.state === 'W3' || gaugeWarn());
+      if (MCH.R1.state === 'W3') {
+        yield* wait(T.toolChange);
+        resetOffset(); W.stats.toolChanges++;
+        log('operator', `Operator changed the tool (${RU.toolLife} parts) and confirmed → tool life counter reset`);
+        S.inputs.tool = true;
+        yield* until(() => MCH.R1.state !== 'W3');
+      } else {
+        log('operator', `Size warning: mean of the last ${RU.warnMean} sizes below ${RU.warnLimit.toFixed(2)} mm → operator checks the offset`);
+        yield* wait(T.offsetCheck);
+        resetOffset(); W.stats.offsetChecks++;
+        log('operator', 'Operator measured a part and corrected the tool offset → size drift reset, warning cleared');
       }
     }
   }
@@ -932,13 +961,14 @@
     const lt = lightState();
     const st = $('#stText');
     const fault = SLOTS.find((k) => S.faults[k]);
-    const op = activeHmi('load') || activeHmi('swap') || activeHmi('cnc');
+    const op = activeHmi('load') || activeHmi('swap') || activeHmi('cnc') || activeHmi('tool');
     let txt = 'Running', cls = 'ok';
     if (ev('lineStop')) { txt = 'Line stopped · verify sensors'; cls = 'bad'; }
     else if (fault) { txt = `Fault · ${M.SLOTS[fault].label}`; cls = 'bad'; }
     else if (S.vars.QH) { txt = 'Quality hold'; cls = 'warn'; }
     else if (SUP.events.length) { txt = `Sensor mismatch ${SUP.events.length} / ${RU.mismatchLimit}`; cls = 'warn'; }
     else if (op) { txt = op.hmi.title; cls = 'op'; }
+    else if (gaugeWarn()) { txt = 'Size warning · offset check'; cls = 'warn'; }
     else if (!S.running) { txt = 'Paused'; cls = ''; }
     st.textContent = txt; st.className = 'st-text ' + cls;
     const [r, a, g] = $$('.stack i');
@@ -977,11 +1007,15 @@
     } else if (SUP.events.length) {
       key = 'mm:' + SUP.events.length; title = `Sensor mismatch warning · ${SUP.events.length} of ${RU.mismatchLimit} in 10 min`; text = `Disagreements: ${windowSummary()}. The rule of each checkpoint gives the value used and the line keeps running. A ${RU.mismatchLimit}rd mismatch within 10 minutes stops the line.`; cls = 'warn';
     } else {
-      const s = activeHmi('swap') || activeHmi('load') || activeHmi('cnc');
+      const s = activeHmi('swap') || activeHmi('load') || activeHmi('cnc') || activeHmi('tool');
       if (s) {
         key = 'hmi:' + s.hmi.act; title = s.hmi.title; text = s.hmi.text; cls = s.hmi.cls;
-        // the CNC alarm is reset by the operator at the CNC panel (T.cncReset), not at the cell HMI
-        if (s.hmi.act !== 'cnc') acts = [[s.hmi.act === 'swap' ? 'Swap output pallet' : 'Load input pallet', s.hmi.act, '']];
+        // the CNC alarm is reset at the CNC panel (T.cncReset) and the tool is changed at the CNC
+        // (T.toolChange) by the operator, not with a button of the cell HMI
+        if (s.hmi.act !== 'cnc' && s.hmi.act !== 'tool') acts = [[s.hmi.act === 'swap' ? 'Swap output pallet' : 'Load input pallet', s.hmi.act, '']];
+      } else if (gaugeWarn()) {
+        key = 'warn'; title = `Size warning · mean of the last ${RU.warnMean} sizes below ${RU.warnLimit.toFixed(2)} mm`; cls = 'warn';
+        text = 'The parts are still OK, but the size drifts towards the limit. The operator checks a part and corrects the tool offset at the CNC; the line keeps running.';
       }
     }
     if (key === bannerKey) return;
@@ -1065,6 +1099,8 @@
     $('#btnCamFail').addEventListener('click', () => { S.inject.frames['CAM-2'] = 2; log('info', 'Test: CAM-2 will deliver two invalid images in a row'); });
     $('#btnGripMiss').addEventListener('click', () => { S.inject.gripMiss = true; log('info', 'Test: Robot 1 will miss its next pick'); });
     $('#btnCncAlarm').addEventListener('click', () => { S.inject.cncAlarm = true; log('info', 'Test: the CNC will raise an alarm in the middle of its running (or next) cycle'); });
+    $('#btnOffsetErr').addEventListener('click', () => { W.cnc.offsetErr = -1.85; log('info', 'Test: the tool offset is wrong by 1.85 mm: the next parts are 48.15 mm (still OK) until it is corrected'); });
+    $('#btnToolLife').addEventListener('click', () => { S.vars.toolCount = RU.toolLife - 1; log('info', 'Test: the tool life counter is set to its last part'); });
     $('#btnUnder').addEventListener('click', () => { S.inject.under++; log('info', 'Test: the next part to finish will be undersized in one dimension'); });
     $('#btnBand').addEventListener('click', () => { S.inject.band++; log('info', 'Test: the next part to finish will be in the guard band (48.00–48.05 mm) in one dimension'); });
     $('#btnMaster').addEventListener('click', () => { S.inject.master = true; log('info', 'Test: the next master check will read outside ± 0.010 mm'); });

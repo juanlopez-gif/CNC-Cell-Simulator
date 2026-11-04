@@ -100,3 +100,18 @@ The Python 8 h random run (seed 4) draws no CNC alarm: its CNC machines only 2.6
 operator), at 0.5 alarms per hour of machining. The 8 h run with seed 1 has 3 alarms, with no
 transition outside the model and no violation. The parity test has a fifth scenario, `cncalarm`
 (alarms injected at t = 300 s and 1500 s): browser and Python identical (359 state changes).
+
+## Step A6.4: tool change (W3, P15), size drift and early warning
+
+Comparison of the code at the end of A6.4 with `setup2_a63.json` (13 differences). KPIs, nominal
+state times, the browser traces and the Python fingerprints are identical: the drift lowers the
+sizes (at most 0.8 mm before a tool change) but changes no gauge verdict in the recorded runs. The
+differences are all intended:
+
+- state times of Robot 1: the new state W3 TOOL CHANGE (0 s, it is not entered in nominal operation);
+- NuSMV models of the five runs: the new property P15, the W3 transitions and the B6 guard; `process`
+  also the class `toolwear` (one more variable `toolCount`, 0 in its life / 1 change due);
+- figure `fig12` (Robot 1 diagram: W3 next to B2).
+
+The parity test has a sixth scenario, `toolwear` (tool life end at t = 300 s, offset error at
+t = 1200 s): browser and Python identical.

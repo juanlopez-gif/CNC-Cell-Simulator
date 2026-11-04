@@ -113,7 +113,7 @@ function conformance(trace, setup) {
     if (mode === 'engine') {
       // the Python engine (engine/) must give the same state changes at the same instants
       await page.click('#btnRun');
-      for (const [setup, scenario] of [[2, 'nominal'], [2, 'cp2fault'], [2, 'cp2broken'], [2, 'cncalarm'], [2, 'camwrong']]) {
+      for (const [setup, scenario] of [[2, 'nominal'], [2, 'cp2fault'], [2, 'cp2broken'], [2, 'cncalarm'], [2, 'toolwear'], [2, 'camwrong']]) {
         const errsBefore = errors.length;
         const js = await page.evaluate((setup, scenario) => {
           const C = window.CellSim;
@@ -126,6 +126,8 @@ function conformance(trace, setup) {
           for (let t = 0; t < 3600; t += 10) {
             if ((scenario === 'cp2fault' || scenario === 'cp2broken') && t === 300) document.querySelector(`#cpTable tr[data-cp="CP-2"] button[data-inj="${scenario === 'cp2broken' ? 'broken' : 'fault'}"]`).click();
             if (scenario === 'cncalarm' && (t === 300 || t === 1500)) document.querySelector('#btnCncAlarm').click();   // A6.3
+            if (scenario === 'toolwear' && t === 300) document.querySelector('#btnToolLife').click();     // A6.4
+            if (scenario === 'toolwear' && t === 1200) document.querySelector('#btnOffsetErr').click();   // A6.4
             if (scenario === 'camwrong' && CAMWRONG[t]) document.querySelector(`#cpTable tr[data-cp="${CAMWRONG[t][1]}"] button[data-inj="${CAMWRONG[t][0]}"]`).click();
             C.advance(10);
             if (scenario !== 'nominal' && Object.keys(C.S.faults).some((k) => C.S.faults[k])) C.press('clear');
@@ -172,6 +174,8 @@ function conformance(trace, setup) {
           C.instantVerify = true;
           C.newSim(run.setup);
           C.S.running = false;
+          // the tool has 20–119 parts of life left (A6.4, own stream), so that a tool change falls in the run
+          if (run.faults) C.S.vars.toolCount = window.CellModel.RULES.toolLife - 20 - Math.floor(((run.seed * 2246822519 + 3) % 4294967296) / 4294967296 * 100);
           const act = { fault: 0, clear: 0, verify: 0, reset: 0, release: 0, injected: {} };
           const inj = (k) => { act.injected[k] = (act.injected[k] || 0) + 1; };
           let faultSince = null, qhSince = null;

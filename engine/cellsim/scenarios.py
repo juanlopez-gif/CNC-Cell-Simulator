@@ -15,13 +15,16 @@ BROKEN_SHARE = 0.3                 # share of the sensor faults that cleaning do
 CNC_ALARM_RATE = 0.5               # CNC alarms per hour of machining (A6.3)
 
 
-def run_random(setup, hours, faults=True, seed=1, model=None, step=10.0, random_times=False):
+def run_random(setup, hours, faults=True, seed=1, model=None, step=10.0, random_times=False, used_tool=False):
     """setup must be 2 (kept as a parameter for the callers); random_times: step times drawn in
-    their intervals (A4.4)."""
+    their intervals (A4.4); used_tool: the tool has 20–119 parts of life left at the start (A6.4, own
+    stream), so that a tool change falls inside the run."""
     rnd = random.Random(seed)
     brk = random.Random(f"broken-{seed}")                       # own stream: the other draws stay as before A6.2
     alm = random.Random(f"alarm-{seed}")                        # own stream for the CNC alarms (A6.3)
     sim = CellSim(setup=setup, seed=seed, model=model, instant_verify=True, random_times=random_times)
+    if used_tool:
+        sim.vars["toolCount"] = sim.RU["toolLife"] - random.Random(f"tool-{seed}").randrange(20, 120)
     injected, actions = {}, {"clear": 0, "verify": 0, "reset": 0, "release": 0}
 
     def inj(k):

@@ -2,7 +2,7 @@
    Controller of the CNC machine-tending cell (Setup 2), IEC 61131-3 Structured Text.
    Execution semantics: PROJECT_STATUS.md section 5.16. *)
 
-(* States of R1 (R1_state): 0=initial H=98 F=99 B0=1 B1=2 B2=3 B3=4 B4=5 B5=6 B6=7 Q_B6=8 (choice) B7=9 W1=10 W2=11 *)
+(* States of R1 (R1_state): 0=initial H=98 F=99 B0=1 B1=2 B2=3 B3=4 B4=5 B5=6 B6=7 Q_B6=8 (choice) B7=9 W1=10 W2=11 W3=12 *)
 (* Fault codes of R1 (R1_fault):
    131 B0: communication lost during R1.home
    199 B0: missing confirmation: R1.home & CNC.ready & ZS-32
@@ -80,9 +80,9 @@ FUNCTION_BLOCK FB_R1S2
     GR_21A_in : BOOL;
     GR_21A : BOOL;
     CNC_done : BOOL;
+    CNC_empty : BOOL;
     ZS_33_in : BOOL;
     ZS_33 : BOOL;
-    CNC_empty : BOOL;
     ZS_31_in : BOOL;
     ZS_31 : BOOL;
     PS_36_in : BOOL;
@@ -116,6 +116,7 @@ FUNCTION_BLOCK FB_R1S2
     outCount : INT;
     PE_65_in : BOOL;
     PE_65 : BOOL;
+    GAUGE_warn : BOOL;
     PX_11_in : BOOL;
     PX_11 : BOOL;
     PE_41_in : BOOL;
@@ -136,12 +137,15 @@ FUNCTION_BLOCK FB_R1S2
     L_VERIFY_fail : BOOL;
     HMI_release : BOOL;
     L_HMI_release : BOOL;
+    HMI_tool : BOOL;
+    L_HMI_tool : BOOL;
     HB : BOOL;
     partPlaced : BOOL;
     pickAllowed : BOOL;
     partPicked : BOOL;
     consecNok : INT;
     QH : BOOL;
+    toolCount : INT;
     mismatches : INT;
     CAM_FAULT : BOOL;
     COMM_LOST : BOOL;
@@ -157,6 +161,7 @@ FUNCTION_BLOCK FB_R1S2
     V_partPicked : BOOL;
     V_consecNok : INT;
     V_QH : BOOL;
+    V_toolCount : INT;
     V_mismatches : INT;
     V_CAM_FAULT : BOOL;
     TR_N : INT;
@@ -302,6 +307,7 @@ FUNCTION_BLOCK FB_R1S2
       IF stp = 1 AND NOT moved THEN
         tWait(IN := TRUE, PT := T#24h);
         IF NOT (CNC_ready) THEN IF (((SUP_state = 3) OR (SUP_state = 4)) OR CAM_FAULT) THEN hRes := 11; hStep := 0; R1_state := 98; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; ELSE R1_state := 11; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; END_IF; (* to W2 *)
+        ELSIF ((toolCount >= 400) AND (CNC_done OR CNC_empty)) THEN IF (((SUP_state = 3) OR (SUP_state = 4)) OR CAM_FAULT) THEN hRes := 12; hStep := 0; R1_state := 98; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; ELSE R1_state := 12; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; END_IF; (* to W3 *)
         ELSIF ((CNC_done AND NOT (ZS_33)) OR CNC_empty) THEN IF (((SUP_state = 3) OR (SUP_state = 4)) OR CAM_FAULT) THEN hRes := 4; hStep := 0; R1_state := 98; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; ELSE R1_state := 4; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; END_IF; (* to B3 *)
         ELSIF (((SUP_state = 3) OR (SUP_state = 4)) OR CAM_FAULT) THEN hRes := 3; hStep := 0; R1_state := 98; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
         END_IF;
@@ -408,8 +414,8 @@ FUNCTION_BLOCK FB_R1S2
         END_IF;
       END_IF;
     7: (* B6 START CYCLE *)
-      IF stp = 0 AND NOT moved THEN (* B6 step 1: await !QH *)
-        IF NOT (QH) THEN stp := 1;
+      IF stp = 0 AND NOT moved THEN (* B6 step 1: await !QH & !TOOL.due *)
+        IF (NOT (QH) AND NOT ((toolCount >= 400))) THEN stp := 1;
         ELSIF (((SUP_state = 3) OR (SUP_state = 4)) OR CAM_FAULT) THEN hRes := 7; hStep := 0; R1_state := 98; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
         END_IF;
       END_IF;
@@ -426,7 +432,11 @@ FUNCTION_BLOCK FB_R1S2
         ELSIF ph = 2 AND NOT R1_Done THEN ph := 0; stp := 2;
         END_IF;
       END_IF;
-      IF stp = 2 AND NOT moved THEN
+      IF stp = 2 AND NOT moved THEN (* B6 step 3: set *)
+        toolCount := MIN(toolCount + 1, 400);
+        stp := 3;
+      END_IF;
+      IF stp = 3 AND NOT moved THEN
         tWait(IN := TRUE, PT := T#24h);
         IF (CNC_run OR CNC_done OR NOT (CNC_ready)) THEN IF (((SUP_state = 3) OR (SUP_state = 4)) OR CAM_FAULT) THEN hRes := 8; hStep := 0; R1_state := 98; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; ELSE R1_state := 8; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; END_IF; (* to Q_B6 *)
         ELSIF tWait.ET >= T#1000ms THEN fRes := R1_state; R1_fault := 799; R1_Start := FALSE; R1_JobNo := 0; R1_CP_1_Trig := FALSE; R1_CP_2_Trig := FALSE; clr_HMI_clear := FALSE; R1_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
@@ -543,6 +553,13 @@ FUNCTION_BLOCK FB_R1S2
         ELSIF (((SUP_state = 3) OR (SUP_state = 4)) OR CAM_FAULT) THEN hRes := 11; hStep := 0; R1_state := 98; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
         END_IF;
       END_IF;
+    12: (* W3 TOOL CHANGE - waiting *)
+      IF stp = 0 AND NOT moved THEN
+        tWait(IN := TRUE, PT := T#24h);
+        IF NOT ((toolCount >= 400)) THEN IF (((SUP_state = 3) OR (SUP_state = 4)) OR CAM_FAULT) THEN hRes := 3; hStep := 0; R1_state := 98; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; ELSE R1_state := 3; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; END_IF; (* to B2 *)
+        ELSIF (((SUP_state = 3) OR (SUP_state = 4)) OR CAM_FAULT) THEN hRes := 12; hStep := 0; R1_state := 98; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
+        END_IF;
+      END_IF;
     98: (* H HOLD: LINE STOP: finish the step, park, wait for the reset *)
       IF stp = 0 AND NOT moved THEN (* H step 1: job R1.park *)
         IF ph = 0 THEN
@@ -627,9 +644,9 @@ FUNCTION_BLOCK FB_CONV
     GR_21A_in : BOOL;
     GR_21A : BOOL;
     CNC_done : BOOL;
+    CNC_empty : BOOL;
     ZS_33_in : BOOL;
     ZS_33 : BOOL;
-    CNC_empty : BOOL;
     ZS_31_in : BOOL;
     ZS_31 : BOOL;
     PS_36_in : BOOL;
@@ -663,6 +680,7 @@ FUNCTION_BLOCK FB_CONV
     outCount : INT;
     PE_65_in : BOOL;
     PE_65 : BOOL;
+    GAUGE_warn : BOOL;
     PX_11_in : BOOL;
     PX_11 : BOOL;
     PE_41_in : BOOL;
@@ -683,12 +701,15 @@ FUNCTION_BLOCK FB_CONV
     L_VERIFY_fail : BOOL;
     HMI_release : BOOL;
     L_HMI_release : BOOL;
+    HMI_tool : BOOL;
+    L_HMI_tool : BOOL;
     HB : BOOL;
     partPlaced : BOOL;
     pickAllowed : BOOL;
     partPicked : BOOL;
     consecNok : INT;
     QH : BOOL;
+    toolCount : INT;
     mismatches : INT;
     CAM_FAULT : BOOL;
     COMM_LOST : BOOL;
@@ -704,6 +725,7 @@ FUNCTION_BLOCK FB_CONV
     V_partPicked : BOOL;
     V_consecNok : INT;
     V_QH : BOOL;
+    V_toolCount : INT;
     V_mismatches : INT;
     V_CAM_FAULT : BOOL;
     TR_N : INT;
@@ -998,9 +1020,9 @@ FUNCTION_BLOCK FB_R2S2
     GR_21A_in : BOOL;
     GR_21A : BOOL;
     CNC_done : BOOL;
+    CNC_empty : BOOL;
     ZS_33_in : BOOL;
     ZS_33 : BOOL;
-    CNC_empty : BOOL;
     ZS_31_in : BOOL;
     ZS_31 : BOOL;
     PS_36_in : BOOL;
@@ -1034,6 +1056,7 @@ FUNCTION_BLOCK FB_R2S2
     outCount : INT;
     PE_65_in : BOOL;
     PE_65 : BOOL;
+    GAUGE_warn : BOOL;
     PX_11_in : BOOL;
     PX_11 : BOOL;
     PE_41_in : BOOL;
@@ -1054,12 +1077,15 @@ FUNCTION_BLOCK FB_R2S2
     L_VERIFY_fail : BOOL;
     HMI_release : BOOL;
     L_HMI_release : BOOL;
+    HMI_tool : BOOL;
+    L_HMI_tool : BOOL;
     HB : BOOL;
     partPlaced : BOOL;
     pickAllowed : BOOL;
     partPicked : BOOL;
     consecNok : INT;
     QH : BOOL;
+    toolCount : INT;
     mismatches : INT;
     CAM_FAULT : BOOL;
     COMM_LOST : BOOL;
@@ -1075,6 +1101,7 @@ FUNCTION_BLOCK FB_R2S2
     V_partPicked : BOOL;
     V_consecNok : INT;
     V_QH : BOOL;
+    V_toolCount : INT;
     V_mismatches : INT;
     V_CAM_FAULT : BOOL;
     TR_N : INT;
@@ -1621,9 +1648,9 @@ FUNCTION_BLOCK FB_SUP
     GR_21A_in : BOOL;
     GR_21A : BOOL;
     CNC_done : BOOL;
+    CNC_empty : BOOL;
     ZS_33_in : BOOL;
     ZS_33 : BOOL;
-    CNC_empty : BOOL;
     ZS_31_in : BOOL;
     ZS_31 : BOOL;
     PS_36_in : BOOL;
@@ -1657,6 +1684,7 @@ FUNCTION_BLOCK FB_SUP
     outCount : INT;
     PE_65_in : BOOL;
     PE_65 : BOOL;
+    GAUGE_warn : BOOL;
     PX_11_in : BOOL;
     PX_11 : BOOL;
     PE_41_in : BOOL;
@@ -1677,12 +1705,15 @@ FUNCTION_BLOCK FB_SUP
     L_VERIFY_fail : BOOL;
     HMI_release : BOOL;
     L_HMI_release : BOOL;
+    HMI_tool : BOOL;
+    L_HMI_tool : BOOL;
     HB : BOOL;
     partPlaced : BOOL;
     pickAllowed : BOOL;
     partPicked : BOOL;
     consecNok : INT;
     QH : BOOL;
+    toolCount : INT;
     mismatches : INT;
     CAM_FAULT : BOOL;
     COMM_LOST : BOOL;
@@ -1698,6 +1729,7 @@ FUNCTION_BLOCK FB_SUP
     V_partPicked : BOOL;
     V_consecNok : INT;
     V_QH : BOOL;
+    V_toolCount : INT;
     V_mismatches : INT;
     V_CAM_FAULT : BOOL;
     TR_N : INT;
@@ -1841,9 +1873,9 @@ PROGRAM CellMain
     GR_21A_in : BOOL;
     GR_21A : BOOL;
     CNC_done : BOOL;
+    CNC_empty : BOOL;
     ZS_33_in : BOOL;
     ZS_33 : BOOL;
-    CNC_empty : BOOL;
     ZS_31_in : BOOL;
     ZS_31 : BOOL;
     PS_36_in : BOOL;
@@ -1877,6 +1909,7 @@ PROGRAM CellMain
     outCount : INT;
     PE_65_in : BOOL;
     PE_65 : BOOL;
+    GAUGE_warn : BOOL;
     PX_11_in : BOOL;
     PX_11 : BOOL;
     PE_41_in : BOOL;
@@ -1897,12 +1930,15 @@ PROGRAM CellMain
     L_VERIFY_fail : BOOL;
     HMI_release : BOOL;
     L_HMI_release : BOOL;
+    HMI_tool : BOOL;
+    L_HMI_tool : BOOL;
     HB : BOOL;
     partPlaced : BOOL;
     pickAllowed : BOOL;
     partPicked : BOOL;
     consecNok : INT;
     QH : BOOL;
+    toolCount : INT;
     mismatches : INT;
     CAM_FAULT : BOOL;
     COMM_LOST : BOOL;
@@ -1918,6 +1954,7 @@ PROGRAM CellMain
     V_partPicked : BOOL;
     V_consecNok : INT;
     V_QH : BOOL;
+    V_toolCount : INT;
     V_mismatches : INT;
     V_CAM_FAULT : BOOL;
     TR_N : INT;
@@ -1986,6 +2023,7 @@ PROGRAM CellMain
     rt_HMI_reset : R_TRIG;
     rt_VERIFY_fail : R_TRIG;
     rt_HMI_release : R_TRIG;
+    rt_HMI_tool : R_TRIG;
     mmOn1 : BOOL;
     mmT1 : TON;
     mmOn2 : BOOL;
@@ -2024,6 +2062,7 @@ PROGRAM CellMain
   rt_HMI_reset(CLK := HMI_reset); IF rt_HMI_reset.Q THEN L_HMI_reset := TRUE; END_IF;
   rt_VERIFY_fail(CLK := VERIFY_fail); IF rt_VERIFY_fail.Q THEN L_VERIFY_fail := TRUE; END_IF;
   rt_HMI_release(CLK := HMI_release); IF rt_HMI_release.Q THEN L_HMI_release := TRUE; END_IF;
+  rt_HMI_tool(CLK := HMI_tool); IF rt_HMI_tool.Q THEN L_HMI_tool := TRUE; END_IF;
   IF mmClear THEN mmOn1 := FALSE; mmOn2 := FALSE; mmOn3 := FALSE; mmClear := FALSE; END_IF;
   WHILE mmPending > 0 DO (* a new mismatch event: a free place, or the oldest one is replaced *)
     oldest := 0; best := T#0ms;
@@ -2052,19 +2091,21 @@ PROGRAM CellMain
   fbSUP(); IF SUP_state <> trL_SUP THEN trL_SUP := SUP_state; trBuf[trI MOD 32] := 400 + SUP_state; trI := trI + 1; IF trI >= 32000 THEN trI := 0; END_IF; END_IF;
   fbR2S2(); IF R2_state <> trL_R2 THEN trL_R2 := R2_state; trBuf[trI MOD 32] := 300 + R2_state; trI := trI + 1; IF trI >= 32000 THEN trI := 0; END_IF; END_IF;
   IF (L_HMI_release AND QH) THEN QH := FALSE; consecNok := 0; L_HMI_release := FALSE; END_IF; (* rung: tool and offsets checked -> quality hold released *)
+  IF (L_HMI_tool AND (R1_state = 12)) THEN toolCount := 0; L_HMI_tool := FALSE; END_IF; (* rung: tool changed -> tool life counter reset *)
   fbSUP(); IF SUP_state <> trL_SUP THEN trL_SUP := SUP_state; trBuf[trI MOD 32] := 400 + SUP_state; trI := trI + 1; IF trI >= 32000 THEN trI := 0; END_IF; END_IF;
   
   (* 3. outputs *)
   BELT_motor := (CONV_state = 3) AND NOT COMM_LOST;
   LT_53 := (R2_state = 10);
   LT_01_red := (((SUP_state = 3) OR (SUP_state = 4)) OR ((R1_state = 99) OR (CONV_state = 99) OR (R2_state = 99)));
-  LT_01_amber := (NOT (((SUP_state = 3) OR (SUP_state = 4))) AND NOT (((R1_state = 99) OR (CONV_state = 99) OR (R2_state = 99))) AND ((mismatches > 0) OR QH OR (R1_state = 10) OR (R1_state = 11)));
-  LT_01_green := (NOT (((SUP_state = 3) OR (SUP_state = 4))) AND NOT (((R1_state = 99) OR (CONV_state = 99) OR (R2_state = 99))) AND NOT (((mismatches > 0) OR QH OR (R1_state = 10) OR (R1_state = 11))));
+  LT_01_amber := (NOT (((SUP_state = 3) OR (SUP_state = 4))) AND NOT (((R1_state = 99) OR (CONV_state = 99) OR (R2_state = 99))) AND ((mismatches > 0) OR QH OR (R1_state = 10) OR (R1_state = 11) OR (R1_state = 12) OR GAUGE_warn));
+  LT_01_green := (NOT (((SUP_state = 3) OR (SUP_state = 4))) AND NOT (((R1_state = 99) OR (CONV_state = 99) OR (R2_state = 99))) AND NOT (((mismatches > 0) OR QH OR (R1_state = 10) OR (R1_state = 11) OR (R1_state = 12) OR GAUGE_warn)));
   V_partPlaced := partPlaced;
   V_pickAllowed := pickAllowed;
   V_partPicked := partPicked;
   V_consecNok := consecNok;
   V_QH := QH;
+  V_toolCount := toolCount;
   V_mismatches := mismatches;
   V_CAM_FAULT := CAM_FAULT;
   TR_00 := trBuf[0];
@@ -2134,8 +2175,8 @@ CONFIGURATION Config0
     ZS_32_in AT %IX103.3 : BOOL; (* ZS-32, raw *)
     GR_21A_in AT %IX103.4 : BOOL; (* GR-21A, raw *)
     CNC_done AT %IX103.5 : BOOL; (* CNC.done *)
-    ZS_33_in AT %IX103.6 : BOOL; (* ZS-33, raw *)
-    CNC_empty AT %IX103.7 : BOOL; (* CNC.empty *)
+    CNC_empty AT %IX103.6 : BOOL; (* CNC.empty *)
+    ZS_33_in AT %IX103.7 : BOOL; (* ZS-33, raw *)
     ZS_31_in AT %IX104.0 : BOOL; (* ZS-31, raw *)
     PS_36_in AT %IX104.1 : BOOL; (* PS-36, raw *)
     GR_21B_in AT %IX104.2 : BOOL; (* GR-21B, raw *)
@@ -2158,17 +2199,19 @@ CONFIGURATION Config0
     CAM_2_slot AT %IX106.3 : BOOL; (* CAM-2.slot *)
     outCount AT %IW100 : INT; (* outCount *)
     PE_65_in AT %IX106.4 : BOOL; (* PE-65, raw *)
-    PX_11_in AT %IX106.5 : BOOL; (* PX-11, raw *)
-    PE_41_in AT %IX106.6 : BOOL; (* PE-41, raw *)
-    PX_52_in AT %IX106.7 : BOOL; (* PX-52, raw *)
-    PX_64_in AT %IX107.0 : BOOL; (* PX-64, raw *)
-    HMI_clear AT %IX107.1 : BOOL; (* HMI.clear (button) *)
-    HMI_verify AT %IX107.2 : BOOL; (* HMI.verify (button) *)
-    VERIFY_pass AT %IX107.3 : BOOL; (* VERIFY.pass (button) *)
-    HMI_reset AT %IX107.4 : BOOL; (* HMI.reset (button) *)
-    VERIFY_fail AT %IX107.5 : BOOL; (* VERIFY.fail (button) *)
-    HMI_release AT %IX107.6 : BOOL; (* HMI.release (button) *)
-    HB AT %IX107.7 : BOOL; (* heartbeat, toggled by the bridge *)
+    GAUGE_warn AT %IX106.5 : BOOL; (* GAUGE.warn *)
+    PX_11_in AT %IX106.6 : BOOL; (* PX-11, raw *)
+    PE_41_in AT %IX106.7 : BOOL; (* PE-41, raw *)
+    PX_52_in AT %IX107.0 : BOOL; (* PX-52, raw *)
+    PX_64_in AT %IX107.1 : BOOL; (* PX-64, raw *)
+    HMI_clear AT %IX107.2 : BOOL; (* HMI.clear (button) *)
+    HMI_verify AT %IX107.3 : BOOL; (* HMI.verify (button) *)
+    VERIFY_pass AT %IX107.4 : BOOL; (* VERIFY.pass (button) *)
+    HMI_reset AT %IX107.5 : BOOL; (* HMI.reset (button) *)
+    VERIFY_fail AT %IX107.6 : BOOL; (* VERIFY.fail (button) *)
+    HMI_release AT %IX107.7 : BOOL; (* HMI.release (button) *)
+    HMI_tool AT %IX108.0 : BOOL; (* HMI.tool (button) *)
+    HB AT %IX108.1 : BOOL; (* heartbeat, toggled by the bridge *)
   END_VAR
   VAR_GLOBAL (* outputs to the plant *)
     R1_state AT %QW100 : INT; (* state of R1 (codes in FB_R1S2) *)
@@ -2199,41 +2242,42 @@ CONFIGURATION Config0
     V_partPicked AT %QX102.0 : BOOL; (* copy of partPicked *)
     V_consecNok AT %QW109 : INT; (* copy of consecNok *)
     V_QH AT %QX102.1 : BOOL; (* copy of QH *)
-    V_mismatches AT %QW110 : INT; (* copy of mismatches *)
+    V_toolCount AT %QW110 : INT; (* copy of toolCount *)
+    V_mismatches AT %QW111 : INT; (* copy of mismatches *)
     V_CAM_FAULT AT %QX102.2 : BOOL; (* copy of CAM_FAULT *)
-    TR_N AT %QW111 : INT; (* state changes so far, modulo 32000 *)
-    TR_00 AT %QW112 : INT; (* state change ring: machine number x 100 + state code *)
-    TR_01 AT %QW113 : INT;
-    TR_02 AT %QW114 : INT;
-    TR_03 AT %QW115 : INT;
-    TR_04 AT %QW116 : INT;
-    TR_05 AT %QW117 : INT;
-    TR_06 AT %QW118 : INT;
-    TR_07 AT %QW119 : INT;
-    TR_08 AT %QW120 : INT;
-    TR_09 AT %QW121 : INT;
-    TR_10 AT %QW122 : INT;
-    TR_11 AT %QW123 : INT;
-    TR_12 AT %QW124 : INT;
-    TR_13 AT %QW125 : INT;
-    TR_14 AT %QW126 : INT;
-    TR_15 AT %QW127 : INT;
-    TR_16 AT %QW128 : INT;
-    TR_17 AT %QW129 : INT;
-    TR_18 AT %QW130 : INT;
-    TR_19 AT %QW131 : INT;
-    TR_20 AT %QW132 : INT;
-    TR_21 AT %QW133 : INT;
-    TR_22 AT %QW134 : INT;
-    TR_23 AT %QW135 : INT;
-    TR_24 AT %QW136 : INT;
-    TR_25 AT %QW137 : INT;
-    TR_26 AT %QW138 : INT;
-    TR_27 AT %QW139 : INT;
-    TR_28 AT %QW140 : INT;
-    TR_29 AT %QW141 : INT;
-    TR_30 AT %QW142 : INT;
-    TR_31 AT %QW143 : INT;
+    TR_N AT %QW112 : INT; (* state changes so far, modulo 32000 *)
+    TR_00 AT %QW113 : INT; (* state change ring: machine number x 100 + state code *)
+    TR_01 AT %QW114 : INT;
+    TR_02 AT %QW115 : INT;
+    TR_03 AT %QW116 : INT;
+    TR_04 AT %QW117 : INT;
+    TR_05 AT %QW118 : INT;
+    TR_06 AT %QW119 : INT;
+    TR_07 AT %QW120 : INT;
+    TR_08 AT %QW121 : INT;
+    TR_09 AT %QW122 : INT;
+    TR_10 AT %QW123 : INT;
+    TR_11 AT %QW124 : INT;
+    TR_12 AT %QW125 : INT;
+    TR_13 AT %QW126 : INT;
+    TR_14 AT %QW127 : INT;
+    TR_15 AT %QW128 : INT;
+    TR_16 AT %QW129 : INT;
+    TR_17 AT %QW130 : INT;
+    TR_18 AT %QW131 : INT;
+    TR_19 AT %QW132 : INT;
+    TR_20 AT %QW133 : INT;
+    TR_21 AT %QW134 : INT;
+    TR_22 AT %QW135 : INT;
+    TR_23 AT %QW136 : INT;
+    TR_24 AT %QW137 : INT;
+    TR_25 AT %QW138 : INT;
+    TR_26 AT %QW139 : INT;
+    TR_27 AT %QW140 : INT;
+    TR_28 AT %QW141 : INT;
+    TR_29 AT %QW142 : INT;
+    TR_30 AT %QW143 : INT;
+    TR_31 AT %QW144 : INT;
   END_VAR
   VAR_GLOBAL (* internal *)
     ZS_32 : BOOL; (* ZS-32, debounced *)
@@ -2260,6 +2304,7 @@ CONFIGURATION Config0
     L_HMI_reset : BOOL; (* HMI.reset, latched until a transition reads it *)
     L_VERIFY_fail : BOOL; (* VERIFY.fail, latched until a transition reads it *)
     L_HMI_release : BOOL; (* HMI.release, latched until a transition reads it *)
+    L_HMI_tool : BOOL; (* HMI.tool, latched until a transition reads it *)
     partPlaced : BOOL; (* partPlaced *)
     pickAllowed : BOOL; (* pickAllowed *)
     partPicked : BOOL; (* partPicked *)
@@ -2272,6 +2317,7 @@ CONFIGURATION Config0
   VAR_GLOBAL RETAIN (* kept over a cold restart (M.PLC.retain) *)
     consecNok : INT; (* consecNok *)
     QH : BOOL; (* QH *)
+    toolCount : INT; (* toolCount *)
   END_VAR
   RESOURCE Res0 ON PLC
     TASK MainTask (INTERVAL := T#10ms, PRIORITY := 0);

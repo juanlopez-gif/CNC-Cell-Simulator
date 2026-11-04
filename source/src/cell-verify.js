@@ -39,7 +39,7 @@
     // camwrong = camera wrong with a valid image: false positive, false negative, stale image.
     // opts.faults is a group name, a class name or a list of them.
     const FL = { mismatch: ['sensor', 'all'], camera: ['sensor', 'all'], grip: ['process', 'all'], timeout: ['process', 'all'], nok: ['process', 'all'], master: ['process', 'all'],
-      cncalarm: ['process', 'all'], camfp: ['camwrong'], camfn: ['camwrong'], stale: ['camwrong'] };
+      cncalarm: ['process', 'all'], toolwear: ['process', 'all'], camfp: ['camwrong'], camfn: ['camwrong'], stale: ['camwrong'] };
     const want = [].concat(opts.faults || []);
     const F = Object.fromEntries(Object.keys(FL).map((k) => [k, want.includes(k) || FL[k].some((g) => want.includes(g))]));
     // the rule that fuses camera and proximity at each checkpoint (model value, opts.rules overrides)
@@ -113,6 +113,9 @@
     addVar('cnc', PART, 'none', 'part in the fixture');
     addVar('run', B, false, 'CNC machining');
     if (F.cncalarm) addVar('alarm', B, false, 'CNC alarm: spindle stopped, the program restarts with the same part after the reset');
+    // the tool life counter abstracted like the pallet count: 0 in its life, 1 change due; each CYCLE
+    // START may be the last one of the tool (A6.4). Without the class the counter stays in its life.
+    if (F.toolwear) addVar('toolCount', [0, 1], 0, 'tool life: 0 in its life, 1 tool change due (abstract count)');
     ['r1A', 'r1B'].forEach((g) => addVar(g, PART, 'none', 'part in Robot 1 gripper ' + g.slice(2)));
     addVar('r2S', PART, 'none', 'part in the Robot 2 gripper');
     ['beltEntry', 'beltMid', 'beltExit'].forEach((b) => addVar(b, PART, 'none', 'part on the belt'));
@@ -152,12 +155,14 @@
       // a sensor fault here is a wrong value at one check, not a sensor that stays broken: no broken
       // sensor is ever found, so P13 holds trivially here and is checked by the simulators (A6.2)
       'TRUE.brokenFound': () => FF,
+      // the size warning (A6.4) is read only by the amber light, by no machine: left out
+      'GAUGE.warn': () => FF,
     };
     const TRUTH = {
       'CP-1': bv('inPresent'), 'CP-2': not(eq('beltEntry', 'none')), 'CP-3': not(eq('beltExit', 'none')),
       'CP-4': bv('outPresent'), 'CP-5': has('nest') ? not(eq('nest', 'none')) : FF,
     };
-    const NUMVAR = { outCount: 'outCount', mismatches: 'mismatches', consecNok: 'consecNok' };
+    const NUMVAR = { outCount: 'outCount', mismatches: 'mismatches', consecNok: 'consecNok', toolCount: 'toolCount' };
     let ctx = null;                            // the machine whose expression is being translated
     function SIG(src, inputs) {
       const e = typeof src === 'string' ? X.parse(src) : src;
@@ -180,8 +185,9 @@
           const s = M.SIGNALS[e.name];
           if (s && s.def) return SIG(s.def, inputs);
           const v = NUMVAR[e.name];
+          if (v === 'toolCount' && !has(v)) return REL[e.rel](0, 1) ? TT : FF;
           if (!v || !has(v)) throw new Error('no numeric variable for ' + e.name);
-          const n = e.value === 'slots' ? N : X.constVal(e.value);
+          const n = e.value === 'slots' ? N : e.value === 'toolLife' ? 1 : X.constVal(e.value);
           return inn(v, vars[VI[v]].dom.filter((d) => REL[e.rel](d, n)));
         }
       }
@@ -231,7 +237,8 @@
         if (v === 'mismatches') u.mismatches = VAL(st.set[v]);
         else if (has(v)) u[v] = VAL(st.set[v]);
       });
-      if (st.inc && has(st.inc)) { const sg = M.SIGNALS[st.inc]; u[st.inc] = ADD(st.inc, 1, 0, sg.max); }
+      if (st.inc === 'toolCount' && has('toolCount')) u.toolCount = STEP('toolCount', { 0: [0, 1], 1: [1] });
+      else if (st.inc && has(st.inc)) { const sg = M.SIGNALS[st.inc]; u[st.inc] = ADD(st.inc, 1, 0, sg.max); }
       return u;
     };
     const condSet = (st, upd) => {      // set/inc with an optional `when`: returns branches
@@ -468,7 +475,7 @@
     plant('ENV', '4 h pass since the last master check', and(bv('zeroed'), not(bv('due')), inn('R2', ['E5_x', 'E6_x'])), { due: VAL(true) });
     if (F.mismatch) plant('ENV', 'a mismatch leaves the 10-min window', cmp('mismatches', '>', 0), { mismatches: ADD('mismatches', -1, 0, M.RULES.mismatchLimit) });
     M.RUNGS.forEach((r) => {
-      const g = SIG(r.when, { 'HMI.release': true });
+      const g = SIG(r.when, Object.fromEntries(inputsOf(r.when).map((n) => [n, true])));
       const u = {}; Object.keys(r.set).forEach((v) => { if (has(v)) u[v] = VAL(r.set[v]); });
       if (Object.keys(u).length) plant('OP', 'rung: ' + r.text, g, u);
     });
