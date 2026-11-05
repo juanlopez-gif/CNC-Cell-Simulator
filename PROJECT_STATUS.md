@@ -30,7 +30,7 @@ reference behind it.
 | Python engine tests | `python -m unittest test_engine` | 7 tests OK (new in A2.2: gauge policy; in A2.4: KPI measures) |
 | Browser tests | `npm test` (basic, fault, quality hold, phone width, 20 h conformance, Python parity in 3 scenarios) | all pass, no page errors, no property violation |
 | Regression | `npm run regress` | identical to `regression/setup2_reference.json` (recorded at the end of A2.2, unchanged by A2.3 and A2.4; the A2.1 reference kept as `regression/setup2_a21.json`); differences all intended (`regression/README.md`) |
-| Exhaustive verification | `npm run verify` | 5 runs, 18 properties (P1–P15, L1–L3) hold, no deadlock (§9.3; re-run in A6.4 on 2026-11-04 with P15 and the tool counter: `process` 20,400,274 states, the other 4 runs unchanged). NuSMV 2.7.1 agrees on every specification it decided (48 per model) and on the reachable states of all 5 runs; in `sensor_camwrong` P11 and P12 got no NuSMV result within 12 h (run locally, 2026-10-30, §9.4) |
+| Exhaustive verification | `npm run verify` | 7 runs, 20 properties (P1–P17, L1–L3) hold, no deadlock (§9.3; re-run in A6.5 on 2026-11-05 with the safety status: new runs `estop` 11,954,888 and `person` 2,561,670 states). NuSMV 2.7.1 (A2.2 models, not yet re-run for A6) agrees on every specification it decided (48 per model) and on the reachable states of the 5 runs of then; in `sensor_camwrong` P11 and P12 got no NuSMV result within 12 h (run locally, 2026-10-30, §9.4) |
 | Pallet capacity and combined faults (A2.5) | `node --max-old-space-size=4000 verify_pallet.js` | output pallet of any capacity: same states as capacity 2 in all 5 runs, 15 properties hold; counter game L1–L3 holds in 3 runs; capacity 3 in 3 runs; combined run without undersized parts 79,680,713 states, all hold (`verification/pallet_capacity.md`) |
 | Environment of this check | — | local: Node.js 24, Python 3.11, Google Chrome |
 | KPIs | `M.KPI` | idle 20.5 s, cycle 140.5 s, 85.4 % of the cycle machining, 25.6 parts/h; baseline `M.BASELINE` 36.5 s |
@@ -84,7 +84,7 @@ formal verification are all generated from or interpret that file.
 | The browser and Python simulators run the same controller logic | Export check; identical traces in 3 deterministic scenarios (1 h each, one with camera errors) | Shows that the Python port reproduces the browser in those scenarios. Python is a line-by-line port, so an error in the original would be reproduced, not detected |
 | The generated PLC program behaves as the model (A3.4) | OpenPLC (software PLC, CI) against the Python plant: same sequence of state changes per machine as the Python interpreter in 3 scenarios × 1 h (nominal, stuck PE-41, camera errors and a glitch), every lag increment within its bound, every change a model transition | Shows that the generator and the PLC semantics of §5.16 reproduce the interpreter in those scenarios, with the delays explained by scan, polling and handshakes. A software PLC and a simulated plant: not industrial hardware, not real I/O timing |
 | Both simulators follow the model | Conformance runs, 20 h with random faults | Only with the simulated plant and the faults it can inject |
-| 18 properties hold and there is no deadlock | Exhaustive search of the abstract model, 5 runs (nominal, sensor faults, process faults, camera wrong, all sensor faults together; §9.3) | Untimed plant; one source wrong at a time (common mode not modelled); L1–L3 are AG EF: the goal can always still be reached, not that it will be reached |
+| 20 properties hold and there is no deadlock | Exhaustive search of the abstract model, 7 runs (nominal, sensor faults, process faults, camera wrong, all sensor faults together, E-stop, person in the scanner fields; §9.3) | Untimed plant; one source wrong at a time (common mode not modelled); L1–L3 are AG EF: the goal can always still be reached, not that it will be reached |
 | The verdicts hold for an output pallet of any capacity (12 included) | Abstract count (empty / partly filled / full) with exactly the states of capacity 2 in all 5 runs; counter game for L1–L3 in 3 runs; capacity 3 compared in 3 runs (`verification/pallet_capacity.md`) | Rests on the logic reading the count only as `= 0`, `>= slots`, `< slots` (not checked by `lint()`). L1–L3 for any capacity not proved in `sensor` and `sensor_camwrong` (the game does not fit in memory) |
 | Sensor and process faults together | One run with every class of `all` except undersized parts: 79,680,713 states, 15 properties hold, no deadlock | `faults: 'all'` itself is about 1.4 × 10⁹ states (about 140 GB), out of reach; the rest is an argument (`pallet_capacity.md` §5) |
 | The search and the NuSMV export agree | Same verdicts on every specification NuSMV decided and same state counts in all 5 runs (48 specifications each; P11 and P12 of `sensor_camwrong` undecided after 12 h, §9.3) | Additional evidence of consistency. Both start from the same intermediate representation (`build()`), so an error made there would be shared |
@@ -138,8 +138,8 @@ Week2_Sensors_Design/
 │   ├── index.html                   the simulator, one self-contained file (≈ 225 kB), generated
 │   └── sim_*.png                    screenshots used in the README
 ├── verification/
-│   ├── cell_setup2_<run>.smv        NuSMV models of the 5 runs (none, sensor, process, camwrong,
-│   │                                sensor_camwrong), generated
+│   ├── cell_setup2_<run>.smv        NuSMV models of the 7 runs (none, sensor, process, camwrong,
+│   │                                sensor_camwrong, estop, person), generated
 │   ├── cell_setup2_timed*.xml       UPPAAL models, case 1 and case 2 of the master check (A4.2), generated
 │   ├── timed_results.md             A4.3: results of verifyta on both models (bounds B1–B3)
 │   ├── results.json                 every number of the last verification run
@@ -1368,7 +1368,14 @@ below **48.20 mm**; the five safety states with reduced speed × 2; the times pr
   during the pick of Robot 1 and the place of Robot 2, E-stops while Robot 1 opens the door, loads the
   vise and waits), browser and Python identical. Regression re-recorded (`regression/README.md`,
   step A6.5); the nominal runs only gain the start of SAF (one state change).
-VERIF_A65
+- Verification re-run (explicit search, 2026-11-05): all 20 properties (P1–P17, L1–L3) hold in all 7
+  runs, 0 deadlocks. The two await steps (B1, E5) add states to every run: `none` 316,639 (A6.4:
+  297,136), `sensor` 72,931,152 (68,790,749), `process` 21,328,518 (20,400,274), `camwrong`
+  17,676,194 (17,046,483), `sensor_camwrong` 84,279,526 (79,819,587); new runs `estop` 11,954,888
+  states / 33,766,380 transitions (51 variables, 19 min) and `person` 2,561,670 / 10,086,270 (74 s).
+  About 2 h 50 min in total. The `.smv` files in `verification/` are the new ones (`estop` and
+  `person` added). `verify.js` now writes `results.json` after every run, so a run that is cut short
+  (a power cut stopped the first attempt in the fifth run) can be resumed with `ONLY=`.
 
 **Done when** (A6 as a whole): the four items are in the model, both simulators (parity identical),
 the verifier (every property holds in every run, the new runs included), the PLC program (compiled
@@ -1555,7 +1562,10 @@ Also records deadlocks and which machine states are never reached.
 
 0 deadlocks; all 15 properties (P1–P12, L1–L3) hold in every run. (A6.3, 2026-11-03: 17 properties,
 `process` 10,764,730 states / 59,410,388 transitions with the CNC alarm; the other runs unchanged. A6.4,
-2026-11-04: 18 properties, `process` 20,400,274 / 114,325,376 with the tool counter; the other runs unchanged.) Compared with A2.1 (212,303 /
+2026-11-04: 18 properties, `process` 20,400,274 / 114,325,376 with the tool counter; the other runs unchanged.
+A6.5, 2026-11-05: 20 properties in 7 runs, 0 failed, 0 deadlocks: `none` 316,639, `sensor` 72,931,152,
+`process` 21,328,518, `camwrong` 17,676,194, `sensor_camwrong` 84,279,526, `estop` 11,954,888 (E-stop at
+any time), `person` 2,561,670 (one person in the scanner fields) states; about 2 h 50 min.) Compared with A2.1 (212,303 /
 39,412,569 / 5,327,386 / 9,672,947 / 45,750,459 states) the gauge adds the variables `zeroed` and
 `due` and the 4-h timer, which may fire only while Robot 2 is in E5/E6 (§5.14, implementation notes):
 ×1.4 to ×1.75 states. Search time on the local computer: 7 s (`none`) to 50 min
