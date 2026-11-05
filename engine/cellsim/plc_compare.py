@@ -12,7 +12,8 @@ hit a different check in each run.
 Criterion (§5.16 point 11): for every machine the PLC makes the same sequence of state changes as the
 model; the lag of a change (PLC instant minus model instant, both from the first change of the run)
 may exceed the largest lag of all earlier changes by at most the bound of that change, and is never
-negative beyond one bridge cycle. The bound of a change grows with the handshakes of the state left.
+negative beyond one bridge cycle. The bound of a change grows with the handshakes of the state left
+(jobs, checks and debounced answers of the plant).
 """
 import argparse
 import json
@@ -110,12 +111,14 @@ def result(sim, drv, scenario, seed):
 
 
 def handshakes(M, slot, sid):
-    """Jobs and checks of a state (upper bound of the handshakes before it is left)."""
+    """Jobs, checks and debounced plant answers (a `next` with `for`, e.g. C4: motor off, the belt stops,
+    !ENC-43 for zeroSpeed) of a state: upper bound of the handshakes before it is left."""
     if sid in ("", "H", "F"):
         return 1
     mk = next(k for k in M.SETUP_MACHINES["2"] if M.MACHINES[k]["slot"] == slot)
     s = M.MACHINES[mk]["states"].get(sid) or {}
-    return sum(1 for st in s.get("do", []) if "job" in st or "check" in st)
+    return (sum(1 for st in s.get("do", []) if "job" in st or "check" in st)
+            + sum(1 for n in s.get("next", []) if "for" in n))
 
 
 def compare(ref, plc, M):

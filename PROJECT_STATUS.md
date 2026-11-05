@@ -843,9 +843,11 @@ by the PLC against the plant (`plc_bridge.py --scenario`).
   with the camera trigger (the C4 check waits 0.5 s to settle, longer than the debounce).
 - Criterion: for every machine the PLC makes the same sequence of state changes as the model. The lag
   of a change (PLC instant minus model instant, both from the first change) may exceed the largest
-  lag of all earlier changes by at most **0.05 s + 0.15 s × (jobs and checks of the state left)**
-  (one scan, one poll and one bridge cycle per change; debounce, three scans and two polls per
-  handshake), and the PLC is never ahead of the model by more than one bridge cycle (0.02 s). The
+  lag of all earlier changes by at most **0.05 s + 0.15 s × (jobs, checks and debounced plant
+  answers of the state left)** (one scan, one poll and one bridge cycle per change; debounce, three
+  scans and two polls per handshake; a debounced answer is an exit with `for`, only C4: motor off,
+  the belt stops, `!ENC-43` for `zeroSpeed`, a round trip through the plant like a job; added in
+  A6.5), and the PLC is never ahead of the model by more than one bridge cycle (0.02 s). The
   changes of the reference up to the end of the PLC run minus its lag must all be there, every change
   of both runs must be a model transition (`scenarios.conformance`), and the property monitors must
   stay at zero.
@@ -1367,7 +1369,16 @@ below **48.20 mm**; the five safety states with reduced speed × 2; the times pr
   not of the PLC program: with the machines in the PLC the plant marks every machine as stopped by
   the E-stop and only a machine with a running job cleared the mark. Fix in `sim.py`: in PLC mode
   the mark ends when the PLC takes the machine out of F (`ext_state`), the stopped job goes on then;
-  test `test_estop_with_the_plc`. OpenPLC run of `safety` repeated after the fix: see below.
+  test `test_estop_with_the_plc`. Second OpenPLC run of `safety` (2026-11-05, 1 h): all 418 state
+  changes in the order of the model, 0 errors, 0 violations, every disturbance applied (persons on
+  both sides, two E-stops), but one lag increment above its bound: C4 → C5 at 178 s, 0.077 s with
+  a bound of 0.05 s. C4 is left on a debounced answer of the plant (motor off, the belt stops,
+  `!ENC-43` for 0.2 s): a round trip through the bridge like a job, which the bound did not count.
+  In every PLC run C4 takes 0.55–0.59 s instead of 0.5 s; it failed only here because the lag
+  reached a new maximum at that change (first run: 0.049 s, nominal runs below the earlier lags).
+  Fix in `plc_compare.handshakes`: an exit with `for` counts as one handshake (bound 0.20 s); the
+  same run then passes (largest increment 0.335 s, R2 E7 → E1, bound 0.35 s). OpenPLC runs of
+  `nominal` and `safety` repeated with the new criterion: see below.
 - Tests: `test_engine` `test_safety_stops` (person during the pick: S3, pick paused, resumes; E-stop
   while opening the door: all three machines in F, no restart before the relay reset, the move goes
   on); `test_random_disturbances` with `safety=True`; parity scenario `safety` (persons
@@ -2221,3 +2232,4 @@ Newest last. Every change to the plan or to a design rule is written here first 
 | 2026-11-02 | **A6.2 done**, choices made by Claude within the approved design: no new state (the X4 loop exists) and P13 as a `never` property over a truth signal `TRUE.brokenFound`, trivially true in the verifier (its sensor faults are single wrong values, not broken sensors) and checked by the simulators and the PLC run; new kind of time `service` (−33 % / +100 %) for manual work; the replacement takes simulated time also with the instant verification of the tests; a reset pressed during the replacement stays latched; broken sensors drawn from their own random stream in the random runs; parity and PLC scenario `cp2broken`. Regression re-recorded: only the NuSMV models (P13) and the Python 8 h random run (3 of its 6 sensor faults now broken) differ | A property over a transition would need a new kind of property in every checker; with the instant verification a broken sensor would otherwise cost no time; the own stream keeps the other disturbances of the random runs where they were |
 | 2026-11-04 | **A6.4 done**, choices made by Claude within the approved design: the tool change between two cycles in a new Robot 1 state W3 (before the door is opened), confirmed by the operator on the HMI (`HMI.tool`, accepted only in W3); the counter counts CYCLE STARTs and is retained; the size warning is computed by the gauge station (`GAUGE.warn`), not by the PLC as the design said; the offset check stops nothing and costs no time in the KPI; a tool change and an offset correction both reset the drift; test injections "Tool life end" and "Offset error" (−1.85 mm). **Finding:** with N = 400 and 0.002 mm per part the warning never fires in normal operation (at most 0.8 mm of drift). The tool change is not in an OpenPLC scenario | The PLC does not read sizes and `GAUGE.ok` is already decided by the gauge station; changing the tool before the door opens keeps the exchange unchanged; preset of the counter from the bridge would need a test path into the PLC that the real cell would not have |
 | 2026-11-04 | **A6.5 done**, choices made by Claude within the approved design: machine SAF with the five approved states and reduced speed × 2; P17 as a start property of the PLC (no job in a loading zone is started while a person is in its protective field; the PLC waits before the pick and the place), the protective stop as a status signal of the robot controller (`R1.safeStop` / `R2.safeStop`), reduced speed only for the robot of the occupied side; the E-stop forces F through a new `fault.force` of the model; after the reset and the clear every machine continues where it stopped (the first version repeated the state and a random run found that this empties the vise, see §5.19); CNC feed hold = alarm of A6.3 (full `cncReset`); new time `safetyReset` 30 s; verification runs `estop` and `person`, each without other faults (both together exceeded 100 million states); chosen rates for the random runs (1 person and 0.2 E-stops per hour); the PLC keeps state, step and job handshake through the E-stop FAULT; OpenPLC scenario `safety` | The PLC cannot stop a robot, so a property about a running job would only restate the plant; a status bit of the robot controller is what a real PLC reads; continuing the interrupted step is what a robot program does after a stop and needs no recovery rule; one person at a time keeps the run `person` small | §5.9, §5.11, §5.19, §13 item 6 |
+| 2026-11-05 | **OpenPLC criterion: a debounced plant answer counts as a handshake** (`plc_compare.handshakes`, §5.16 point 11). Found by the OpenPLC run of `safety`: C4 → C5 0.077 s above the earlier lags with a bound of 0.05 s. Also fixed: the plant of the bridge kept the E-stop mark of a machine without a running job (`sim.py`, `test_estop_with_the_plc`) | C4 is left on `!ENC-43` for `zeroSpeed` after the PLC switched the motor off: output, plant, input and a PLC timer, the same round trip as a job. In every PLC run C4 takes 0.55–0.59 s, so the old bound held by chance; only C4 has an exit with `for`, so no other bound changes |
