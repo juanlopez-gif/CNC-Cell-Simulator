@@ -197,6 +197,44 @@ class EngineTest(unittest.TestCase):
         self.assertEqual(sim.nok_parts, 0)
         self.assertClean(sim)
 
+    def test_safety_stops(self):
+        # A6.5: a person in the protective field while Robot 1 picks: protective stop (S3), the pick pauses
+        # and ends after the person has left; an E-stop while Robot 1 opens the door: every machine to F,
+        # CNC not stopped (door open), the move is finished after the reset and the state is repeated.
+        sim = CellSim(seed=1, instant_verify=True)
+        sim.advance(400)
+        while sim.mch["R1"]["job"] != "R1.pickRawA":
+            sim.advance(0.05)
+        sim.inject_person(1, 15)
+        sim.advance(5)
+        self.assertEqual(sim.state("SAF"), "S3")
+        self.assertTrue(sim.read("R1.safeStop"))
+        self.assertEqual(sim.mch["R1"]["job"], "R1.pickRawA", "the pick is paused, not ended")
+        self.assertFalse(sim.read("TRUE.jobRuns"))
+        sim.advance(20)
+        self.assertEqual(sim.state("SAF"), "S1")
+        self.assertEqual(sim.stats["protective_stops"], 1)
+        while sim.mch["R1"]["job"] != "R1.openDoor":
+            sim.advance(0.05)
+        sim.advance(1)
+        sim.press_estop(20)
+        sim.advance(1)
+        self.assertEqual(sim.state("SAF"), "S4")
+        self.assertEqual([sim.state(s) for s in ("R1", "CONV", "R2")], ["F", "F", "F"])
+        self.assertTrue(sim.output("LT-01.red"))
+        self.assertFalse(sim.read("TRUE.jobRuns"))
+        sim.advance(20)
+        self.assertEqual(sim.state("SAF"), "S5")
+        self.assertEqual(sim.state("R1"), "F", "no restart before the relay is reset")
+        sim.advance(sim.T["safetyReset"] + 1)
+        self.assertEqual(sim.state("SAF"), "S1")
+        self.assertNotEqual(sim.state("R1"), "F")
+        self.assertGreater(sim.measures()["lost_s"]["safety stop"], 40)
+        sim.advance(1800)
+        self.assertEqual(sim.stats["estops"], 1)
+        self.assertGreater(sim.stats["cycles"], 12)
+        self.assertClean(sim)
+
     def test_quality_hold_after_two_nok_parts(self):
         sim = CellSim(seed=1)
         sim.advance(600)
@@ -278,7 +316,7 @@ class EngineTest(unittest.TestCase):
     def test_random_disturbances(self):
         for seed in (3, 4):
             with self.subTest(seed=seed):
-                sim, injected, actions = run_random(2, 4, faults=True, seed=seed)
+                sim, injected, actions = run_random(2, 4, faults=True, seed=seed, safety=True)
                 self.assertClean(sim)
                 self.assertGreater(sum(injected.values()), 5)
                 self.assertGreater(sim.stats["cycles"], 30)          # nominal ~92 in 4 h; stops and faults cost time

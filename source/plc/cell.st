@@ -4,9 +4,10 @@
 
 (* States of R1 (R1_state): 0=initial H=98 F=99 B0=1 B1=2 B2=3 B3=4 B4=5 B5=6 B6=7 Q_B6=8 (choice) B7=9 W1=10 W2=11 W3=12 *)
 (* Fault codes of R1 (R1_fault):
+   1 E-stop: ESTOP.active
    131 B0: communication lost during R1.home
    199 B0: missing confirmation: R1.home & CNC.ready & ZS-32
-   232 B1: communication lost during R1.pickRawA
+   233 B1: communication lost during R1.pickRawA
    299 B1: missing confirmation: GR-21A
    331 B2: communication lost during R1.toDoorReady
    431 B3: communication lost during R1.openDoor
@@ -37,6 +38,7 @@ FUNCTION_BLOCK FB_R1S2
     R2_state : INT;
     R2_fault : INT;
     SUP_state : INT;
+    SAF_state : INT;
     R1_JobNo : INT;
     R1_Start : BOOL;
     R1_Done : BOOL;
@@ -77,6 +79,7 @@ FUNCTION_BLOCK FB_R1S2
     CNC_ready : BOOL;
     ZS_32_in : BOOL;
     ZS_32 : BOOL;
+    SC_01_prot : BOOL;
     GR_21A_in : BOOL;
     GR_21A : BOOL;
     CNC_done : BOOL;
@@ -112,10 +115,16 @@ FUNCTION_BLOCK FB_R1S2
     R2_clearGauge : BOOL;
     GAUGE_valid : BOOL;
     GAUGE_ok : BOOL;
+    SC_02_prot : BOOL;
     CAM_2_slot : BOOL;
     outCount : INT;
     PE_65_in : BOOL;
     PE_65 : BOOL;
+    ESTOP : BOOL;
+    R1_safeStop : BOOL;
+    R2_safeStop : BOOL;
+    SC_01_warn : BOOL;
+    SC_02_warn : BOOL;
     GAUGE_warn : BOOL;
     PX_11_in : BOOL;
     PX_11 : BOOL;
@@ -135,6 +144,8 @@ FUNCTION_BLOCK FB_R1S2
     L_HMI_reset : BOOL;
     VERIFY_fail : BOOL;
     L_VERIFY_fail : BOOL;
+    HMI_safety : BOOL;
+    L_HMI_safety : BOOL;
     HMI_release : BOOL;
     L_HMI_release : BOOL;
     HMI_tool : BOOL;
@@ -204,6 +215,9 @@ FUNCTION_BLOCK FB_R1S2
     hRes : INT := 0;       (* state to resume after H *)
     hStep : INT := 0;      (* step to resume after H (a check repeated after a camera fault) *)
     fRes : INT := 0;       (* state to enter again after F *)
+    eRes : INT := 0;       (* state, step and phase where an E-stop stopped the machine (A6.5); 0 = none *)
+    eStp : INT := 0;
+    ePh : INT := 0;
     tries : INT := 0;      (* images taken by the running check *)
     proxL : BOOL;          (* proximity value latched with the camera trigger *)
     fresh : BOOL := TRUE;  (* a state was entered: reset the timers *)
@@ -219,6 +233,7 @@ FUNCTION_BLOCK FB_R1S2
   IF fresh THEN tWait(IN := FALSE); tStep(IN := FALSE); fresh := FALSE; END_IF;
   moved := FALSE;
   IF R1_state = 99 AND E_HMI_clear THEN clr_HMI_clear := TRUE; END_IF;
+  IF ((SAF_state = 4) OR (SAF_state = 5)) AND R1_state <> 99 AND R1_state <> 0 THEN eRes := R1_state; eStp := stp; ePh := ph; R1_fault := 1; clr_HMI_clear := FALSE; R1_state := 99; moved := TRUE; END_IF;
   CASE R1_state OF
     0: (* initial *)
       IF stp = 0 AND NOT moved THEN
@@ -269,21 +284,26 @@ FUNCTION_BLOCK FB_R1S2
           stp := 1; ph := 0;
         END_IF;
       END_IF;
-      IF stp = 1 AND NOT moved THEN (* B1 step 2: job R1.pickRawA *)
+      IF stp = 1 AND NOT moved THEN (* B1 step 2: await !SC-01.prot *)
+        IF NOT (SC_01_prot) THEN stp := 2;
+        ELSIF (((SUP_state = 3) OR (SUP_state = 4)) OR CAM_FAULT) THEN hRes := 2; hStep := 0; R1_state := 98; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
+        END_IF;
+      END_IF;
+      IF stp = 2 AND NOT moved THEN (* B1 step 3: job R1.pickRawA *)
         IF ph = 0 THEN
-          IF NOT ((res_CP_1 AND res_CAM_1_part)) THEN stp := 2;
+          IF NOT ((res_CP_1 AND res_CAM_1_part)) THEN stp := 3;
           ELSIF NOT COMM_LOST AND NOT R1_Done THEN R1_JobNo := 5; R1_Start := TRUE; ph := 1;
           END_IF;
         ELSIF ph = 1 THEN
-          IF COMM_LOST THEN fRes := R1_state; R1_fault := 232; R1_Start := FALSE; R1_JobNo := 0; R1_CP_1_Trig := FALSE; R1_CP_2_Trig := FALSE; clr_HMI_clear := FALSE; R1_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
+          IF COMM_LOST THEN fRes := R1_state; R1_fault := 233; R1_Start := FALSE; R1_JobNo := 0; R1_CP_1_Trig := FALSE; R1_CP_2_Trig := FALSE; clr_HMI_clear := FALSE; R1_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
           ELSIF R1_Done THEN
             R1_Start := FALSE; R1_JobNo := 0;
             ph := 2;
           END_IF;
-        ELSIF ph = 2 AND NOT R1_Done THEN ph := 0; stp := 2;
+        ELSIF ph = 2 AND NOT R1_Done THEN ph := 0; stp := 3;
         END_IF;
       END_IF;
-      IF stp = 2 AND NOT moved THEN
+      IF stp = 3 AND NOT moved THEN
         tWait(IN := TRUE, PT := T#24h);
         IF GR_21A THEN IF (((SUP_state = 3) OR (SUP_state = 4)) OR CAM_FAULT) THEN hRes := 3; hStep := 0; R1_state := 98; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; ELSE R1_state := 3; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; END_IF; (* to B2 *)
         ELSIF (NOT (res_CP_1) OR NOT (res_CAM_1_part)) THEN IF (((SUP_state = 3) OR (SUP_state = 4)) OR CAM_FAULT) THEN hRes := 10; hStep := 0; R1_state := 98; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; ELSE R1_state := 10; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; END_IF; (* to W1 *)
@@ -575,8 +595,8 @@ FUNCTION_BLOCK FB_R1S2
         END_IF;
       END_IF;
       IF stp = 1 AND NOT moved AND NOT ((((SUP_state = 3) OR (SUP_state = 4)) OR CAM_FAULT)) THEN R1_state := hRes; stp := hStep; ph := 0; fresh := TRUE; moved := TRUE; END_IF;
-    99: (* F FAULT: From any state: timeout or a missing confirmation - red light; the state is entered again *)
-      IF clr_HMI_clear THEN clr_HMI_clear := FALSE; R1_fault := 0; IF fRes = 98 THEN R1_state := 98; ELSIF (((SUP_state = 3) OR (SUP_state = 4)) OR CAM_FAULT) THEN hRes := fRes; hStep := 0; R1_state := 98; ELSE R1_state := fRes; END_IF; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; END_IF;
+    99: (* F FAULT: From any state: timeout, a missing confirmation or E-stop - red light; the state is entered again *)
+      IF (clr_HMI_clear AND NOT (((SAF_state = 4) OR (SAF_state = 5)))) THEN clr_HMI_clear := FALSE; R1_fault := 0; IF eRes <> 0 THEN R1_state := eRes; stp := eStp; ph := ePh; eRes := 0; ELSE IF fRes = 98 THEN R1_state := 98; ELSIF (((SUP_state = 3) OR (SUP_state = 4)) OR CAM_FAULT) THEN hRes := fRes; hStep := 0; R1_state := 98; ELSE R1_state := fRes; END_IF; stp := 0; ph := 0; END_IF; fresh := TRUE; moved := TRUE; END_IF;
   END_CASE;
   CASE R1_state OF (* choice states *)
     8: IF GR_21B THEN R1_state := 9; ELSE R1_state := 2; END_IF; (* Q_B6: GR-21B *)
@@ -585,6 +605,7 @@ END_FUNCTION_BLOCK
 
 (* States of CONV (CONV_state): 0=initial H=98 F=99 C1=1 C2=2 C3=3 C4=4 C5=5 *)
 (* Fault codes of CONV (CONV_fault):
+   1 E-stop: ESTOP.active
    203 C2: missing confirmation at CP-3: !CP-3
    299 C2: missing confirmation: R1.clearConv & R2.clearConv & !CP-3
    350 C3: no ENC-43 pulses within 1 s
@@ -601,6 +622,7 @@ FUNCTION_BLOCK FB_CONV
     R2_state : INT;
     R2_fault : INT;
     SUP_state : INT;
+    SAF_state : INT;
     R1_JobNo : INT;
     R1_Start : BOOL;
     R1_Done : BOOL;
@@ -641,6 +663,7 @@ FUNCTION_BLOCK FB_CONV
     CNC_ready : BOOL;
     ZS_32_in : BOOL;
     ZS_32 : BOOL;
+    SC_01_prot : BOOL;
     GR_21A_in : BOOL;
     GR_21A : BOOL;
     CNC_done : BOOL;
@@ -676,10 +699,16 @@ FUNCTION_BLOCK FB_CONV
     R2_clearGauge : BOOL;
     GAUGE_valid : BOOL;
     GAUGE_ok : BOOL;
+    SC_02_prot : BOOL;
     CAM_2_slot : BOOL;
     outCount : INT;
     PE_65_in : BOOL;
     PE_65 : BOOL;
+    ESTOP : BOOL;
+    R1_safeStop : BOOL;
+    R2_safeStop : BOOL;
+    SC_01_warn : BOOL;
+    SC_02_warn : BOOL;
     GAUGE_warn : BOOL;
     PX_11_in : BOOL;
     PX_11 : BOOL;
@@ -699,6 +728,8 @@ FUNCTION_BLOCK FB_CONV
     L_HMI_reset : BOOL;
     VERIFY_fail : BOOL;
     L_VERIFY_fail : BOOL;
+    HMI_safety : BOOL;
+    L_HMI_safety : BOOL;
     HMI_release : BOOL;
     L_HMI_release : BOOL;
     HMI_tool : BOOL;
@@ -768,6 +799,9 @@ FUNCTION_BLOCK FB_CONV
     hRes : INT := 0;       (* state to resume after H *)
     hStep : INT := 0;      (* step to resume after H (a check repeated after a camera fault) *)
     fRes : INT := 0;       (* state to enter again after F *)
+    eRes : INT := 0;       (* state, step and phase where an E-stop stopped the machine (A6.5); 0 = none *)
+    eStp : INT := 0;
+    ePh : INT := 0;
     tries : INT := 0;      (* images taken by the running check *)
     proxL : BOOL;          (* proximity value latched with the camera trigger *)
     fresh : BOOL := TRUE;  (* a state was entered: reset the timers *)
@@ -783,6 +817,7 @@ FUNCTION_BLOCK FB_CONV
   IF fresh THEN tWait(IN := FALSE); tStep(IN := FALSE); tFor1(IN := FALSE); fresh := FALSE; END_IF;
   moved := FALSE;
   IF CONV_state = 99 AND E_HMI_clear THEN clr_HMI_clear := TRUE; END_IF;
+  IF ((SAF_state = 4) OR (SAF_state = 5)) AND CONV_state <> 99 AND CONV_state <> 0 THEN eRes := CONV_state; eStp := stp; ePh := ph; CONV_fault := 1; clr_HMI_clear := FALSE; CONV_state := 99; moved := TRUE; END_IF;
   CASE CONV_state OF
     0: (* initial: Start-up: *)
       IF stp = 0 AND NOT moved THEN (* initial step 1: check CP-2 *)
@@ -937,13 +972,14 @@ FUNCTION_BLOCK FB_CONV
       END_IF;
     98: (* H HOLD: A running transport finishes at the stop; no new transport starts *)
       IF stp = 0 AND NOT moved AND NOT ((((SUP_state = 3) OR (SUP_state = 4)) OR CAM_FAULT)) THEN CONV_state := hRes; stp := hStep; ph := 0; fresh := TRUE; moved := TRUE; END_IF;
-    99: (* F FAULT: Missing confirmation or a transport timer expired (belt / drive fault, jam, lost part); the state is entered again *)
-      IF clr_HMI_clear THEN clr_HMI_clear := FALSE; CONV_fault := 0; IF fRes = 98 THEN CONV_state := 98; ELSIF (((SUP_state = 3) OR (SUP_state = 4)) OR CAM_FAULT) THEN hRes := fRes; hStep := 0; CONV_state := 98; ELSE CONV_state := fRes; END_IF; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; END_IF;
+    99: (* F FAULT: Missing confirmation, a transport timer expired (belt / drive fault, jam, lost part) or E-stop; the state is entered again *)
+      IF (clr_HMI_clear AND NOT (((SAF_state = 4) OR (SAF_state = 5)))) THEN clr_HMI_clear := FALSE; CONV_fault := 0; IF eRes <> 0 THEN CONV_state := eRes; stp := eStp; ph := ePh; eRes := 0; ELSE IF fRes = 98 THEN CONV_state := 98; ELSIF (((SUP_state = 3) OR (SUP_state = 4)) OR CAM_FAULT) THEN hRes := fRes; hStep := 0; CONV_state := 98; ELSE CONV_state := fRes; END_IF; stp := 0; ph := 0; END_IF; fresh := TRUE; moved := TRUE; END_IF;
   END_CASE;
 END_FUNCTION_BLOCK
 
 (* States of R2 (R2_state): 0=initial H=98 F=99 E0=1 E1=2 E2=3 E3=4 E4=5 Q_E4=6 (choice) E5=7 Q_E5=8 (choice) E6=9 E7=10 *)
 (* Fault codes of R2 (R2_fault):
+   1 E-stop: ESTOP.active
    131 E0: communication lost during R2.home
    134 E0: communication lost during GAUGE.master
    104 E0: missing confirmation after GAUGE.master: GAUGE.zeroed
@@ -960,7 +996,7 @@ END_FUNCTION_BLOCK
    599 E4: missing confirmation: GAUGE.valid
    732 E5: communication lost during R2.repick
    703 E5: missing confirmation at CP-4: CP-4
-   734 E5: communication lost during R2.placePallet
+   735 E5: communication lost during R2.placePallet
    799 E5: missing confirmation: CAM-2.slot & !GR-51
    931 E6: communication lost during R2.repick
    932 E6: communication lost during R2.dropNok
@@ -977,6 +1013,7 @@ FUNCTION_BLOCK FB_R2S2
     R2_state : INT;
     R2_fault : INT;
     SUP_state : INT;
+    SAF_state : INT;
     R1_JobNo : INT;
     R1_Start : BOOL;
     R1_Done : BOOL;
@@ -1017,6 +1054,7 @@ FUNCTION_BLOCK FB_R2S2
     CNC_ready : BOOL;
     ZS_32_in : BOOL;
     ZS_32 : BOOL;
+    SC_01_prot : BOOL;
     GR_21A_in : BOOL;
     GR_21A : BOOL;
     CNC_done : BOOL;
@@ -1052,10 +1090,16 @@ FUNCTION_BLOCK FB_R2S2
     R2_clearGauge : BOOL;
     GAUGE_valid : BOOL;
     GAUGE_ok : BOOL;
+    SC_02_prot : BOOL;
     CAM_2_slot : BOOL;
     outCount : INT;
     PE_65_in : BOOL;
     PE_65 : BOOL;
+    ESTOP : BOOL;
+    R1_safeStop : BOOL;
+    R2_safeStop : BOOL;
+    SC_01_warn : BOOL;
+    SC_02_warn : BOOL;
     GAUGE_warn : BOOL;
     PX_11_in : BOOL;
     PX_11 : BOOL;
@@ -1075,6 +1119,8 @@ FUNCTION_BLOCK FB_R2S2
     L_HMI_reset : BOOL;
     VERIFY_fail : BOOL;
     L_VERIFY_fail : BOOL;
+    HMI_safety : BOOL;
+    L_HMI_safety : BOOL;
     HMI_release : BOOL;
     L_HMI_release : BOOL;
     HMI_tool : BOOL;
@@ -1144,6 +1190,9 @@ FUNCTION_BLOCK FB_R2S2
     hRes : INT := 0;       (* state to resume after H *)
     hStep : INT := 0;      (* step to resume after H (a check repeated after a camera fault) *)
     fRes : INT := 0;       (* state to enter again after F *)
+    eRes : INT := 0;       (* state, step and phase where an E-stop stopped the machine (A6.5); 0 = none *)
+    eStp : INT := 0;
+    ePh : INT := 0;
     tries : INT := 0;      (* images taken by the running check *)
     proxL : BOOL;          (* proximity value latched with the camera trigger *)
     fresh : BOOL := TRUE;  (* a state was entered: reset the timers *)
@@ -1159,6 +1208,7 @@ FUNCTION_BLOCK FB_R2S2
   IF fresh THEN tWait(IN := FALSE); tStep(IN := FALSE); fresh := FALSE; END_IF;
   moved := FALSE;
   IF R2_state = 99 AND E_HMI_clear THEN clr_HMI_clear := TRUE; END_IF;
+  IF ((SAF_state = 4) OR (SAF_state = 5)) AND R2_state <> 99 AND R2_state <> 0 THEN eRes := R2_state; eStp := stp; ePh := ph; R2_fault := 1; clr_HMI_clear := FALSE; R2_state := 99; moved := TRUE; END_IF;
   CASE R2_state OF
     0: (* initial *)
       IF stp = 0 AND NOT moved THEN
@@ -1456,20 +1506,25 @@ FUNCTION_BLOCK FB_R2S2
           ELSE stp := 3; ph := 0; END_IF;
         END_IF;
       END_IF;
-      IF stp = 3 AND NOT moved THEN (* E5 step 4: job R2.placePallet *)
+      IF stp = 3 AND NOT moved THEN (* E5 step 4: await !SC-02.prot *)
+        IF NOT (SC_02_prot) THEN stp := 4;
+        ELSIF (((SUP_state = 3) OR (SUP_state = 4)) OR CAM_FAULT) THEN hRes := 7; hStep := 0; R2_state := 98; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
+        END_IF;
+      END_IF;
+      IF stp = 4 AND NOT moved THEN (* E5 step 5: job R2.placePallet *)
         IF ph = 0 THEN
           IF NOT COMM_LOST AND NOT R2_Done THEN R2_JobNo := 17; R2_Start := TRUE; ph := 1;
           END_IF;
         ELSIF ph = 1 THEN
-          IF COMM_LOST THEN fRes := R2_state; R2_fault := 734; R2_Start := FALSE; R2_JobNo := 0; R2_CP_4_Trig := FALSE; R2_CP_5_Trig := FALSE; R2_CP_3_Trig := FALSE; clr_HMI_clear := FALSE; R2_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
+          IF COMM_LOST THEN fRes := R2_state; R2_fault := 735; R2_Start := FALSE; R2_JobNo := 0; R2_CP_4_Trig := FALSE; R2_CP_5_Trig := FALSE; R2_CP_3_Trig := FALSE; clr_HMI_clear := FALSE; R2_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
           ELSIF R2_Done THEN
             R2_Start := FALSE; R2_JobNo := 0;
             ph := 2;
           END_IF;
-        ELSIF ph = 2 AND NOT R2_Done THEN ph := 0; stp := 4;
+        ELSIF ph = 2 AND NOT R2_Done THEN ph := 0; stp := 5;
         END_IF;
       END_IF;
-      IF stp = 4 AND NOT moved THEN
+      IF stp = 5 AND NOT moved THEN
         tWait(IN := TRUE, PT := T#24h);
         IF (CAM_2_slot AND NOT (GR_51)) THEN IF (((SUP_state = 3) OR (SUP_state = 4)) OR CAM_FAULT) THEN hRes := 8; hStep := 0; R2_state := 98; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; ELSE R2_state := 8; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; END_IF; (* to Q_E5 *)
         ELSIF tWait.ET >= T#1000ms THEN fRes := R2_state; R2_fault := 799; R2_Start := FALSE; R2_JobNo := 0; R2_CP_4_Trig := FALSE; R2_CP_5_Trig := FALSE; R2_CP_3_Trig := FALSE; clr_HMI_clear := FALSE; R2_state := 99; stp := 0; ph := 0; fresh := TRUE; moved := TRUE;
@@ -1582,8 +1637,8 @@ FUNCTION_BLOCK FB_R2S2
         END_IF;
       END_IF;
       IF stp = 1 AND NOT moved AND NOT ((((SUP_state = 3) OR (SUP_state = 4)) OR CAM_FAULT)) THEN R2_state := hRes; stp := hStep; ph := 0; fresh := TRUE; moved := TRUE; END_IF;
-    99: (* F FAULT: From any state: timeout or a missing confirmation - red light; the state is entered again *)
-      IF clr_HMI_clear THEN clr_HMI_clear := FALSE; R2_fault := 0; IF fRes = 98 THEN R2_state := 98; ELSIF (((SUP_state = 3) OR (SUP_state = 4)) OR CAM_FAULT) THEN hRes := fRes; hStep := 0; R2_state := 98; ELSE R2_state := fRes; END_IF; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; END_IF;
+    99: (* F FAULT: From any state: timeout, a missing confirmation or E-stop - red light; the state is entered again *)
+      IF (clr_HMI_clear AND NOT (((SAF_state = 4) OR (SAF_state = 5)))) THEN clr_HMI_clear := FALSE; R2_fault := 0; IF eRes <> 0 THEN R2_state := eRes; stp := eStp; ph := ePh; eRes := 0; ELSE IF fRes = 98 THEN R2_state := 98; ELSIF (((SUP_state = 3) OR (SUP_state = 4)) OR CAM_FAULT) THEN hRes := fRes; hStep := 0; R2_state := 98; ELSE R2_state := fRes; END_IF; stp := 0; ph := 0; END_IF; fresh := TRUE; moved := TRUE; END_IF;
   END_CASE;
   CASE R2_state OF (* choice states *)
     6: IF GAUGE_ok THEN R2_state := 7; ELSE R2_state := 9; END_IF; (* Q_E4: GAUGE.ok *)
@@ -1605,6 +1660,7 @@ FUNCTION_BLOCK FB_SUP
     R2_state : INT;
     R2_fault : INT;
     SUP_state : INT;
+    SAF_state : INT;
     R1_JobNo : INT;
     R1_Start : BOOL;
     R1_Done : BOOL;
@@ -1645,6 +1701,7 @@ FUNCTION_BLOCK FB_SUP
     CNC_ready : BOOL;
     ZS_32_in : BOOL;
     ZS_32 : BOOL;
+    SC_01_prot : BOOL;
     GR_21A_in : BOOL;
     GR_21A : BOOL;
     CNC_done : BOOL;
@@ -1680,10 +1737,16 @@ FUNCTION_BLOCK FB_SUP
     R2_clearGauge : BOOL;
     GAUGE_valid : BOOL;
     GAUGE_ok : BOOL;
+    SC_02_prot : BOOL;
     CAM_2_slot : BOOL;
     outCount : INT;
     PE_65_in : BOOL;
     PE_65 : BOOL;
+    ESTOP : BOOL;
+    R1_safeStop : BOOL;
+    R2_safeStop : BOOL;
+    SC_01_warn : BOOL;
+    SC_02_warn : BOOL;
     GAUGE_warn : BOOL;
     PX_11_in : BOOL;
     PX_11 : BOOL;
@@ -1703,6 +1766,8 @@ FUNCTION_BLOCK FB_SUP
     L_HMI_reset : BOOL;
     VERIFY_fail : BOOL;
     L_VERIFY_fail : BOOL;
+    HMI_safety : BOOL;
+    L_HMI_safety : BOOL;
     HMI_release : BOOL;
     L_HMI_release : BOOL;
     HMI_tool : BOOL;
@@ -1821,7 +1886,8 @@ FUNCTION_BLOCK FB_SUP
   END_CASE;
 END_FUNCTION_BLOCK
 
-PROGRAM CellMain
+(* States of SAF (SAF_state): 0=initial H=98 F=99 S1=1 S2=2 S3=3 S4=4 S5=5 *)
+FUNCTION_BLOCK FB_SAF
   VAR_EXTERNAL
     R1_state : INT;
     R1_fault : INT;
@@ -1830,6 +1896,7 @@ PROGRAM CellMain
     R2_state : INT;
     R2_fault : INT;
     SUP_state : INT;
+    SAF_state : INT;
     R1_JobNo : INT;
     R1_Start : BOOL;
     R1_Done : BOOL;
@@ -1870,6 +1937,7 @@ PROGRAM CellMain
     CNC_ready : BOOL;
     ZS_32_in : BOOL;
     ZS_32 : BOOL;
+    SC_01_prot : BOOL;
     GR_21A_in : BOOL;
     GR_21A : BOOL;
     CNC_done : BOOL;
@@ -1905,10 +1973,16 @@ PROGRAM CellMain
     R2_clearGauge : BOOL;
     GAUGE_valid : BOOL;
     GAUGE_ok : BOOL;
+    SC_02_prot : BOOL;
     CAM_2_slot : BOOL;
     outCount : INT;
     PE_65_in : BOOL;
     PE_65 : BOOL;
+    ESTOP : BOOL;
+    R1_safeStop : BOOL;
+    R2_safeStop : BOOL;
+    SC_01_warn : BOOL;
+    SC_02_warn : BOOL;
     GAUGE_warn : BOOL;
     PX_11_in : BOOL;
     PX_11 : BOOL;
@@ -1928,6 +2002,253 @@ PROGRAM CellMain
     L_HMI_reset : BOOL;
     VERIFY_fail : BOOL;
     L_VERIFY_fail : BOOL;
+    HMI_safety : BOOL;
+    L_HMI_safety : BOOL;
+    HMI_release : BOOL;
+    L_HMI_release : BOOL;
+    HMI_tool : BOOL;
+    L_HMI_tool : BOOL;
+    HB : BOOL;
+    partPlaced : BOOL;
+    pickAllowed : BOOL;
+    partPicked : BOOL;
+    consecNok : INT;
+    QH : BOOL;
+    toolCount : INT;
+    mismatches : INT;
+    CAM_FAULT : BOOL;
+    COMM_LOST : BOOL;
+    mmPending : INT;
+    mmClear : BOOL;
+    BELT_motor : BOOL;
+    LT_53 : BOOL;
+    LT_01_red : BOOL;
+    LT_01_amber : BOOL;
+    LT_01_green : BOOL;
+    V_partPlaced : BOOL;
+    V_pickAllowed : BOOL;
+    V_partPicked : BOOL;
+    V_consecNok : INT;
+    V_QH : BOOL;
+    V_toolCount : INT;
+    V_mismatches : INT;
+    V_CAM_FAULT : BOOL;
+    TR_N : INT;
+    TR_00 : INT;
+    TR_01 : INT;
+    TR_02 : INT;
+    TR_03 : INT;
+    TR_04 : INT;
+    TR_05 : INT;
+    TR_06 : INT;
+    TR_07 : INT;
+    TR_08 : INT;
+    TR_09 : INT;
+    TR_10 : INT;
+    TR_11 : INT;
+    TR_12 : INT;
+    TR_13 : INT;
+    TR_14 : INT;
+    TR_15 : INT;
+    TR_16 : INT;
+    TR_17 : INT;
+    TR_18 : INT;
+    TR_19 : INT;
+    TR_20 : INT;
+    TR_21 : INT;
+    TR_22 : INT;
+    TR_23 : INT;
+    TR_24 : INT;
+    TR_25 : INT;
+    TR_26 : INT;
+    TR_27 : INT;
+    TR_28 : INT;
+    TR_29 : INT;
+    TR_30 : INT;
+    TR_31 : INT;
+  END_VAR
+  VAR
+    stp : INT := 0;        (* step of the state; = number of steps once they are done *)
+    ph : INT := 0;         (* phase of the running step *)
+    hRes : INT := 0;       (* state to resume after H *)
+    hStep : INT := 0;      (* step to resume after H (a check repeated after a camera fault) *)
+    fRes : INT := 0;       (* state to enter again after F *)
+    tries : INT := 0;      (* images taken by the running check *)
+    proxL : BOOL;          (* proximity value latched with the camera trigger *)
+    fresh : BOOL := TRUE;  (* a state was entered: reset the timers *)
+    moved : BOOL;          (* this call changed the state: nothing else runs *)
+    tWait : TON;           (* time since the steps of the state were done *)
+    tStep : TON;           (* settle, re-trigger and repeat timer of a check *)
+    clr_HMI_clear : BOOL;  (* HMI.clear pressed while in F *)
+  END_VAR
+  (* State diagram: safety status (E-stop and laser scanners) *)
+  IF fresh THEN tWait(IN := FALSE); tStep(IN := FALSE); fresh := FALSE; END_IF;
+  moved := FALSE;
+  IF SAF_state = 99 AND E_HMI_clear THEN clr_HMI_clear := TRUE; END_IF;
+  CASE SAF_state OF
+    0: (* initial *)
+      IF stp = 0 AND NOT moved THEN
+        tWait(IN := TRUE, PT := T#24h);
+        IF TRUE THEN SAF_state := 1; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; (* to S1 *)
+        END_IF;
+      END_IF;
+    1: (* S1 RUN - waiting - not interrupted by a LINE STOP *)
+      IF stp = 0 AND NOT moved THEN
+        tWait(IN := TRUE, PT := T#24h);
+        IF ESTOP THEN SAF_state := 4; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; (* to S4 *)
+        ELSIF (R1_safeStop OR R2_safeStop) THEN SAF_state := 3; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; (* to S3 *)
+        ELSIF (SC_01_warn OR SC_02_warn) THEN SAF_state := 2; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; (* to S2 *)
+        END_IF;
+      END_IF;
+    2: (* S2 REDUCED SPEED - waiting - not interrupted by a LINE STOP *)
+      IF stp = 0 AND NOT moved THEN
+        tWait(IN := TRUE, PT := T#24h);
+        IF ESTOP THEN SAF_state := 4; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; (* to S4 *)
+        ELSIF (R1_safeStop OR R2_safeStop) THEN SAF_state := 3; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; (* to S3 *)
+        ELSIF (NOT (SC_01_warn) AND NOT (SC_02_warn)) THEN SAF_state := 1; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; (* to S1 *)
+        END_IF;
+      END_IF;
+    3: (* S3 PROTECTIVE STOP - waiting - not interrupted by a LINE STOP *)
+      IF stp = 0 AND NOT moved THEN
+        tWait(IN := TRUE, PT := T#24h);
+        IF ESTOP THEN SAF_state := 4; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; (* to S4 *)
+        ELSIF (NOT (R1_safeStop) AND NOT (R2_safeStop) AND (SC_01_warn OR SC_02_warn)) THEN SAF_state := 2; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; (* to S2 *)
+        ELSIF (NOT (R1_safeStop) AND NOT (R2_safeStop) AND NOT (SC_01_warn) AND NOT (SC_02_warn)) THEN SAF_state := 1; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; (* to S1 *)
+        END_IF;
+      END_IF;
+    4: (* S4 EMERGENCY STOP - waiting - not interrupted by a LINE STOP *)
+      IF stp = 0 AND NOT moved THEN
+        tWait(IN := TRUE, PT := T#24h);
+        IF NOT (ESTOP) THEN SAF_state := 5; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; (* to S5 *)
+        END_IF;
+      END_IF;
+    5: (* S5 RESET REQUIRED - waiting - not interrupted by a LINE STOP *)
+      IF stp = 0 AND NOT moved THEN
+        tWait(IN := TRUE, PT := T#24h);
+        IF ESTOP THEN SAF_state := 4; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; (* to S4 *)
+        ELSIF L_HMI_safety THEN L_HMI_safety := FALSE; SAF_state := 1; stp := 0; ph := 0; fresh := TRUE; moved := TRUE; (* to S1 *)
+        END_IF;
+      END_IF;
+  END_CASE;
+END_FUNCTION_BLOCK
+
+PROGRAM CellMain
+  VAR_EXTERNAL
+    R1_state : INT;
+    R1_fault : INT;
+    CONV_state : INT;
+    CONV_fault : INT;
+    R2_state : INT;
+    R2_fault : INT;
+    SUP_state : INT;
+    SAF_state : INT;
+    R1_JobNo : INT;
+    R1_Start : BOOL;
+    R1_Done : BOOL;
+    R1_CP_1_Trig : BOOL;
+    R1_CP_1_Done : BOOL;
+    R1_CP_1_Valid : BOOL;
+    R1_CP_1_Cam : BOOL;
+    R1_CP_1_Also : BOOL;
+    R1_CP_2_Trig : BOOL;
+    R1_CP_2_Done : BOOL;
+    R1_CP_2_Valid : BOOL;
+    R1_CP_2_Cam : BOOL;
+    CONV_CP_2_Trig : BOOL;
+    CONV_CP_2_Done : BOOL;
+    CONV_CP_2_Valid : BOOL;
+    CONV_CP_2_Cam : BOOL;
+    CONV_CP_3_Trig : BOOL;
+    CONV_CP_3_Done : BOOL;
+    CONV_CP_3_Valid : BOOL;
+    CONV_CP_3_Cam : BOOL;
+    R2_JobNo : INT;
+    R2_Start : BOOL;
+    R2_Done : BOOL;
+    R2_CP_4_Trig : BOOL;
+    R2_CP_4_Done : BOOL;
+    R2_CP_4_Valid : BOOL;
+    R2_CP_4_Cam : BOOL;
+    R2_CP_5_Trig : BOOL;
+    R2_CP_5_Done : BOOL;
+    R2_CP_5_Valid : BOOL;
+    R2_CP_5_Cam : BOOL;
+    R2_CP_3_Trig : BOOL;
+    R2_CP_3_Done : BOOL;
+    R2_CP_3_Valid : BOOL;
+    R2_CP_3_Cam : BOOL;
+    HMI_auto : BOOL;
+    R1_home : BOOL;
+    CNC_ready : BOOL;
+    ZS_32_in : BOOL;
+    ZS_32 : BOOL;
+    SC_01_prot : BOOL;
+    GR_21A_in : BOOL;
+    GR_21A : BOOL;
+    CNC_done : BOOL;
+    CNC_empty : BOOL;
+    ZS_33_in : BOOL;
+    ZS_33 : BOOL;
+    ZS_31_in : BOOL;
+    ZS_31 : BOOL;
+    PS_36_in : BOOL;
+    PS_36 : BOOL;
+    GR_21B_in : BOOL;
+    GR_21B : BOOL;
+    ZS_34_in : BOOL;
+    ZS_34 : BOOL;
+    ZS_35_in : BOOL;
+    ZS_35 : BOOL;
+    R1_clearCnc : BOOL;
+    CNC_run : BOOL;
+    ENC_43_in : BOOL;
+    ENC_43 : BOOL;
+    R1_clearConv : BOOL;
+    HMI_loaded : BOOL;
+    R2_clearConv : BOOL;
+    PE_42_in : BOOL;
+    PE_42 : BOOL;
+    ROI_C : BOOL;
+    R2_home : BOOL;
+    GAUGE_zeroed : BOOL;
+    GAUGE_due : BOOL;
+    GAUGE_due_restart : BOOL;
+    GR_51_in : BOOL;
+    GR_51 : BOOL;
+    R2_clearGauge : BOOL;
+    GAUGE_valid : BOOL;
+    GAUGE_ok : BOOL;
+    SC_02_prot : BOOL;
+    CAM_2_slot : BOOL;
+    outCount : INT;
+    PE_65_in : BOOL;
+    PE_65 : BOOL;
+    ESTOP : BOOL;
+    R1_safeStop : BOOL;
+    R2_safeStop : BOOL;
+    SC_01_warn : BOOL;
+    SC_02_warn : BOOL;
+    GAUGE_warn : BOOL;
+    PX_11_in : BOOL;
+    PX_11 : BOOL;
+    PE_41_in : BOOL;
+    PE_41 : BOOL;
+    PX_52_in : BOOL;
+    PX_52 : BOOL;
+    PX_64_in : BOOL;
+    PX_64 : BOOL;
+    HMI_clear : BOOL;
+    E_HMI_clear : BOOL;
+    HMI_verify : BOOL;
+    L_HMI_verify : BOOL;
+    VERIFY_pass : BOOL;
+    L_VERIFY_pass : BOOL;
+    HMI_reset : BOOL;
+    L_HMI_reset : BOOL;
+    VERIFY_fail : BOOL;
+    L_VERIFY_fail : BOOL;
+    HMI_safety : BOOL;
+    L_HMI_safety : BOOL;
     HMI_release : BOOL;
     L_HMI_release : BOOL;
     HMI_tool : BOOL;
@@ -1996,6 +2317,7 @@ PROGRAM CellMain
     fbCONV : FB_CONV;
     fbR2S2 : FB_R2S2;
     fbSUP : FB_SUP;
+    fbSAF : FB_SAF;
     hbT : TON;
     hbLast : BOOL;
     n : INT;
@@ -2022,6 +2344,7 @@ PROGRAM CellMain
     rt_VERIFY_pass : R_TRIG;
     rt_HMI_reset : R_TRIG;
     rt_VERIFY_fail : R_TRIG;
+    rt_HMI_safety : R_TRIG;
     rt_HMI_release : R_TRIG;
     rt_HMI_tool : R_TRIG;
     mmOn1 : BOOL;
@@ -2037,6 +2360,7 @@ PROGRAM CellMain
     trL_CONV : INT;
     trL_R2 : INT;
     trL_SUP : INT;
+    trL_SAF : INT;
   END_VAR
   (* 1. inputs: heartbeat, debounce, latches, mismatch window, PLC timers *)
   hbT(IN := HB = hbLast, PT := T#500ms); hbLast := HB; COMM_LOST := hbT.Q;
@@ -2061,6 +2385,7 @@ PROGRAM CellMain
   rt_VERIFY_pass(CLK := VERIFY_pass); IF rt_VERIFY_pass.Q THEN L_VERIFY_pass := TRUE; END_IF;
   rt_HMI_reset(CLK := HMI_reset); IF rt_HMI_reset.Q THEN L_HMI_reset := TRUE; END_IF;
   rt_VERIFY_fail(CLK := VERIFY_fail); IF rt_VERIFY_fail.Q THEN L_VERIFY_fail := TRUE; END_IF;
+  rt_HMI_safety(CLK := HMI_safety); IF rt_HMI_safety.Q THEN L_HMI_safety := TRUE; END_IF;
   rt_HMI_release(CLK := HMI_release); IF rt_HMI_release.Q THEN L_HMI_release := TRUE; END_IF;
   rt_HMI_tool(CLK := HMI_tool); IF rt_HMI_tool.Q THEN L_HMI_tool := TRUE; END_IF;
   IF mmClear THEN mmOn1 := FALSE; mmOn2 := FALSE; mmOn3 := FALSE; mmClear := FALSE; END_IF;
@@ -2085,21 +2410,25 @@ PROGRAM CellMain
   
   (* 2. machines in a fixed order; the urgent supervisor first and after every other machine *)
   fbSUP(); IF SUP_state <> trL_SUP THEN trL_SUP := SUP_state; trBuf[trI MOD 32] := 400 + SUP_state; trI := trI + 1; IF trI >= 32000 THEN trI := 0; END_IF; END_IF;
+  fbSAF(); IF SAF_state <> trL_SAF THEN trL_SAF := SAF_state; trBuf[trI MOD 32] := 500 + SAF_state; trI := trI + 1; IF trI >= 32000 THEN trI := 0; END_IF; END_IF;
   fbR1S2(); IF R1_state <> trL_R1 THEN trL_R1 := R1_state; trBuf[trI MOD 32] := 100 + R1_state; trI := trI + 1; IF trI >= 32000 THEN trI := 0; END_IF; END_IF;
   fbSUP(); IF SUP_state <> trL_SUP THEN trL_SUP := SUP_state; trBuf[trI MOD 32] := 400 + SUP_state; trI := trI + 1; IF trI >= 32000 THEN trI := 0; END_IF; END_IF;
+  fbSAF(); IF SAF_state <> trL_SAF THEN trL_SAF := SAF_state; trBuf[trI MOD 32] := 500 + SAF_state; trI := trI + 1; IF trI >= 32000 THEN trI := 0; END_IF; END_IF;
   fbCONV(); IF CONV_state <> trL_CONV THEN trL_CONV := CONV_state; trBuf[trI MOD 32] := 200 + CONV_state; trI := trI + 1; IF trI >= 32000 THEN trI := 0; END_IF; END_IF;
   fbSUP(); IF SUP_state <> trL_SUP THEN trL_SUP := SUP_state; trBuf[trI MOD 32] := 400 + SUP_state; trI := trI + 1; IF trI >= 32000 THEN trI := 0; END_IF; END_IF;
+  fbSAF(); IF SAF_state <> trL_SAF THEN trL_SAF := SAF_state; trBuf[trI MOD 32] := 500 + SAF_state; trI := trI + 1; IF trI >= 32000 THEN trI := 0; END_IF; END_IF;
   fbR2S2(); IF R2_state <> trL_R2 THEN trL_R2 := R2_state; trBuf[trI MOD 32] := 300 + R2_state; trI := trI + 1; IF trI >= 32000 THEN trI := 0; END_IF; END_IF;
   IF (L_HMI_release AND QH) THEN QH := FALSE; consecNok := 0; L_HMI_release := FALSE; END_IF; (* rung: tool and offsets checked -> quality hold released *)
   IF (L_HMI_tool AND (R1_state = 12)) THEN toolCount := 0; L_HMI_tool := FALSE; END_IF; (* rung: tool changed -> tool life counter reset *)
   fbSUP(); IF SUP_state <> trL_SUP THEN trL_SUP := SUP_state; trBuf[trI MOD 32] := 400 + SUP_state; trI := trI + 1; IF trI >= 32000 THEN trI := 0; END_IF; END_IF;
+  fbSAF(); IF SAF_state <> trL_SAF THEN trL_SAF := SAF_state; trBuf[trI MOD 32] := 500 + SAF_state; trI := trI + 1; IF trI >= 32000 THEN trI := 0; END_IF; END_IF;
   
   (* 3. outputs *)
   BELT_motor := (CONV_state = 3) AND NOT COMM_LOST;
   LT_53 := (R2_state = 10);
-  LT_01_red := (((SUP_state = 3) OR (SUP_state = 4)) OR ((R1_state = 99) OR (CONV_state = 99) OR (R2_state = 99)));
-  LT_01_amber := (NOT (((SUP_state = 3) OR (SUP_state = 4))) AND NOT (((R1_state = 99) OR (CONV_state = 99) OR (R2_state = 99))) AND ((mismatches > 0) OR QH OR (R1_state = 10) OR (R1_state = 11) OR (R1_state = 12) OR GAUGE_warn));
-  LT_01_green := (NOT (((SUP_state = 3) OR (SUP_state = 4))) AND NOT (((R1_state = 99) OR (CONV_state = 99) OR (R2_state = 99))) AND NOT (((mismatches > 0) OR QH OR (R1_state = 10) OR (R1_state = 11) OR (R1_state = 12) OR GAUGE_warn)));
+  LT_01_red := (((SUP_state = 3) OR (SUP_state = 4)) OR ((R1_state = 99) OR (CONV_state = 99) OR (R2_state = 99)) OR ((SAF_state = 4) OR (SAF_state = 5)));
+  LT_01_amber := (NOT (((SUP_state = 3) OR (SUP_state = 4))) AND NOT (((R1_state = 99) OR (CONV_state = 99) OR (R2_state = 99))) AND NOT (((SAF_state = 4) OR (SAF_state = 5))) AND ((mismatches > 0) OR QH OR (R1_state = 10) OR (R1_state = 11) OR (R1_state = 12) OR GAUGE_warn OR (SAF_state = 2) OR (SAF_state = 3)));
+  LT_01_green := (NOT (((SUP_state = 3) OR (SUP_state = 4))) AND NOT (((R1_state = 99) OR (CONV_state = 99) OR (R2_state = 99))) AND NOT (((SAF_state = 4) OR (SAF_state = 5))) AND NOT (((mismatches > 0) OR QH OR (R1_state = 10) OR (R1_state = 11) OR (R1_state = 12) OR GAUGE_warn OR (SAF_state = 2) OR (SAF_state = 3))));
   V_partPlaced := partPlaced;
   V_pickAllowed := pickAllowed;
   V_partPicked := partPicked;
@@ -2173,45 +2502,53 @@ CONFIGURATION Config0
     R1_home AT %IX103.1 : BOOL; (* R1.home *)
     CNC_ready AT %IX103.2 : BOOL; (* CNC.ready *)
     ZS_32_in AT %IX103.3 : BOOL; (* ZS-32, raw *)
-    GR_21A_in AT %IX103.4 : BOOL; (* GR-21A, raw *)
-    CNC_done AT %IX103.5 : BOOL; (* CNC.done *)
-    CNC_empty AT %IX103.6 : BOOL; (* CNC.empty *)
-    ZS_33_in AT %IX103.7 : BOOL; (* ZS-33, raw *)
-    ZS_31_in AT %IX104.0 : BOOL; (* ZS-31, raw *)
-    PS_36_in AT %IX104.1 : BOOL; (* PS-36, raw *)
-    GR_21B_in AT %IX104.2 : BOOL; (* GR-21B, raw *)
-    ZS_34_in AT %IX104.3 : BOOL; (* ZS-34, raw *)
-    ZS_35_in AT %IX104.4 : BOOL; (* ZS-35, raw *)
-    R1_clearCnc AT %IX104.5 : BOOL; (* R1.clearCnc *)
-    CNC_run AT %IX104.6 : BOOL; (* CNC.run *)
-    ENC_43_in AT %IX104.7 : BOOL; (* ENC-43, raw *)
-    R1_clearConv AT %IX105.0 : BOOL; (* R1.clearConv *)
-    HMI_loaded AT %IX105.1 : BOOL; (* HMI.loaded *)
-    R2_clearConv AT %IX105.2 : BOOL; (* R2.clearConv *)
-    PE_42_in AT %IX105.3 : BOOL; (* PE-42, raw *)
-    ROI_C AT %IX105.4 : BOOL; (* ROI-C *)
-    R2_home AT %IX105.5 : BOOL; (* R2.home *)
-    GAUGE_zeroed AT %IX105.6 : BOOL; (* GAUGE.zeroed *)
-    GR_51_in AT %IX105.7 : BOOL; (* GR-51, raw *)
-    R2_clearGauge AT %IX106.0 : BOOL; (* R2.clearGauge *)
-    GAUGE_valid AT %IX106.1 : BOOL; (* GAUGE.valid *)
-    GAUGE_ok AT %IX106.2 : BOOL; (* GAUGE.ok *)
-    CAM_2_slot AT %IX106.3 : BOOL; (* CAM-2.slot *)
+    SC_01_prot AT %IX103.4 : BOOL; (* SC-01.prot *)
+    GR_21A_in AT %IX103.5 : BOOL; (* GR-21A, raw *)
+    CNC_done AT %IX103.6 : BOOL; (* CNC.done *)
+    CNC_empty AT %IX103.7 : BOOL; (* CNC.empty *)
+    ZS_33_in AT %IX104.0 : BOOL; (* ZS-33, raw *)
+    ZS_31_in AT %IX104.1 : BOOL; (* ZS-31, raw *)
+    PS_36_in AT %IX104.2 : BOOL; (* PS-36, raw *)
+    GR_21B_in AT %IX104.3 : BOOL; (* GR-21B, raw *)
+    ZS_34_in AT %IX104.4 : BOOL; (* ZS-34, raw *)
+    ZS_35_in AT %IX104.5 : BOOL; (* ZS-35, raw *)
+    R1_clearCnc AT %IX104.6 : BOOL; (* R1.clearCnc *)
+    CNC_run AT %IX104.7 : BOOL; (* CNC.run *)
+    ENC_43_in AT %IX105.0 : BOOL; (* ENC-43, raw *)
+    R1_clearConv AT %IX105.1 : BOOL; (* R1.clearConv *)
+    HMI_loaded AT %IX105.2 : BOOL; (* HMI.loaded *)
+    R2_clearConv AT %IX105.3 : BOOL; (* R2.clearConv *)
+    PE_42_in AT %IX105.4 : BOOL; (* PE-42, raw *)
+    ROI_C AT %IX105.5 : BOOL; (* ROI-C *)
+    R2_home AT %IX105.6 : BOOL; (* R2.home *)
+    GAUGE_zeroed AT %IX105.7 : BOOL; (* GAUGE.zeroed *)
+    GR_51_in AT %IX106.0 : BOOL; (* GR-51, raw *)
+    R2_clearGauge AT %IX106.1 : BOOL; (* R2.clearGauge *)
+    GAUGE_valid AT %IX106.2 : BOOL; (* GAUGE.valid *)
+    GAUGE_ok AT %IX106.3 : BOOL; (* GAUGE.ok *)
+    SC_02_prot AT %IX106.4 : BOOL; (* SC-02.prot *)
+    CAM_2_slot AT %IX106.5 : BOOL; (* CAM-2.slot *)
     outCount AT %IW100 : INT; (* outCount *)
-    PE_65_in AT %IX106.4 : BOOL; (* PE-65, raw *)
-    GAUGE_warn AT %IX106.5 : BOOL; (* GAUGE.warn *)
-    PX_11_in AT %IX106.6 : BOOL; (* PX-11, raw *)
-    PE_41_in AT %IX106.7 : BOOL; (* PE-41, raw *)
-    PX_52_in AT %IX107.0 : BOOL; (* PX-52, raw *)
-    PX_64_in AT %IX107.1 : BOOL; (* PX-64, raw *)
-    HMI_clear AT %IX107.2 : BOOL; (* HMI.clear (button) *)
-    HMI_verify AT %IX107.3 : BOOL; (* HMI.verify (button) *)
-    VERIFY_pass AT %IX107.4 : BOOL; (* VERIFY.pass (button) *)
-    HMI_reset AT %IX107.5 : BOOL; (* HMI.reset (button) *)
-    VERIFY_fail AT %IX107.6 : BOOL; (* VERIFY.fail (button) *)
-    HMI_release AT %IX107.7 : BOOL; (* HMI.release (button) *)
-    HMI_tool AT %IX108.0 : BOOL; (* HMI.tool (button) *)
-    HB AT %IX108.1 : BOOL; (* heartbeat, toggled by the bridge *)
+    PE_65_in AT %IX106.6 : BOOL; (* PE-65, raw *)
+    ESTOP AT %IX106.7 : BOOL; (* ESTOP *)
+    R1_safeStop AT %IX107.0 : BOOL; (* R1.safeStop *)
+    R2_safeStop AT %IX107.1 : BOOL; (* R2.safeStop *)
+    SC_01_warn AT %IX107.2 : BOOL; (* SC-01.warn *)
+    SC_02_warn AT %IX107.3 : BOOL; (* SC-02.warn *)
+    GAUGE_warn AT %IX107.4 : BOOL; (* GAUGE.warn *)
+    PX_11_in AT %IX107.5 : BOOL; (* PX-11, raw *)
+    PE_41_in AT %IX107.6 : BOOL; (* PE-41, raw *)
+    PX_52_in AT %IX107.7 : BOOL; (* PX-52, raw *)
+    PX_64_in AT %IX108.0 : BOOL; (* PX-64, raw *)
+    HMI_clear AT %IX108.1 : BOOL; (* HMI.clear (button) *)
+    HMI_verify AT %IX108.2 : BOOL; (* HMI.verify (button) *)
+    VERIFY_pass AT %IX108.3 : BOOL; (* VERIFY.pass (button) *)
+    HMI_reset AT %IX108.4 : BOOL; (* HMI.reset (button) *)
+    VERIFY_fail AT %IX108.5 : BOOL; (* VERIFY.fail (button) *)
+    HMI_safety AT %IX108.6 : BOOL; (* HMI.safety (button) *)
+    HMI_release AT %IX108.7 : BOOL; (* HMI.release (button) *)
+    HMI_tool AT %IX109.0 : BOOL; (* HMI.tool (button) *)
+    HB AT %IX109.1 : BOOL; (* heartbeat, toggled by the bridge *)
   END_VAR
   VAR_GLOBAL (* outputs to the plant *)
     R1_state AT %QW100 : INT; (* state of R1 (codes in FB_R1S2) *)
@@ -2221,13 +2558,14 @@ CONFIGURATION Config0
     R2_state AT %QW104 : INT; (* state of R2 (codes in FB_R2S2) *)
     R2_fault AT %QW105 : INT; (* fault code of R2, 0 = none *)
     SUP_state AT %QW106 : INT; (* state of SUP (codes in FB_SUP) *)
-    R1_JobNo AT %QW107 : INT; (* job number (order of M.JOBS, from 1; 0 = no job) *)
+    SAF_state AT %QW107 : INT; (* state of SAF (codes in FB_SAF) *)
+    R1_JobNo AT %QW108 : INT; (* job number (order of M.JOBS, from 1; 0 = no job) *)
     R1_Start AT %QX100.0 : BOOL; (* job start (handshake: Start, Done, Start low, Done low) *)
     R1_CP_1_Trig AT %QX100.1 : BOOL; (* camera trigger for CP-1 *)
     R1_CP_2_Trig AT %QX100.2 : BOOL; (* camera trigger for CP-2 *)
     CONV_CP_2_Trig AT %QX100.3 : BOOL; (* camera trigger for CP-2 *)
     CONV_CP_3_Trig AT %QX100.4 : BOOL; (* camera trigger for CP-3 *)
-    R2_JobNo AT %QW108 : INT; (* job number (order of M.JOBS, from 1; 0 = no job) *)
+    R2_JobNo AT %QW109 : INT; (* job number (order of M.JOBS, from 1; 0 = no job) *)
     R2_Start AT %QX100.5 : BOOL; (* job start (handshake: Start, Done, Start low, Done low) *)
     R2_CP_4_Trig AT %QX100.6 : BOOL; (* camera trigger for CP-4 *)
     R2_CP_5_Trig AT %QX100.7 : BOOL; (* camera trigger for CP-5 *)
@@ -2240,44 +2578,44 @@ CONFIGURATION Config0
     V_partPlaced AT %QX101.6 : BOOL; (* copy of partPlaced *)
     V_pickAllowed AT %QX101.7 : BOOL; (* copy of pickAllowed *)
     V_partPicked AT %QX102.0 : BOOL; (* copy of partPicked *)
-    V_consecNok AT %QW109 : INT; (* copy of consecNok *)
+    V_consecNok AT %QW110 : INT; (* copy of consecNok *)
     V_QH AT %QX102.1 : BOOL; (* copy of QH *)
-    V_toolCount AT %QW110 : INT; (* copy of toolCount *)
-    V_mismatches AT %QW111 : INT; (* copy of mismatches *)
+    V_toolCount AT %QW111 : INT; (* copy of toolCount *)
+    V_mismatches AT %QW112 : INT; (* copy of mismatches *)
     V_CAM_FAULT AT %QX102.2 : BOOL; (* copy of CAM_FAULT *)
-    TR_N AT %QW112 : INT; (* state changes so far, modulo 32000 *)
-    TR_00 AT %QW113 : INT; (* state change ring: machine number x 100 + state code *)
-    TR_01 AT %QW114 : INT;
-    TR_02 AT %QW115 : INT;
-    TR_03 AT %QW116 : INT;
-    TR_04 AT %QW117 : INT;
-    TR_05 AT %QW118 : INT;
-    TR_06 AT %QW119 : INT;
-    TR_07 AT %QW120 : INT;
-    TR_08 AT %QW121 : INT;
-    TR_09 AT %QW122 : INT;
-    TR_10 AT %QW123 : INT;
-    TR_11 AT %QW124 : INT;
-    TR_12 AT %QW125 : INT;
-    TR_13 AT %QW126 : INT;
-    TR_14 AT %QW127 : INT;
-    TR_15 AT %QW128 : INT;
-    TR_16 AT %QW129 : INT;
-    TR_17 AT %QW130 : INT;
-    TR_18 AT %QW131 : INT;
-    TR_19 AT %QW132 : INT;
-    TR_20 AT %QW133 : INT;
-    TR_21 AT %QW134 : INT;
-    TR_22 AT %QW135 : INT;
-    TR_23 AT %QW136 : INT;
-    TR_24 AT %QW137 : INT;
-    TR_25 AT %QW138 : INT;
-    TR_26 AT %QW139 : INT;
-    TR_27 AT %QW140 : INT;
-    TR_28 AT %QW141 : INT;
-    TR_29 AT %QW142 : INT;
-    TR_30 AT %QW143 : INT;
-    TR_31 AT %QW144 : INT;
+    TR_N AT %QW113 : INT; (* state changes so far, modulo 32000 *)
+    TR_00 AT %QW114 : INT; (* state change ring: machine number x 100 + state code *)
+    TR_01 AT %QW115 : INT;
+    TR_02 AT %QW116 : INT;
+    TR_03 AT %QW117 : INT;
+    TR_04 AT %QW118 : INT;
+    TR_05 AT %QW119 : INT;
+    TR_06 AT %QW120 : INT;
+    TR_07 AT %QW121 : INT;
+    TR_08 AT %QW122 : INT;
+    TR_09 AT %QW123 : INT;
+    TR_10 AT %QW124 : INT;
+    TR_11 AT %QW125 : INT;
+    TR_12 AT %QW126 : INT;
+    TR_13 AT %QW127 : INT;
+    TR_14 AT %QW128 : INT;
+    TR_15 AT %QW129 : INT;
+    TR_16 AT %QW130 : INT;
+    TR_17 AT %QW131 : INT;
+    TR_18 AT %QW132 : INT;
+    TR_19 AT %QW133 : INT;
+    TR_20 AT %QW134 : INT;
+    TR_21 AT %QW135 : INT;
+    TR_22 AT %QW136 : INT;
+    TR_23 AT %QW137 : INT;
+    TR_24 AT %QW138 : INT;
+    TR_25 AT %QW139 : INT;
+    TR_26 AT %QW140 : INT;
+    TR_27 AT %QW141 : INT;
+    TR_28 AT %QW142 : INT;
+    TR_29 AT %QW143 : INT;
+    TR_30 AT %QW144 : INT;
+    TR_31 AT %QW145 : INT;
   END_VAR
   VAR_GLOBAL (* internal *)
     ZS_32 : BOOL; (* ZS-32, debounced *)
@@ -2303,6 +2641,7 @@ CONFIGURATION Config0
     L_VERIFY_pass : BOOL; (* VERIFY.pass, latched until a transition reads it *)
     L_HMI_reset : BOOL; (* HMI.reset, latched until a transition reads it *)
     L_VERIFY_fail : BOOL; (* VERIFY.fail, latched until a transition reads it *)
+    L_HMI_safety : BOOL; (* HMI.safety, latched until a transition reads it *)
     L_HMI_release : BOOL; (* HMI.release, latched until a transition reads it *)
     L_HMI_tool : BOOL; (* HMI.tool, latched until a transition reads it *)
     partPlaced : BOOL; (* partPlaced *)

@@ -68,6 +68,7 @@
         <button type="button" role="tab" data-tab="CONV" aria-selected="false">Conveyor</button>
         <button type="button" role="tab" data-tab="R2" aria-selected="false">Robot 2</button>
         <button type="button" role="tab" data-tab="SUP" aria-selected="false">Cross-check</button>
+        <button type="button" role="tab" data-tab="SAF" aria-selected="false">Safety</button>
       </div>
       <div class="diag" id="diag"></div>
     </div>
@@ -92,6 +93,9 @@
             <button type="button" class="btn" id="btnCncAlarm">CNC alarm</button>
             <button type="button" class="btn" id="btnToolLife">Tool life end</button>
             <button type="button" class="btn" id="btnOffsetErr">Offset error</button>
+            <button type="button" class="btn" id="btnEstop" title="An E-stop button pressed for 30 s; the operator then resets the safety relay and clears the faults">E-stop</button>
+            <button type="button" class="btn" id="btnPerson1" title="A person walks into the input loading zone: SC-01 warning field, 20 s in the protective field, out">Person at the input side</button>
+            <button type="button" class="btn" id="btnPerson2" title="A person walks into the output loading zone: SC-02 warning field, 20 s in the protective field, out">Person at the output side</button>
             <button type="button" class="btn" id="btnUnder">Next part undersized</button>
             <button type="button" class="btn" id="btnBand">Next part in the guard band</button>
             <button type="button" class="btn" id="btnMaster">Master check out of tolerance</button>

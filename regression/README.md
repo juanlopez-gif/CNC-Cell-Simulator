@@ -115,3 +115,23 @@ differences are all intended:
 
 The parity test has a sixth scenario, `toolwear` (tool life end at t = 300 s, offset error at
 t = 1200 s): browser and Python identical.
+
+## Step A6.5: safety status (machine SAF, P16, P17)
+
+Comparison of the code at the end of A6.5 with `setup2_a64.json` (38 differences). KPIs and the state
+times of the four machines are identical; every recorded trace has one state change more, the start
+of SAF (S1 at t = 0.05 s), and is otherwise the same. The differences are all intended:
+
+- state times: new entries for SAF S1 to S5 (all 0 in the fingerprint, which times the states of the
+  robots, the conveyor and the supervisor only);
+- NuSMV models of the five runs: one more variable (the location of SAF), the awaits of B1 and E5
+  (`!SC-01.prot`, `!SC-02.prot`), the fault exits `HMI.clear & !ESTOP.active`, the new properties
+  P16 and P17; two new models, `estop` and `person`;
+- figures `fig07`, `fig12`, `fig13` (texts of the FAULT boxes and of B1 / E5) and the new `fig15`
+  (safety status);
+- browser and Python traces (`det_nominal`, `det_cp2fault`, `random_nominal_2h`, `random_faults_8h`):
+  +1 state change each (SAF).
+
+The parity test has a seventh scenario, `safety` (persons in the loading zones during the pick of
+Robot 1 and the place of Robot 2, E-stops while Robot 1 opens the door, loads the vise and waits):
+browser and Python identical.

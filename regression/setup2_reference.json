@@ -33,62 +33,78 @@
   "SUP.X1": 0,
   "SUP.X2": 0,
   "SUP.X3": 0,
-  "SUP.X4": 0
+  "SUP.X4": 0,
+  "SAF.S1": 0,
+  "SAF.S2": 0,
+  "SAF.S3": 0,
+  "SAF.S4": 0,
+  "SAF.S5": 0
  },
  "smv": {
   "none": {
-   "vars": 45,
-   "commands": 317,
-   "sha256": "54e74631d87445e951e59c18794afa01de58e5b221e732d1f51e8d4567d726c1"
+   "vars": 46,
+   "commands": 326,
+   "sha256": "3cd77001fde6c7885b66cabdaa50ff3e08025cbc1495fc0da7004ece45a58077"
   },
   "sensor": {
-   "vars": 45,
-   "commands": 367,
-   "sha256": "4c2976b66496877acb1321f512924f8ee5ebe177351cfd58d74a5dbf5e4ca51f"
+   "vars": 46,
+   "commands": 377,
+   "sha256": "314babd80c360656d2a3d0ec5b97b610ded187e75a646a78d976c52b0d0610c0"
   },
   "process": {
-   "vars": 47,
-   "commands": 346,
-   "sha256": "881d885cea76c3f770735ecbc1930f9b0261c494b6bfa1aa8ae6a13e46f1e39e"
+   "vars": 48,
+   "commands": 355,
+   "sha256": "28405beb4a2374c730788e210c9e77925c56bca058c16ca5a74852e7e38c894d"
   },
   "camwrong": {
-   "vars": 45,
-   "commands": 386,
-   "sha256": "fb1400766f61195254fff7c0046c694ed85c58e131b6c1dc4b855cc851bae2be"
+   "vars": 46,
+   "commands": 398,
+   "sha256": "fd344364ad9ca57c69ae46fac1513db33db6d1b809591ca0ceb7ff47ca55769a"
   },
   "sensor_camwrong": {
-   "vars": 45,
-   "commands": 415,
-   "sha256": "85f2be983db92a935d57e7c2dda52edd97b5ae4b3cabb314ca53045185efa1fa"
+   "vars": 46,
+   "commands": 428,
+   "sha256": "6bb252fd85ebd9cfff7615a5f9f42b193af048e3233f5ee9b536f6b270a0d395"
+  },
+  "estop": {
+   "vars": 51,
+   "commands": 483,
+   "sha256": "0e715f03020ecbef1fd99351bfe03c67b1743a19c311a4bfc4de41c41588ba75"
+  },
+  "person": {
+   "vars": 47,
+   "commands": 340,
+   "sha256": "bf4ad100d20e57ccd6835870dedb5636dc253c732c97b8879e9e90831665333f"
   }
  },
  "figures": {
   "fig02_control_architecture": "48abd3b93114089f3acf6f199302e2aa87f2dc174a301412174ba5ae72fcba1e",
   "fig03_crosscheck_flow": "b7ade2f2c9ec9ea37d341895d9077fea88cd4bc8b6584db4cbd516dacebfa6bb",
   "fig04_supervisor_states": "5f10ecac0dd5420586b513691bb9ee24b8793b893e40b6edfa66fb2793a93b01",
-  "fig07_states_conveyor": "735557afbe18cc76abc309d1e33ea401eae51790efc0e9ea054e13ba5fa926df",
+  "fig07_states_conveyor": "b2c71382f18f1bb6351250c2669d34ecc72ca87a64eb36b72d2b1274712c4f1c",
   "fig09_layout_setup2": "645dab2066c935213f672bb950488f7d943f1fa8257db427e9229f8729d4c7f9",
   "fig10_timing_setup1_vs_setup2": "81ab67bce9466a602eee7fdbf899249a170fdc1063a03bd3bed3b450c9d247de",
   "fig11_flow_setup2": "7ee1a46b9af8cdd21ea200cdc459e4a6b5b2891a86b35bc62ee638c0b505475e",
-  "fig12_states_robot1_setup2": "59b02538453131469b76203853f90c31f79e0385b0269213c02e185f74535f8c",
-  "fig13_states_robot2_setup2": "dd1558206c5925d8d1f975ba7269a20aa4d89abce9639d58652cdce9c55d6229",
-  "fig14_dual_gripper_exchange": "0c69d4de1e45b5dfeb12f5e36d03c477dd73a7bd9e7f459bed2de5416759c3d8"
+  "fig12_states_robot1_setup2": "be109e3c904b1511437e0df9bd5f351681e75bea9e7b4b29bab58f0adfb6d307",
+  "fig13_states_robot2_setup2": "4abe35f5b53425396bb9ac7509a9d2a2e11e276b8b8d71bb5f08c34f8a2be1a3",
+  "fig14_dual_gripper_exchange": "0c69d4de1e45b5dfeb12f5e36d03c477dd73a7bd9e7f459bed2de5416759c3d8",
+  "fig15_safety_states": "85e11a588f0e0d595e534af7a690221d01a165da24b4795cf17cc8b4a54d14a1"
  },
  "browser": {
   "det_nominal": {
-   "changes": 440,
-   "sha256": "cb57d939862c91ca7a58d585a9d61c15c8cfad04c9ee7ebada39ae0eea2b1fc0"
+   "changes": 441,
+   "sha256": "d374858e1beb10295d80bf3b50a270951f538dd9ca18fd8e113c1a4baba39428"
   },
   "det_cp2fault": {
-   "changes": 453,
-   "sha256": "acbe37cde5083bf7e5ffb107b96f6f2a58f1d7cc516aa652877aa6626131b6ef"
+   "changes": 454,
+   "sha256": "672b17277484328e37985b801d9e117879bab5f09d9efb7e1e01686df832f68f"
   },
   "pageErrors": []
  },
  "python": {
   "det_nominal": {
-   "changes": 440,
-   "sha256": "cb57d939862c91ca7a58d585a9d61c15c8cfad04c9ee7ebada39ae0eea2b1fc0",
+   "changes": 441,
+   "sha256": "d374858e1beb10295d80bf3b50a270951f538dd9ca18fd8e113c1a4baba39428",
    "cycles": 25,
    "mismatches": 0,
    "stops": 0,
@@ -96,8 +112,8 @@
    "errors": 0
   },
   "det_cp2fault": {
-   "changes": 453,
-   "sha256": "acbe37cde5083bf7e5ffb107b96f6f2a58f1d7cc516aa652877aa6626131b6ef",
+   "changes": 454,
+   "sha256": "672b17277484328e37985b801d9e117879bab5f09d9efb7e1e01686df832f68f",
    "cycles": 25,
    "mismatches": 3,
    "stops": 1,
@@ -105,8 +121,8 @@
    "errors": 0
   },
   "random_nominal_2h": {
-   "changes": 876,
-   "sha256": "c11071180fbdc301c9d1f3013beaa2149415120388c0e79986bc080b9e215b5c",
+   "changes": 877,
+   "sha256": "c1ac7bf25984d61c7f36c271858b4eed6959912fcf3882baa52ae5d73626347f",
    "cycles": 51,
    "errors": 0,
    "injected": {},
@@ -132,8 +148,8 @@
    }
   },
   "random_faults_8h": {
-   "changes": 1385,
-   "sha256": "78be66e196d8b1d2d4e9bdc65e8a2ba5b812907ee243a7d94a0e075bdc6a340a",
+   "changes": 1386,
+   "sha256": "7548169c4fc146c5ef65f418ee16c9f5e6cf171a116591d8197498dc1a609764",
    "cycles": 77,
    "errors": 0,
    "injected": {

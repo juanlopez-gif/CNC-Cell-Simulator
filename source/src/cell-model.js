@@ -27,6 +27,7 @@
     cncReset: 300,                           // operator finds the cause of a CNC alarm and resets it (A6.3)
     toolChange: 180,                         // operator changes the tool at the end of its life (A6.4)
     offsetCheck: 120,                        // operator checks and corrects the tool offset after a size warning (A6.4)
+    safetyReset: 30,                         // operator checks the cell after an E-stop and resets the safety relay (A6.5)
   };
   // Names of the time components, used in the CNC idle build-up table.
   const TLABEL = {
@@ -41,7 +42,7 @@
     r2Home: 'Home', r2ToGauge: 'To gauge', r2LoadGauge: 'Load gauge', measure: 'Measure', r2Repick: 'Re-pick',
     r2ToNok: 'To NOK chute', r2Drop: 'Drop', blowOff: 'Air blow-off', r2Master: 'Master cube check',
     sensorReplace: 'Replace a broken sensor', cncReset: 'Reset a CNC alarm',
-    toolChange: 'Tool change', offsetCheck: 'Offset check',
+    toolChange: 'Tool change', offsetCheck: 'Offset check', safetyReset: 'Reset the safety relay',
   };
 
   // Source and interval of every time (step A2.3, approved by the author 2026-10-30).
@@ -107,6 +108,7 @@
     cncReset: { kind: 'alarm', src: 'Estimate (A6.3): operator reads the alarm, removes the cause (broken tool, chips, coolant), resets at the CNC panel; 2–15 min' },
     toolChange: { kind: 'service', src: 'Estimate (A6.4): operator takes the worn end mill out of the holder, fits a preset one, enters its offset; 2–6 min' },
     offsetCheck: { kind: 'service', src: 'Estimate (A6.4): operator measures a part, corrects the wear offset at the CNC panel; 80 s–4 min' },
+    safetyReset: { kind: 'service', src: 'Estimate (A6.5): operator releases the E-stop button, looks over the cell, presses RESET at the safety relay; 20 s–1 min' },
     sensorReplace: { kind: 'service', src: 'Estimate (A6.2): spare photoelectric sensor from the cabinet, unplug the M12 connector, mount, align with the alignment LED, re-test' },
   };
   const r2 = (x) => Math.round(x * 100) / 100;
@@ -142,6 +144,8 @@
                              //    wear compensation in excess); a tool change or an offset correction resets it
     warnMean: 5,             // the gauge station keeps the mean of the smallest size of the last 5 measured parts
     warnLimit: 48.20,        // mm below this mean the HMI asks for an offset check (amber light, no stop)
+    // safety status (A6.5, approved 2026-11-02)
+    reducedSpeed: 2,         // a person in the warning field of a loading side: the robot of that side is slowed, times x 2
   };
 
   // ---------------------------------------------------------------- checkpoints
@@ -256,6 +260,11 @@
       where: 'Input and output pallet loading sides',
       confirms: 'Operator in the loading zone: robot reduced speed / protective stop',
       example: 'SICK nanoScan3 or Keyence SZ-V' },
+    { tag: 'ES-01 / 02 / 03', zone: 'Cell', kind: 'safety',
+      type: 'Emergency stop pushbuttons in one dual-channel circuit of the safety relay; the PLC reads the relay status',
+      where: 'Control cabinet and both loading sides',
+      confirms: 'E-stop pressed: the relay stops all motion (robots, belt, CNC feed hold); the PLC sees it and goes to FAULT',
+      example: 'Mushroom-head E-stop buttons (IEC 60947-5-5) on a Pilz PNOZ s4 safety relay' },
     { tag: 'PLC-01', zone: 'Cell', kind: 'ctrl',
       type: 'Cell PLC + HMI + safety relay',
       where: 'Cell control cabinet',
@@ -296,6 +305,7 @@
     CONV: { label: 'Conveyor', ref: 'Conveyor' },
     R2: { label: 'Robot 2 + pallet', ref: 'Robot 2' },
     SUP: { label: 'Cross-check', ref: 'Supervisor' },
+    SAF: { label: 'Safety status', ref: 'Safety' },
   };
 
   // Every name a guard can read. on / off = the text shown on the diagrams for the true / false
@@ -316,6 +326,7 @@
     'HMI.reset': { kind: 'input', on: 'operator reset' },
     'HMI.release': { kind: 'input', on: 'tool and offsets checked' },
     'HMI.tool': { kind: 'input', on: 'operator: "tool changed"' },
+    'HMI.safety': { kind: 'input', on: 'operator resets the safety relay' },
     'VERIFY.pass': { kind: 'input', on: 'all CP tests pass' },
     'VERIFY.fail': { kind: 'input', on: 'test fails' },
     // robots: UR controller status and safety planes
@@ -325,6 +336,16 @@
     'R1.clearConv': { kind: 'sensor', on: 'R1 clear of conveyor', off: 'R1 at the conveyor' },
     'R2.clearConv': { kind: 'sensor', on: 'R2 clear of conveyor', off: 'R2 at the conveyor' },
     'R2.clearGauge': { kind: 'sensor', on: 'R2 clear of the laser paths', off: 'R2 in the gauge' },
+    // robot controller status: protective stop of the robot (a person in the protective field of the
+    // loading side where it works; the safety function of the robot controller, A6.5)
+    'R1.safeStop': { kind: 'sensor', on: 'Robot 1 in a protective stop', off: 'Robot 1 not stopped', tags: ['SC-01'] },
+    'R2.safeStop': { kind: 'sensor', on: 'Robot 2 in a protective stop', off: 'Robot 2 not stopped', tags: ['SC-02'] },
+    // safety relay and laser scanners (A6.5): status inputs of the PLC, the stopping is hardwired
+    'ESTOP': { kind: 'sensor', on: 'E-stop pressed', off: 'E-stop released', tags: ['ES-01'] },
+    'SC-01.warn': { kind: 'sensor', on: '{SC-01} warning field occupied', off: '{SC-01} warning field clear', tags: ['SC-01'] },
+    'SC-01.prot': { kind: 'sensor', on: '{SC-01} protective field occupied', off: '{SC-01} protective field clear', tags: ['SC-01'] },
+    'SC-02.warn': { kind: 'sensor', on: '{SC-02} warning field occupied', off: '{SC-02} warning field clear', tags: ['SC-02'] },
+    'SC-02.prot': { kind: 'sensor', on: '{SC-02} protective field occupied', off: '{SC-02} protective field clear', tags: ['SC-02'] },
     // CNC robot interface
     'CNC.ready': { kind: 'sensor', on: 'CNC ready', off: 'CNC alarm (not ready)' },
     'CNC.run': { kind: 'sensor', on: 'CNC in cycle', off: 'CNC not in cycle' },
@@ -384,6 +405,7 @@
     'FAULT.any': { kind: 'derived', def: 'R1=F | CONV=F | R2=F', on: 'a machine in FAULT' },
     'CELL.stopped': { kind: 'derived', def: 'R1.home & R2.home & !ENC-43', on: 'all stopped' },
     'HOLD.req': { kind: 'derived', def: 'lineStop | CAM_FAULT', on: 'LINE STOP or camera fault' },
+    'ESTOP.active': { kind: 'derived', def: 'SAF=S4 | SAF=S5', on: 'E-stop or safety relay not reset', off: 'safety relay reset' },
     // job running on each robot slot (program number reported by the controller)
     'R1.job': { kind: 'sensor', on: 'job of the Robot 1 machine' },
     'R2.job': { kind: 'sensor', on: 'job of the Robot 2 machine' },
@@ -393,6 +415,7 @@
     'TRUE.r2Nok': { kind: 'truth', on: 'Robot 2 holds an undersized part' },
     'TRUE.nestPart': { kind: 'truth', on: 'a part is in the gauge nest' },
     'TRUE.brokenFound': { kind: 'truth', on: 'a sensor test failed and the sensor is not replaced yet' },
+    'TRUE.jobRuns': { kind: 'truth', on: 'a job of Robot 1 or Robot 2 is running (the robot moves)' },
   };
   const CONST = { limit: RULES.mismatchLimit, slots: RULES.palletSlots, nokHold: RULES.consecutiveNokHold, toolLife: RULES.toolLife };
 
@@ -444,6 +467,10 @@
     { id: 'P14', text: 'Robot 1 enters the CNC and CYCLE START is sent only with the CNC ready (no alarm)', start: ['R1.enterCnc', 'CNC.start'], require: 'CNC.ready' },
     { id: 'P15', text: 'No CYCLE START while the tool change is due', start: ['CNC.start'], require: '!TOOL.due' },
     { id: 'P13', text: 'The line never resumes with a sensor whose test failed', never: 'SUP=X1 & TRUE.brokenFound' },
+    { id: 'P16', text: 'No robot job runs during an E-stop or before the safety relay is reset', never: 'ESTOP.active & TRUE.jobRuns' },
+    // require per job: the protective field of the loading side where that job works (A6.5)
+    { id: 'P17', text: 'No robot job in a loading zone is started while a person is in its protective field', start: ['R1.pickRawA', 'R2.placePallet'],
+      require: { 'R1.pickRawA': '!SC-01.prot', 'R2.placePallet': '!SC-02.prot' } },
     { id: 'L1', text: 'A new CNC cycle can always be started again', eventually: 'R1.job=CNC.start' },
     { id: 'L2', text: 'Robot 2 can always deliver a part again', eventually: 'R2.job=R2.placePallet' },
     { id: 'L3', text: 'After any stop the supervisor can return to NORMAL', eventually: 'SUP=X1' },
@@ -453,9 +480,9 @@
   const OUTPUTS = {
     'BELT.motor': { def: 'CONV=C3', text: 'conveyor motor ON' },
     'LT-53': { def: 'R2=E7', text: 'blue beacon: output pallet ready for pickup' },
-    'LT-01.red': { def: 'lineStop | FAULT.any', text: 'stack light red' },
-    'LT-01.amber': { def: '!lineStop & !FAULT.any & (mismatches>0 | QH | R1=W1 | R1=W2 | R1=W3 | GAUGE.warn)', text: 'stack light amber' },
-    'LT-01.green': { def: '!lineStop & !FAULT.any & !(mismatches>0 | QH | R1=W1 | R1=W2 | R1=W3 | GAUGE.warn)', text: 'stack light green' },
+    'LT-01.red': { def: 'lineStop | FAULT.any | ESTOP.active', text: 'stack light red' },
+    'LT-01.amber': { def: '!lineStop & !FAULT.any & !ESTOP.active & (mismatches>0 | QH | R1=W1 | R1=W2 | R1=W3 | GAUGE.warn | SAF=S2 | SAF=S3)', text: 'stack light amber' },
+    'LT-01.green': { def: '!lineStop & !FAULT.any & !ESTOP.active & !(mismatches>0 | QH | R1=W1 | R1=W2 | R1=W3 | GAUGE.warn | SAF=S2 | SAF=S3)', text: 'stack light green' },
   };
 
   // Jobs: robot programs or device commands that a step starts and that report "done".
@@ -511,15 +538,18 @@
   //   confirmation is missing or a timer expires; after `exit` (the operator clears it) the state
   //   is repeated. Therefore a step that moves a part carries a `when` on the gripper (GR-21B, GR-51)
   //   so that repeating the state never repeats a place, pick or load that was already done (A2.1).
+  //   fault.force: while it holds, F is entered at once from any state (E-stop, A6.5); a running job
+  //   is stopped where it is and finished after the exit, then the state is entered again.
   //   view: diagram layout only (main column order, side states next to an anchor, or a grid).
   const HOLD_NOTE = [
-    '*F FAULT* and *H HOLD* can be entered from any state. FAULT = a confirmation is missing or a timeout',
-    'expired (the alarm names the sensor, no automatic robot retries). HOLD = LINE STOP from the cross-check',
-    'supervisor: the robot finishes the running step, parks, and continues from there after the reset.',
+    '*F FAULT* and *H HOLD* can be entered from any state. FAULT = a confirmation is missing, a timeout',
+    'expired (the alarm names the sensor, no automatic robot retries) or an E-stop. HOLD = LINE STOP from the',
+    'cross-check supervisor: the robot finishes the running step, parks, and continues from there after the reset.',
   ];
+  const ESTOP_FORCE = 'ESTOP.active', FAULT_EXIT = 'HMI.clear & !ESTOP.active';
   const ROBOT_FH = (r) => ({
     hold: { desc: ['LINE STOP: finish the step,', 'park, wait for the reset'], do: [{ job: r + '.park' }], exit: '!HOLD.req' },
-    fault: { desc: ['From any state: timeout or a', 'missing confirmation · red light'], exit: 'HMI.clear' },
+    fault: { desc: ['From any state: timeout, a missing', 'confirmation or E-stop · red light'], exit: FAULT_EXIT, force: ESTOP_FORCE },
   });
   const W1 = (back) => ({
     name: 'WAIT FOR INPUT PALLET', kind: 'op', wait: true,
@@ -556,8 +586,9 @@
           do: [{ job: 'R1.home', when: '!R1.home' }],
           next: [{ to: 'B1', when: 'R1.home & CNC.ready & ZS-32' }] },
         B1: { name: 'PICK RAW PART (A)', band: 'run', short: 'pick A',
-          desc: ['[CP-1] pallet present ({PX-11} + {CAM-1}) ·', '{CAM-1} pick pose · gripper A picks'],
-          do: [{ check: 'CP-1' }, { job: 'R1.pickRawA', when: 'CP-1 & CAM-1.part' }],
+          desc: ['[CP-1] pallet present ({PX-11} + {CAM-1}) ·', '{CAM-1} pick pose · {SC-01} protective', 'field clear · gripper A picks'],
+          // no pick is started while a person is in the protective field of the input side (P17, A6.5)
+          do: [{ check: 'CP-1' }, { await: '!SC-01.prot', when: 'CP-1 & CAM-1.part' }, { job: 'R1.pickRawA', when: 'CP-1 & CAM-1.part' }],
           next: [{ to: 'B2', when: 'GR-21A' }, { to: 'W1', when: '!CP-1 | !CAM-1.part' }] },
         B2: { name: 'WAIT AT CNC DOOR', band: 'run', wait: true, short: '',
           desc: ['Raw part in gripper A, gripper B empty ·', 'wait at the door while the CNC finishes'],
@@ -609,7 +640,7 @@
       sub: 'Robots pick or place at the belt only when it is stopped ({ENC-43} = 0); the belt starts only when both robots are clear.',
       initial: { to: 'C1', do: [{ check: 'CP-2', quick: true, until: '!CP-2' }, { check: 'CP-3', quick: true, until: '!CP-3' }], when: '!CP-2 & !CP-3', text: 'Start-up:' },
       hold: { desc: ['A running transport finishes at', 'the stop; no new transport starts'], exit: '!HOLD.req' },
-      fault: { desc: ['Missing confirmation or a', 'transport timer expired (belt /', 'drive fault, jam, lost part)'], exit: 'HMI.clear' },
+      fault: { desc: ['Missing confirmation, a transport', 'timer expired (belt / drive fault,', 'jam, lost part) or E-stop'], exit: FAULT_EXIT, force: ESTOP_FORCE },
       note: [
         '*Stop logic:* stopping uses *OR* ({PE-42} or {CAM-2}) because stopping is the safe direction;',
         'confirming the part for the pick uses the cross-check [CP-3] (if they disagree: no part, the pick waits).',
@@ -672,8 +703,8 @@
           next: [{ to: 'Q_E4', when: 'GAUGE.valid' }] },
         Q_E4: { choice: 'GAUGE.ok', yes: 'E5', no: 'E6' },
         E5: { name: 'PLACE OK PART ON PALLET', kind: 'ok', short: 'sort',
-          desc: ['Re-pick from nest · [CP-4] pallet present ·', '{CAM-2} next free slot · place · release'],
-          do: [{ set: { consecNok: 0 } }, { job: 'R2.repick' }, { check: 'CP-4', confirm: 'CP-4' }, { job: 'R2.placePallet' }],
+          desc: ['Re-pick from nest · [CP-4] pallet present ·', '{SC-02} protective field clear ·', '{CAM-2} next free slot · place · release'],
+          do: [{ set: { consecNok: 0 } }, { job: 'R2.repick' }, { check: 'CP-4', confirm: 'CP-4' }, { await: '!SC-02.prot' }, { job: 'R2.placePallet' }],
           next: [{ to: 'Q_E5', when: 'CAM-2.slot & !GR-51' }] },
         Q_E5: { choice: 'PALLET.full', yes: 'E7', no: 'E1' },
         E6: { name: 'PLACE IN NOK CHUTE', kind: 'stop',
@@ -706,9 +737,40 @@
             { to: 'X4', when: 'VERIFY.fail', do: [{ text: 'repair or replace the sensor, re-test' }] }] },
       },
     },
+
+    // Safety status (A6.5): what the PLC sees of the safety relay, the scanners and the robot
+    // controllers. The stopping itself is hardwired (relay, scanners, robot safety functions); this
+    // machine only follows it, and the E-stop forces every machine with a FAULT state into F.
+    SAF: {
+      slot: 'SAF', setup: 0, urgent: true,
+      title: 'State diagram: safety status (E-stop and laser scanners)',
+      sub: 'The safety relay, the scanners and the robot controllers stop the motion; the PLC follows their status and recovers.',
+      initial: { to: 'S1' },
+      note: ['*Not a safety function:* the stop is done by', 'the relay, the scanners and the robot', 'controllers; this machine reads their status.'],
+      // placed: left / top of each state box (the diagram draws this machine on a layout of its own)
+      view: { place: { S1: [40, 210], S2: [425, 0], S3: [425, 420], S4: [810, 210], S5: [425, 640] } },
+      states: {
+        S1: { name: 'RUN', kind: 'ok', wait: true, desc: ['No person in a field', 'full robot speed'],
+          next: [{ to: 'S4', when: 'ESTOP' }, { to: 'S3', when: 'R1.safeStop | R2.safeStop' }, { to: 'S2', when: 'SC-01.warn | SC-02.warn' }] },
+        S2: { name: 'REDUCED SPEED', kind: 'warn', wait: true, desc: ['A person in a warning field:', 'that robot at half speed · amber'],
+          log: 'Person in a warning field (SC-01 / SC-02) → robot of that side at reduced speed · amber light',
+          next: [{ to: 'S4', when: 'ESTOP' }, { to: 'S3', when: 'R1.safeStop | R2.safeStop' }, { to: 'S1', when: '!SC-01.warn & !SC-02.warn' }] },
+        S3: { name: 'PROTECTIVE STOP', kind: 'warn', wait: true, desc: ['A person in the protective field', 'where a robot works: it pauses,', 'resumes when the field is clear'],
+          log: 'Person in the protective field where a robot works → protective stop of that robot (automatic restart when the field is clear)',
+          next: [{ to: 'S4', when: 'ESTOP' }, { to: 'S2', when: '!R1.safeStop & !R2.safeStop & (SC-01.warn | SC-02.warn)' },
+            { to: 'S1', when: '!R1.safeStop & !R2.safeStop & !SC-01.warn & !SC-02.warn' }] },
+        S4: { name: 'EMERGENCY STOP', kind: 'stop', wait: true, desc: ['All motion stopped · robots and', 'conveyor in FAULT · CNC feed hold'],
+          log: 'E-STOP: all motion stopped · robots and conveyor to FAULT · CNC feed hold (alarm)',
+          hmi: { cls: 'bad', title: 'Emergency stop', text: 'An E-stop button is pressed. Remove the cause, release the button, then reset the safety relay and clear the faults.', act: 'safety' },
+          next: [{ to: 'S5', when: '!ESTOP' }] },
+        S5: { name: 'RESET REQUIRED', kind: 'check', wait: true, desc: ['E-stop released: operator resets', 'the relay, then clears the FAULTs'],
+          hmi: { cls: 'bad', title: 'E-stop released · reset required', text: 'Look over the cell, reset the safety relay, then clear the faults. The robots finish the interrupted move and repeat their step.', act: 'safety' },
+          next: [{ to: 'S4', when: 'ESTOP' }, { to: 'S1', when: 'HMI.safety', text: 'relay reset:' }] },
+      },
+    },
   };
   // Only Setup 2 is developed (decision of 2026-10-23); the key 2 keeps the names of the generated files.
-  const SETUP_MACHINES = { 2: ['R1S2', 'CONV', 'R2S2', 'SUP'] };
+  const SETUP_MACHINES = { 2: ['R1S2', 'CONV', 'R2S2', 'SUP', 'SAF'] };
   const IDLE_MACHINE = { 2: 'R1S2' };
 
   // ================================================================ guard expressions
@@ -836,6 +898,8 @@
     return lines.filter((l) => l.length);
   }
   const plain = (s) => s.replace(/[{}[\]*]/g, '');
+  // the condition a start property requires when job j starts (require: one expression, or one per job)
+  const requireOf = (p, j) => (typeof p.require === 'string' ? p.require : (p.require || {})[j]);
 
   // ================================================================ derived data
   const STATES = {};
@@ -914,8 +978,8 @@
     Object.keys(SIGNALS).forEach((k) => { if (SIGNALS[k].def) checkExpr(SIGNALS[k].def, 'signal ' + k); });
     Object.keys(OUTPUTS).forEach((k) => checkExpr(OUTPUTS[k].def, 'output ' + k));
     PROPERTIES.forEach((p) => {
-      ['never', 'require', 'eventually'].forEach((k) => { if (p[k]) checkExpr(p[k], 'property ' + p.id); });
-      (p.start || []).forEach((j) => { if (!JOBS[j]) errs.push(`property ${p.id}: unknown job ${j}`); });
+      ['never', 'eventually'].forEach((k) => { if (p[k]) checkExpr(p[k], 'property ' + p.id); });
+      (p.start || []).forEach((j) => { if (!JOBS[j]) errs.push(`property ${p.id}: unknown job ${j}`); else if (!requireOf(p, j)) errs.push(`property ${p.id}: no require for ${j}`); else checkExpr(requireOf(p, j), 'property ' + p.id); });
     });
     RUNGS.forEach((r, i) => { checkExpr(r.when, 'rung ' + (i + 1)); Object.keys(r.set).forEach((v) => { if (!SIGNALS[v] || SIGNALS[v].kind !== 'var') errs.push(`rung ${i + 1}: ${v} is not a PLC variable`); }); });
     Object.keys(JOBS).forEach((j) => JOBS[j].time.forEach((k) => { if (!(k in T)) errs.push(`job ${j}: unknown time ${k}`); }));
@@ -937,7 +1001,7 @@
       if (m.initial.when) useExpr(m.initial.when, `${mk} initial`);
       steps(m.initial.do, `${mk} initial`);
       if (m.hold) { steps(m.hold.do, `${mk} H`); if (m.hold.exit) useExpr(m.hold.exit, `${mk} H`); else errs.push(`${mk} H: no exit condition`); }
-      if (m.fault) { if (m.fault.exit) useExpr(m.fault.exit, `${mk} F`); else errs.push(`${mk} F: no exit condition`); }
+      if (m.fault) { if (m.fault.exit) useExpr(m.fault.exit, `${mk} F`); else errs.push(`${mk} F: no exit condition`); if (m.fault.force) useExpr(m.fault.force, `${mk} F force`); }
       ids.forEach((id) => {
         const s = m.states[id], w = `${mk} ${id}`;
         if (s.choice) {
@@ -965,7 +1029,7 @@
       }
       ids.filter((id) => !seen.has(id)).forEach((id) => errs.push(`${mk}: state ${id} cannot be reached`));
       // diagram layout covers every state exactly once
-      const v = m.view, placed = v.grid ? Object.keys(v.grid) : v.main.concat(Object.keys(v.side || {}));
+      const v = m.view, placed = v.grid ? Object.keys(v.grid) : v.place ? Object.keys(v.place) : v.main.concat(Object.keys(v.side || {}));
       ids.forEach((id) => { if (placed.filter((x) => x === id).length !== 1) errs.push(`${mk}: view places ${id} ${placed.filter((x) => x === id).length} times`); });
       placed.forEach((id) => { if (!m.states[id]) errs.push(`${mk}: view names unknown state ${id}`); });
       // outputs that follow this machine's states
@@ -1004,7 +1068,7 @@
   const MODEL = {
     T, TLABEL, TKIND, TSRC, TRANGE, TMIN, TMAX, KPI, BASELINE, RULES, CHECKPOINTS, SENSORS, STATES, idleSetup2,
     SLOTS, SIGNALS, CONST, OUTPUTS, RUNGS, PLC, PROPERTIES, JOBS, MACHINES, SETUP_MACHINES, IDLE_MACHINE,
-    expr: { parse, evaluate, names, terms, label, plain, visible, constVal },
+    expr: { parse, evaluate, names, terms, label, plain, visible, constVal }, requireOf,
     jobTime, stateSteps, stateTime, lint,
   };
   root.CellModel = MODEL;

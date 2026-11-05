@@ -348,6 +348,7 @@
   function stateDiagram(mk, o) {
     const m = M.MACHINES[mk];
     if (m.view.grid) return gridDiagram(mk, o);
+    if (m.view.place) return placedDiagram(mk, o);
     const d = new Diagram(G.DW, 0, m.title, m.sub, o);
     const { X, W, CX, SX, SW } = G;
     const main = m.view.main, side = m.view.side || {}, idx = {};
@@ -510,6 +511,51 @@
     return d.svg();
   }
 
+  // A machine whose states are placed by view.place (safety status, A6.5): the states around one in the
+  // middle row. A transition between boxes in one row is a straight line, between boxes in one column
+  // two parallel lines, otherwise it leaves the outer box vertically and enters the other one from the
+  // side (or the reverse); the routes of the safety machine. Every transition drawn.
+  function placedDiagram(mk, o) {
+    const m = M.MACHINES[mk], P = m.view.place, BW = 250;
+    const d = new Diagram(1100, 0, m.title, m.sub, o);
+    const t = d.top + 34, g = d.st, E = edgesOf(m);
+    Object.keys(P).forEach((id) => { const s = m.states[id]; d.state(id, P[id][0], t + P[id][1], BW, s.name, s.desc, s.kind); });
+    const first = g[m.initial.to];
+    d.init(20, first.top - 22);
+    d.arrow([[20, first.top - 14], [20, first.top + 20], [first.left, first.top + 20]], null, { r: 8 });
+    const has = (a, b) => E.some((e) => e.from === a && e.to === b);
+    let bottom = Math.max(...Object.keys(P).map((id) => g[id].bottom));
+    const W = 26;
+    E.forEach((e) => {
+      const a = g[e.from], b = g[e.to], rev = has(e.to, e.from), lines = edgeLines(e, W), opt = { kind: e.kind, id: e.id };
+      const fwd = !rev || e.from < e.to;                       // the first of a pair (by id) runs above / left
+      if (Math.abs(a.cy - b.cy) < 1) {
+        const ltr = a.cx < b.cx, yy = a.cy + (rev ? (fwd ? -14 : 14) : 0), x0 = ltr ? a.right : a.left, x1 = ltr ? b.left : b.right;
+        d.arrow([[x0, yy], [x1, yy]], lines, Object.assign(opt, { at: [(x0 + x1) / 2, fwd ? above(yy, lines.length) : below(yy, lines.length)] }));
+      } else if (Math.abs(a.cx - b.cx) < 1) {
+        // a pair: the labels beside their lines, the first one higher up
+        const down = a.cy < b.cy, x = a.cx + (rev ? (fwd ? -45 : 45) : 0), y0 = down ? a.bottom : a.top, y1 = down ? b.top : b.bottom;
+        const ls = edgeLines(e, 22), at = rev ? [x + (fwd ? -8 : 8), y0 + (y1 - y0) * (fwd === down ? 0.3 : 0.7)] : [x, (y0 + y1) / 2];
+        d.arrow([[x, y0], [x, y1]], ls, Object.assign(opt, { at, cut: !rev, anchor: rev ? (fwd ? 'end' : 'start') : 'middle' }));
+      } else {
+        // the box in the outer column (left or right) has the vertical leg; between two outer boxes the higher one
+        const xs = Object.values(P).map((p) => p[0]), outer = (x) => x.left === Math.min(...xs) || x.left === Math.max(...xs);
+        const vAtA = outer(a) && (!outer(b) || a.cy < b.cy);
+        const v = vAtA ? a : b, h = vAtA ? b : a;
+        const dx = rev ? (fwd ? -40 : 40) : 0, dy = rev ? (fwd ? -14 : 14) : 0;
+        const xv = v.cx + dx, yh = h.cy + dy, hx = h.cx > v.cx ? h.left : h.right, vy = h.cy < v.cy ? v.top : v.bottom;
+        const pts = vAtA ? [[xv, vy], [xv, yh], [hx, yh]] : [[hx, yh], [xv, yh], [xv, vy]];
+        const up = vAtA ? dy < 0 || !rev : dy < 0;
+        d.arrow(pts, lines, Object.assign(opt, { at: [(xv + hx) / 2, up ? above(yh, lines.length) : below(yh, lines.length)] }));
+      }
+      e.drawn = true;
+    });
+    allDrawn(mk, E);
+    if (m.note && !d.opts.noNote) bottom = Math.max(bottom, d.note(810, bottom + 40, BW, m.note));
+    d.h = bottom + 18;
+    return d.svg();
+  }
+
   // Small machines on a 2 x 2 grid (cross-check supervisor). Same rules: every transition drawn.
   function gridDiagram(mk, o) {
     const m = M.MACHINES[mk], grid = m.view.grid;
@@ -564,6 +610,7 @@
   const smConveyor = (o) => stateDiagram('CONV', o);
   const smRobot2S2 = (o) => stateDiagram('R2S2', o);
   const smSupervisor = (o) => stateDiagram('SUP', o);
+  const smSafety = (o) => stateDiagram('SAF', o);
 
   // ------------------------------------------------------------------ Cross-check flowchart
   function flowCrossCheck(o) {
@@ -1055,7 +1102,7 @@
 
   const API = {
     CSS, LAYOUT, slotPos, partSvg, armSvg, armGeom,
-    stateDiagram, smRobot1S2, smConveyor, smRobot2S2, smSupervisor,
+    stateDiagram, smRobot1S2, smConveyor, smRobot2S2, smSupervisor, smSafety,
     flowCrossCheck, archDiagram, flowSetup2, timingChart, layoutSvg, exchangeStrip,
   };
   root.CellDiagrams = API;

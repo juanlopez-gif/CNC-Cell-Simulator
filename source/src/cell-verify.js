@@ -36,10 +36,12 @@
     // fault classes: sensor = proximity sensor wrong (mismatch) and camera faults (invalid images);
     // process = missed picks, confirmation timeouts and timer faults, undersized parts (Setup 2),
     //   a master check out of tolerance (gauge FAULT, A2.2), a CNC alarm during the cycle (A6.3);
-    // camwrong = camera wrong with a valid image: false positive, false negative, stale image.
+    // camwrong = camera wrong with a valid image: false positive, false negative, stale image;
+    // safety = estop (an E-stop at any time) and person (one person in the fields of the scanners at any
+    // time), A6.5, a group of its own; each class is run alone (RUNS) to keep the state space small.
     // opts.faults is a group name, a class name or a list of them.
     const FL = { mismatch: ['sensor', 'all'], camera: ['sensor', 'all'], grip: ['process', 'all'], timeout: ['process', 'all'], nok: ['process', 'all'], master: ['process', 'all'],
-      cncalarm: ['process', 'all'], toolwear: ['process', 'all'], camfp: ['camwrong'], camfn: ['camwrong'], stale: ['camwrong'] };
+      cncalarm: ['process', 'all'], toolwear: ['process', 'all'], camfp: ['camwrong'], camfn: ['camwrong'], stale: ['camwrong'], estop: ['safety'], person: ['safety'] };
     const want = [].concat(opts.faults || []);
     const F = Object.fromEntries(Object.keys(FL).map((k) => [k, want.includes(k) || FL[k].some((g) => want.includes(g))]));
     // the rule that fuses camera and proximity at each checkpoint (model value, opts.rules overrides)
@@ -112,7 +114,16 @@
     addVar('vise', ['open', 'clamped'], 'open', 'vise');
     addVar('cnc', PART, 'none', 'part in the fixture');
     addVar('run', B, false, 'CNC machining');
-    if (F.cncalarm) addVar('alarm', B, false, 'CNC alarm: spindle stopped, the program restarts with the same part after the reset');
+    if (F.cncalarm || F.estop) addVar('alarm', B, false, 'CNC alarm: spindle stopped, the program restarts with the same part after the reset');
+    // E-stop and one person at the loading sides (A6.5): outside the fields, in the warning field or in
+    // the protective field of side 1 (input pallet, SC-01) or side 2 (output pallet, SC-02)
+    if (F.estop) addVar('estop', B, false, 'E-stop pressed');
+    if (F.person) addVar('person', ['none', 'warn1', 'prot1', 'warn2', 'prot2'], 'none', 'a person in a field of SC-01 (1) or SC-02 (2)');
+    // where a machine stopped by the E-stop continues after the reset and the clear (A6.5)
+    if (F.estop) SL.forEach((slot) => {
+      const ms = mach[slot];
+      if (ms.m.fault && ms.m.fault.force) addVar(slot + '_ret', ['none'].concat(ms.locs.filter((l) => l !== 'F_x' && !l.startsWith('I_'))), 'none', `where ${slot} continues after an E-stop`);
+    });
     // the tool life counter abstracted like the pallet count: 0 in its life, 1 change due; each CYCLE
     // START may be the last one of the tool (A6.4). Without the class the counter stays in its life.
     if (F.toolwear) addVar('toolCount', [0, 1], 0, 'tool life: 0 in its life, 1 tool change due (abstract count)');
@@ -157,6 +168,14 @@
       'TRUE.brokenFound': () => FF,
       // the size warning (A6.4) is read only by the amber light, by no machine: left out
       'GAUGE.warn': () => FF,
+      // safety status (A6.5); a robot is in a protective stop while the person is in the protective field
+      // of the loading side where its running job works
+      'ESTOP': () => (has('estop') ? bv('estop') : FF),
+      'SC-01.warn': () => (has('person') ? inn('person', ['warn1', 'prot1']) : FF), 'SC-01.prot': () => (has('person') ? eq('person', 'prot1') : FF),
+      'SC-02.warn': () => (has('person') ? inn('person', ['warn2', 'prot2']) : FF), 'SC-02.prot': () => (has('person') ? eq('person', 'prot2') : FF),
+      'R1.safeStop': () => (has('person') ? and(eq('person', 'prot1'), inn('R1', zoneLocs('R1', 'pallet'))) : FF),
+      'R2.safeStop': () => (has('person') ? and(eq('person', 'prot2'), inn('R2', zoneLocs('R2', 'pallet'))) : FF),
+      'TRUE.jobRuns': () => or(inn('R1', jobLocs('R1')), inn('R2', jobLocs('R2'))),
     };
     const TRUTH = {
       'CP-1': bv('inPresent'), 'CP-2': not(eq('beltEntry', 'none')), 'CP-3': not(eq('beltExit', 'none')),
@@ -346,10 +365,12 @@
             const variants = [{ name: 'done', upd: jobUpd(st.job) }];
             if (F.grip && M.JOBS[st.job].canFail) variants.push({ name: 'missed', upd: {} });
             if (F.master && st.job === 'GAUGE.master') variants.push({ name: 'out of tolerance', upd: { zeroed: VAL(false) } });
+            // a job in a loading zone does not end while its robot is in a protective stop (A6.5)
+            const J = M.JOBS[st.job], go = F.person && J.zone === 'pallet' ? not(SIG(J.robot + '.safeStop')) : TT;
             variants.forEach((v) => {
               const after = st.confirm ? subst(SIG(st.confirm), v.upd) : TT;
-              emit(slot, at, after, advance(slot, sid, i + 1, TT, v.upd), `${sid}: ${st.job} ${v.name}`);
-              if (st.confirm) toFault(slot, at, not(after), `${sid}@0`, `${sid}: ${st.job} ${v.name}, confirmation missing`);
+              emit(slot, at, and(go, after), advance(slot, sid, i + 1, TT, v.upd), `${sid}: ${st.job} ${v.name}`);
+              if (st.confirm) toFault(slot, at, and(go, not(after)), `${sid}@0`, `${sid}: ${st.job} ${v.name}, confirmation missing`);
             });
           } else if (st.check) {
             const cpv = CPV(slot, st.check);
@@ -412,7 +433,7 @@
         if (sid === 'F') {
           ms.res.filter((r) => r !== 'none').forEach((r) => {
             const [rs, rk] = resumeFrom(r);
-            const clear = SIG(m.fault.exit, { 'HMI.clear': true });
+            const clear = and(SIG(m.fault.exit, { 'HMI.clear': true }), has(slot + '_ret') ? eq(slot + '_ret', 'none') : TT);
             emit(slot, at, and(clear, eq(slot + '_res', r), m.hold ? not(HOLDREQ) : TT), advance(slot, rs, rk, TT, {}), `F: cleared, repeat ${r}`);
             if (m.hold) toHold(slot, at, and(clear, eq(slot + '_res', r), HOLDREQ), r, 'F: cleared during a line stop');
           });
@@ -443,6 +464,19 @@
         });
       });
     });
+    // E-stop (A6.5): a machine with fault.force enters F at once from every location (urgent) and, after
+    // the reset and the clear, goes back to that location: a stopped job goes on, a waiting step is taken
+    // up again. Only with the class estop: without it no E-stop happens.
+    if (F.estop) SL.forEach((slot) => {
+      const ms = mach[slot], m = ms.m, ret = slot + '_ret';
+      if (!has(ret)) return;
+      ctx = slot;
+      const force = SIG(m.fault.force), clear = SIG(m.fault.exit, { 'HMI.clear': true });
+      vars[VI[ret]].dom.filter((l) => l !== 'none').forEach((at) => {
+        addCmd({ proc: slot, at, guard: and(eq(slot, at), force), upd: { [slot]: VAL('F_x'), [ret]: VAL(at) }, label: `${ms.info[at].sid}: E-stop`, urgent: true });
+        addCmd({ proc: slot, at: 'F_x', guard: and(eq(slot, 'F_x'), clear, eq(ret, at)), upd: { [slot]: VAL(at), [ret]: VAL('none') }, label: `F: E-stop reset and cleared, back to ${at}` });
+      });
+    });
     ctx = null;
     // dedupe commands with the same guard and updates (several input combinations give the same move)
     const seenCmd = new Map();
@@ -454,10 +488,17 @@
     const plant = (proc, label, guard, upd) => addCmd({ proc, at: null, guard, upd, label });
     plant('CNC', 'CNC: cycle complete (part OK or undersized)', and(bv('run'), eq('cnc', 'raw')), { run: VAL(false), cnc: F.nok ? ONEOF(['ok', 'nok']) : VAL('ok') });
     plant('CNC', 'CNC: cycle complete (empty)', and(bv('run'), not(eq('cnc', 'raw'))), { run: VAL(false) });
+    const ESA = F.estop ? SIG('ESTOP.active') : FF;
     if (F.cncalarm) {
       // an alarm stops a cycle with a raw part (not CNC.done, not CNC.empty); the door stays locked
       plant('CNC', 'CNC: alarm during the cycle', and(bv('run'), eq('cnc', 'raw')), { run: VAL(false), alarm: VAL(true) });
-      plant('CNC', 'CNC: alarm reset, the program restarts with the same part', bv('alarm'), { alarm: VAL(false), run: VAL(true) });
+    }
+    if (F.estop) {
+      // the E-stop puts a running CNC into feed hold at once: an alarm as in A6.3 (A6.5)
+      addCmd({ proc: 'CNC', at: null, guard: and(bv('run'), ESA), upd: { run: VAL(false), alarm: VAL(true) }, label: 'CNC: feed hold at the E-stop', urgent: true });
+    }
+    if (F.cncalarm || F.estop) {
+      plant('CNC', 'CNC: alarm reset, the program restarts with the same part', and(bv('alarm'), not(ESA)), { alarm: VAL(false), run: VAL(true) });
     }
     plant('CNC', 'CNC: guard lock released after the cycle', and(not(bv('run')), bv('lock'), inn('cnc', FIN)), { lock: VAL(false) });
     const MOTOR = SIG(M.OUTPUTS['BELT.motor'].def), LT53 = SIG(M.OUTPUTS['LT-53'].def);
@@ -474,6 +515,18 @@
     // fewer states
     plant('ENV', '4 h pass since the last master check', and(bv('zeroed'), not(bv('due')), inn('R2', ['E5_x', 'E6_x'])), { due: VAL(true) });
     if (F.mismatch) plant('ENV', 'a mismatch leaves the 10-min window', cmp('mismatches', '>', 0), { mismatches: ADD('mismatches', -1, 0, M.RULES.mismatchLimit) });
+    if (F.estop) {
+      plant('ENV', 'an E-stop button is pressed', not(bv('estop')), { estop: VAL(true) });
+      plant('ENV', 'the E-stop button is released', bv('estop'), { estop: VAL(false) });
+    }
+    if (F.person) {
+      [1, 2].forEach((z) => {
+        plant('ENV', `a person enters the warning field of SC-0${z}`, eq('person', 'none'), { person: VAL('warn' + z) });
+        plant('ENV', `the person enters the protective field of SC-0${z}`, eq('person', 'warn' + z), { person: VAL('prot' + z) });
+        plant('ENV', `the person leaves the protective field of SC-0${z}`, eq('person', 'prot' + z), { person: VAL('warn' + z) });
+        plant('ENV', `the person leaves the fields of SC-0${z}`, eq('person', 'warn' + z), { person: VAL('none') });
+      });
+    }
     M.RUNGS.forEach((r) => {
       const g = SIG(r.when, Object.fromEntries(inputsOf(r.when).map((n) => [n, true])));
       const u = {}; Object.keys(r.set).forEach((v) => { if (has(v)) u[v] = VAL(r.set[v]); });
@@ -484,7 +537,7 @@
     const props = M.PROPERTIES.map((p) => {
       const q = { id: p.id, text: p.text };
       if (p.never) { q.kind = 'never'; q.e = SIG(p.never); }
-      if (p.start) { q.kind = 'start'; q.jobs = p.start; q.e = SIG(p.require); }
+      if (p.start) { q.kind = 'start'; q.jobs = p.start; q.req = Object.fromEntries(p.start.map((j) => [j, SIG(M.requireOf(p, j))])); }
       if (p.eventually) { q.kind = 'eventually'; q.e = SIG(p.eventually); }
       return q;
     });
@@ -558,7 +611,7 @@
       const urg = out.filter((x) => x.c.urgent);
       return urg.length ? { list: urg, stable: false } : { list: out, stable: true };
     };
-    const startProps = ir.props.filter((p) => p.kind === 'start').map((p) => ({ p, f: ce(p.e) }));
+    const startProps = ir.props.filter((p) => p.kind === 'start').map((p) => ({ p, f: Object.fromEntries(p.jobs.map((j) => [j, ce(p.req[j])])) }));
     const neverProps = ir.props.filter((p) => p.kind === 'never').map((p) => ({ p, f: ce(p.e) }));
     const evProps = ir.props.filter((p) => p.kind === 'eventually').map((p) => ({ p, f: ce(p.e) }));
     // ---- state store
@@ -602,7 +655,7 @@
         for (const t of x.u(s)) {
           const id = intern(t, n, x.c.id);
           edges++;
-          if (x.c.enters) for (const { p, f } of startProps) if (viol[p.id] === undefined && p.jobs.includes(x.c.enters) && !f(t)) viol[p.id] = id;
+          if (x.c.enters) for (const { p, f } of startProps) if (viol[p.id] === undefined && p.jobs.includes(x.c.enters) && !f[x.c.enters](t)) viol[p.id] = id;
         }
       }
       if (limits.progress && n % 1e6 === 0 && n) limits.progress(n, count);
@@ -808,10 +861,17 @@
       L.push(`-- ${p.id}: ${ascii(p.text)}`);
       if (p.kind === 'never') L.push(`INVARSPEC NAME ${p.id} := !urgent -> !(${ex(p.e)});`);
       if (p.kind === 'start') {
-        // on every transition into a location of the job, from another location, as in check()
-        const into = [];
-        Object.keys(ir.mach).forEach((slot) => { const ls = ir.mach[slot].locs.filter((l) => p.jobs.includes(ir.mach[slot].info[l].job)); if (ls.length) into.push(`(next(${vname(slot)}) != ${vname(slot)} & (next(${vname(slot)}) in {${ls.map(san).join(', ')}}))`); });
-        L.push(`INVARSPEC NAME ${p.id} := (${into.join(' | ')}) -> next(${ex(p.e)});`);
+        // on every transition into a location of the job, from another location, as in check(); the
+        // condition required may depend on the job (A6.5)
+        const arms = [];
+        p.jobs.forEach((j) => {
+          const into = [];
+          Object.keys(ir.mach).forEach((slot) => { const ls = ir.mach[slot].locs.filter((l) => ir.mach[slot].info[l].job === j); if (ls.length) into.push(`(next(${vname(slot)}) != ${vname(slot)} & (next(${vname(slot)}) in {${ls.map(san).join(', ')}}))`); });
+          if (into.length) arms.push({ into, e: ex(p.req[j]) });
+        });
+        const same = arms.every((a) => a.e === arms[0].e);
+        if (same) L.push(`INVARSPEC NAME ${p.id} := (${arms.flatMap((a) => a.into).join(' | ')}) -> next(${arms[0].e});`);
+        else L.push(`INVARSPEC NAME ${p.id} := ${arms.map((a) => `((${a.into.join(' | ')}) -> next(${a.e}))`).join(' & ')};`);
       }
       if (p.kind === 'eventually') L.push(`SPEC NAME ${p.id} := AG EF (${ex(p.e)});`);
     });
@@ -833,7 +893,8 @@
   // the state is repeated). Every run with sensor faults therefore includes the class `timeout`.
   //   sensor = proximity wrong + invalid camera images; camwrong = camera wrong with a valid image;
   //   sensor_camwrong = both together.
-  const RUNS = { none: false, sensor: ['sensor', 'timeout'], process: 'process', camwrong: ['camwrong', 'timeout'], sensor_camwrong: ['sensor', 'camwrong', 'timeout'] };
+  //   estop = an E-stop at any time, person = one person at the loading sides, each without other faults (A6.5).
+  const RUNS = { none: false, sensor: ['sensor', 'timeout'], process: 'process', camwrong: ['camwrong', 'timeout'], sensor_camwrong: ['sensor', 'camwrong', 'timeout'], estop: 'estop', person: 'person' };
 
   const API = { build, check, expected, toSmv, RUNS };
   root.CellVerify = API;

@@ -19,7 +19,7 @@ from .model import load, plain
 INF = float("inf")
 EPS = 1e-9
 # causes of CNC time not machining, in the order of priority used by CellSim._loss_cause (A2.4)
-LOSS_CAUSES = ("start-up", "fault", "CNC alarm", "line stop", "quality hold", "tool change", "material shortage", "pallet change", "exchange")
+LOSS_CAUSES = ("start-up", "safety stop", "fault", "CNC alarm", "line stop", "quality hold", "tool change", "material shortage", "pallet change", "exchange")
 
 # Belt geometry. The browser simulator draws the belt 361 px long; the PLC sees a part at the entry
 # (CP-2) in the first 30 px and at the end stop (CP-3) in the last 12 px. Here the same zones in metres.
@@ -29,11 +29,17 @@ ENTRY_ZONE = 30 * _PX                   # part "at the entry" while x < this
 EXIT_ZONE = 12 * _PX                    # part "at the end stop" while x > BELT_LENGTH - this
 ENC_MIN_SPEED = 0.5 * _PX               # m/s, ENC-43 reports "moving" above this speed
 
-LATCH = {"HMI.verify": "verify", "HMI.reset": "reset", "HMI.release": "release", "HMI.tool": "tool", "VERIFY.fail": "verify_fail"}
+LATCH = {"HMI.verify": "verify", "HMI.reset": "reset", "HMI.release": "release", "HMI.tool": "tool", "HMI.safety": "safety", "VERIFY.fail": "verify_fail"}
+ESTOP_MSG = "E-stop: all motion stopped"
+PERSON_WALK = 3.0                       # s a person needs to cross the warning field into the protective one (A6.5)
 # value used when proximity and camera disagree, by checkpoint rule (rule "ask" stops the line instead)
 FUSE = {"camera": lambda prox, cam: cam, "prox": lambda prox, cam: prox,
         "present": lambda prox, cam: True, "absent": lambda prox, cam: False}
 RULE_WORD = {"camera": "camera value used", "prox": "proximity value used", "present": "treated as present", "absent": "treated as absent"}
+
+
+class EStop(Exception):
+    """Thrown into a machine process that waits (not in a job) when the E-stop forces it into F (A6.5)."""
 
 
 def ease(u):
@@ -139,7 +145,9 @@ class CellSim:
         self.vars = {k: (0 if s.get("num") else False) for k, s in self.M.SIGNALS.items()
                      if s["kind"] == "var" and k != "mismatches"}
         self.cp_result = {}                  # slot -> {CP-n: fused result of its last check}
-        self.inputs = {"verify": False, "reset": False, "release": False, "tool": False, "verify_fail": False, "clear_at": -1.0}
+        self.inputs = {"verify": False, "reset": False, "release": False, "tool": False, "safety": False, "verify_fail": False, "clear_at": -1.0}
+        # safety status (A6.5): E-stop circuit and the person in the fields of SC-01 (1) and SC-02 (2)
+        self.safety = {"estop": False, "field": {1: "none", 2: "none"}}
         self.inject = {"under": 0, "band": 0, "master": False, "grip_miss": False, "cnc_alarm": False, "frames": {"CAM-1": 0, "CAM-2": 0}}
         self.faults = {}                     # slot -> fault message
         self.cam_fault = None
@@ -171,7 +179,8 @@ class CellSim:
         self.ok_parts = 0
         self.nok_parts = 0
         self.stats = {"run_time": 0.0, "first_start": None, "last_idle": None, "idle_sum": 0.0, "idle_n": 0,
-                      "idles": [], "idle_other": [], "qh": [], "cycles": 0, "cnc_alarms": 0, "tool_changes": 0, "offset_checks": 0, "mismatches": 0, "stops": 0, "jobs": 0, "violations": 0,
+                      "idles": [], "idle_other": [], "qh": [], "cycles": 0, "cnc_alarms": 0, "tool_changes": 0, "offset_checks": 0, "estops": 0, "protective_stops": 0,
+                      "mismatches": 0, "stops": 0, "jobs": 0, "violations": 0,
                       "lost": {c: 0.0 for c in LOSS_CAUSES}}
         for i in range(3, 12):
             self._add_part("raw", {"k": "in", "slot": i})
@@ -186,13 +195,13 @@ class CellSim:
         self.JOB = self._job_table()
         self._check_signals()
         self.procs = []
+        self._mproc = {}                     # slot -> process of its machine (the E-stop throws into it)
         if not external:
-            self.spawn(self._run_machine("R1"), "R1")
+            self._mproc["R1"] = self.spawn(self._run_machine("R1"), "R1")
         self.spawn(self._cnc_proc(), "CNC")
         if not external:
-            self.spawn(self._run_machine("CONV"), "CONV")
-            self.spawn(self._run_machine("R2"), "R2")
-            self.spawn(self._run_machine("SUP"), "SUP")
+            for slot in ("CONV", "R2", "SUP", "SAF"):
+                self._mproc[slot] = self.spawn(self._run_machine(slot), slot)
         self.spawn(self._operator_proc(), "operator")
         self.spawn(self._gauge_clock(), "gauge clock")
         self.spawn(self._tool_proc(), "tool")
@@ -238,6 +247,9 @@ class CellSim:
                 self.spawn(self._swap_output(), "swap")
         elif act == "load":
             self.spawn(self._reload_input(), "load")
+        elif act == "safety":
+            self.inputs["safety"] = True
+            self.log("operator", "Operator resets the safety relay")
         else:
             raise ValueError("unknown action " + act)
 
@@ -292,6 +304,16 @@ class CellSim:
     def inject_tool_life_end(self):
         self.vars["toolCount"] = self.RU["toolLife"] - 1
         self.log("info", "Test: the tool life counter is set to its last part")
+
+    def press_estop(self, hold=60.0):
+        """An E-stop button pressed for `hold` seconds; then the operator looks over the cell, resets the
+        safety relay (T.safetyReset) and clears the faults (A6.5)."""
+        self.spawn(self._estop_proc(hold), "E-stop")
+
+    def inject_person(self, side, prot=20.0):
+        """A person walks into the loading zone of side 1 (input pallet, SC-01) or 2 (output pallet,
+        SC-02): warning field, `prot` seconds in the protective field, warning field, out (A6.5)."""
+        self.spawn(self._person_proc(side, prot), "person")
 
     def inject_undersized(self):
         self.inject["under"] += 1
@@ -379,6 +401,8 @@ class CellSim:
         """Why the CNC is not machining now: the first cause that applies."""
         if self.stats["first_start"] is None:
             return "start-up"
+        if self.mch["SAF"]["state"] in ("S3", "S4", "S5") or any(f == ESTOP_MSG for f in self.faults.values()):
+            return "safety stop"
         if any(self.faults.values()):
             return "fault"
         if self.cnc["state"] == "ALARM":
@@ -397,7 +421,9 @@ class CellSim:
 
     # ================================================================== scheduler
     def spawn(self, gen, name=""):
-        self.procs.append(Proc(gen, name))
+        p = Proc(gen, name)
+        self.procs.append(p)
+        return p
 
     def _ready(self, w):
         if w is None:
@@ -521,6 +547,17 @@ class CellSim:
             return self._truth("CP-5")
         if name == "TRUE.brokenFound":
             return any(c["found"] for c in self.cps.values())
+        if name == "ESTOP":
+            return self.safety["estop"]
+        if name in ("SC-01.warn", "SC-02.warn"):
+            return self.safety["field"][int(name[4])] != "none"
+        if name in ("SC-01.prot", "SC-02.prot"):
+            return self.safety["field"][int(name[4])] == "prot"
+        if name in ("R1.safeStop", "R2.safeStop"):
+            r = r1 if name[1] == "1" else r2
+            return self.safety["field"][int(name[1])] == "prot" and r.job is not None and r.zone == "pallet"
+        if name == "TRUE.jobRuns":
+            return any(self.mch[s]["job"] and self._rate(s, self._robot_of(self.mch[s]["job"])) > 0 for s in ("R1", "R2"))
         raise KeyError("no plant reader for signal " + name)
 
     def _input(self, name, slot):
@@ -534,6 +571,8 @@ class CellSim:
             return self.inputs["release"]
         if name == "HMI.tool":
             return self.inputs["tool"]
+        if name == "HMI.safety":
+            return self.inputs["safety"]
         if name == "VERIFY.pass":
             return bool(self.verify and self.verify["done"])
         if name == "VERIFY.fail":
@@ -600,7 +639,8 @@ class CellSim:
             add(r["when"])
         for p in self.M.PROPERTIES:
             add(p.get("never"))
-            add(p.get("require"))
+            for j in p.get("start") or []:
+                add(self._require(p, j))
         for n in sorted(used):
             sig = self.M.SIGNALS.get(n)
             if sig and sig["kind"] == "derived":
@@ -635,6 +675,10 @@ class CellSim:
                                     else f"{len(self.events)} camera / proximity mismatches within 10 min ({self._window_summary()})")
             if (s.get("hmi") or {}).get("proc") == "verify":
                 self._start_verify()
+            if slot == "SAF" and sid == "S3":
+                self.stats["protective_stops"] += 1
+            if slot == "SAF" and sid == "S4":
+                self._estop_all()
             prev = self._state_of(slot, x["prev"])
             if slot == "SUP" and s.get("kind") == "ok" and prev and prev.get("kind") == "check":
                 self.verify = None
@@ -686,7 +730,7 @@ class CellSim:
                         if self.vars["CAM_FAULT"] and not self.ev("lineStop")
                         else "LINE STOP from the cross-check supervisor")
         yield from self._run_steps(slot, m["hold"].get("do", []), False, 0)
-        yield from self._until(lambda: self.ev(m["hold"]["exit"], slot))
+        yield from self._resumable(slot, lambda: self._until(lambda: self.ev(m["hold"]["exit"], slot)))
 
     def _fault_state(self, slot, msg):
         self.faults[slot] = msg
@@ -713,23 +757,31 @@ class CellSim:
                 if st.get("confirm") and not self.ev(st["confirm"], slot):
                     return {"fault": f'missing confirmation after "{self.M.JOBS[st["job"]]["text"]}": {self._missing(st["confirm"], slot)}'}
             elif "check" in st:
-                while True:
-                    res = yield from self._check(st["check"], st.get("quick"), slot)
-                    if res == "camfault":
-                        return {"hold": True, "at": i}
-                    if not st.get("until") or self.ev(st["until"], slot):
-                        break
-                    if holdable and self.ev("HOLD.req", slot):
-                        return {"hold": True}
-                    yield from self._wait(self.T["check"])
+                def check(st=st, i=i):
+                    while True:
+                        res = yield from self._check(st["check"], st.get("quick"), slot)
+                        if res == "camfault":
+                            return {"hold": True, "at": i}
+                        if not st.get("until") or self.ev(st["until"], slot):
+                            return None
+                        if holdable and self.ev("HOLD.req", slot):
+                            return {"hold": True}
+                        yield from self._wait(self.T["check"])
+                r = yield from self._resumable(slot, check)
+                if r:
+                    return r
                 if st.get("confirm") and not self.ev(st["confirm"], slot):
                     return {"fault": f'missing confirmation at {st["check"]}: {self._missing(st["confirm"], slot)}'}
             elif "await" in st:
-                cond = st["await"]
-                while not self.ev(cond, slot):
-                    if holdable and self.ev("HOLD.req", slot):
-                        return {"hold": True}
-                    yield ("c", lambda: self.ev(cond, slot) or (holdable and self.ev("HOLD.req", slot)), None)
+                def wait_for(cond=st["await"]):
+                    while not self.ev(cond, slot):
+                        if holdable and self.ev("HOLD.req", slot):
+                            return {"hold": True}
+                        yield ("c", lambda: self.ev(cond, slot) or (holdable and self.ev("HOLD.req", slot)), None)
+                    return None
+                r = yield from self._resumable(slot, wait_for)
+                if r:
+                    return r
             else:
                 self._apply_set(st, slot)
         return None
@@ -743,6 +795,10 @@ class CellSim:
         r = yield from self._run_steps(slot, s.get("do", []), holdable, frm)
         if r:
             return r
+        return (yield from self._resumable(slot, lambda: self._next_of(slot, sid, s, holdable)))
+
+    def _next_of(self, slot, sid, s, holdable):
+        """The first transition of state sid whose guard holds, a timed fault or a hold."""
         t0 = self.t
         since = {}
         nxt, faults, waits = s["next"], s.get("faults", []), bool(s.get("wait"))
@@ -837,18 +893,148 @@ class CellSim:
         drawn = None
         if isinstance(self.T, _Times):
             drawn = self.T.job[self._cur] = {}
-        yield from self.JOB[name](r)
+        cur = self._cur
+        nominal = yield from self._drive(self.JOB[name](r), slot, r)
         if drawn is not None:
-            del self.T.job[self._cur]
+            del self.T.job[cur]
         if r:
             r.zone = "free"
             r.job = None
         self.mch[slot]["job"] = None
         self.stats["jobs"] += 1
-        # with random times the job must take the sum of the times drawn for its components
+        # with random times the job must take the sum of the times drawn for its components; a job slowed
+        # or stopped by the safety functions (A6.5) takes that time of robot motion
         want = self.M.job_time(name) if drawn is None else sum(drawn.get(k, math.nan) for k in self.M.JOBS[name]["time"])
-        if not abs(self.t - t0 - want) <= 0.011:
-            self.errors.append(f"job {name}: {self.t - t0:.3f} s in the simulation, {want} s in the model")
+        if not abs(nominal - want) <= 0.011:
+            self.errors.append(f"job {name}: {nominal:.3f} s in the simulation, {want} s in the model")
+
+    # ================================================================== safety status (A6.5)
+    def _robot_of(self, job):
+        rb = self.M.JOBS[job]["robot"]
+        return self.r1 if rb == "R1" else self.r2 if rb == "R2" else None
+
+    def _estop_on(self):
+        return self.mch["SAF"]["state"] in ("S4", "S5")
+
+    def _rate(self, slot, r):
+        """Speed of the jobs of a machine: 0 while the E-stop holds them or the robot is in a protective
+        stop, 1 / reducedSpeed while a person is in the warning field of its loading side, else 1."""
+        if self.mch[slot].get("estop") or self._estop_on():
+            return 0.0
+        if r is None:
+            return 1.0
+        f = self.safety["field"][1 if r is self.r1 else 2]
+        if f == "prot" and r.zone == "pallet":
+            return 0.0
+        return 1.0 / self.RU["reducedSpeed"] if f != "none" else 1.0
+
+    def _retime(self, slot, k):
+        """The rate of the jobs of a machine changed to k: the door slide of Robot 1 follows it."""
+        a = self.door["anim"]
+        if slot == "R1" and a:
+            a["p"], a["ts"], a["k"] = self._anim_u(a), self.t, k
+
+    def _drive(self, gen, slot, r):
+        """Run the plant side of a job; its time waits advance at the rate of the machine (_rate).
+        Returns the time of robot motion it took (the sum of its waits at full speed)."""
+        nominal, k = 0.0, None
+        try:
+            w = next(gen)
+        except StopIteration:
+            return 0.0
+        while True:
+            if w[0] == "t":
+                rem = w[1] - self.t
+                nominal += max(rem, 0.0)
+                first = True
+                while rem > EPS:
+                    k2 = self._rate(slot, r)
+                    if k is not None and k2 != k:
+                        self._retime(slot, k2)
+                    k = k2
+                    if k == 0:
+                        yield from self._paused(slot, r)
+                        first = False
+                        continue
+                    t0 = self.t
+                    until = w[1] if first and k == 1 else t0 + rem / k
+                    first = False
+                    yield ("c", lambda k=k: self._rate(slot, r) != k, until)
+                    rem = 0.0 if self.t >= until - EPS else rem - (self.t - t0) * k
+            else:
+                yield w
+            try:
+                w = gen.send(None)
+            except StopIteration:
+                return nominal
+
+    def _paused(self, slot, r):
+        if self.mch[slot].get("estop"):
+            # the job stays where the E-stop stopped it until the relay is reset and the fault cleared
+            yield from self._estop_wait(slot)
+            return
+        yield from self._until(lambda: self._rate(slot, r) > 0)
+
+    def _resumable(self, slot, make):
+        """Run make() (a waiting step of a machine); when the E-stop interrupts it (EStop), wait in F
+        for the reset and the clear, then run it again: the machine continues where it stopped."""
+        while True:
+            try:
+                return (yield from make())
+            except EStop:
+                yield from self._estop_wait(slot)
+
+    def _estop_wait(self, slot):
+        x = self.mch[slot]
+        exit_expr = self._machine(slot)["fault"]["exit"]
+        yield from self._until(lambda: self.ev(exit_expr, slot))
+        x["estop"] = False
+        self.faults[slot] = None
+        self._set_state(slot, x["estop_sid"], "E-stop reset and fault cleared · the machine continues where it stopped")
+
+    def _estop_all(self):
+        """SAF entered S4: every machine with fault.force goes to F where it is. A running job stops (rate 0)
+        and goes on after the reset; a waiting step is interrupted (EStop) and run again after it."""
+        self.stats["estops"] += 1
+        for slot, x in self.mch.items():
+            m = self._machine(slot)
+            if not (m.get("fault") or {}).get("force") or x["state"] in ("", "F"):
+                continue
+            x["estop"], x["estop_sid"] = True, x["state"]
+            self.faults[slot] = ESTOP_MSG
+            self._set_state(slot, "F", ESTOP_MSG)
+            self.log("fault", f'{slot}: {ESTOP_MSG}' + (f' during "{self.M.JOBS[x["job"]]["text"]}"' if x["job"] else "")
+                     + " → FAULT; it continues where it stopped after the reset and the clear")
+            if not x["job"] and slot in self._mproc:
+                p = self._mproc[slot]
+                try:
+                    p.wait = p.gen.throw(EStop())
+                except StopIteration:
+                    p.done = True
+
+    def _estop_proc(self, hold):
+        self.safety["estop"] = True
+        self.log("fault", "E-stop button pressed")
+        yield from self._wait(hold)
+        self.safety["estop"] = False
+        self.log("operator", "E-stop button released")
+        yield from self._wait(self.T["safetyReset"])
+        self.press("safety")
+        yield from self._until(lambda: not self._estop_on())
+        self.inputs["clear_at"] = self.t
+        self.log("operator", "Operator clears the faults after the E-stop")
+
+    def _person_proc(self, side, prot):
+        f, tag = self.safety["field"], f"SC-0{side}"
+        f[side] = "warn"
+        self.log("operator", f"A person enters the loading zone of side {side} ({tag} warning field)")
+        yield from self._wait(PERSON_WALK)
+        f[side] = "prot"
+        yield from self._wait(prot)
+        f[side] = "warn"
+        yield from self._wait(PERSON_WALK)
+        f[side] = "none"
+        self.log("operator", f"The person has left the loading zone of side {side}")
 
     # ================================================================== property monitors (same properties as the verifier)
     def _props(self):
@@ -859,9 +1045,13 @@ class CellSim:
         self.log("fault", f"PROPERTY {p['id']} VIOLATED: {p['text']}")
         self.errors.append(f"property {p['id']} violated at t = {self.t:.2f} s: {p['text']}")
 
+    @staticmethod
+    def _require(p, job):
+        return p["require"] if isinstance(p["require"], str) else p["require"][job]
+
     def _monitor_start(self, job):
         for p in self._props():
-            if job in (p.get("start") or []) and not self.ev(p["require"]):
+            if job in (p.get("start") or []) and not self.ev(self._require(p, job)):
                 self._violated(p)
 
     def _monitor_stable(self):
@@ -1060,12 +1250,15 @@ class CellSim:
     def _undersized(self, p):
         return p is not None and any(v < self.RU["minSize"] for v in p.dims)
 
+    def _anim_u(self, a):
+        # progress of a slide: p at time ts, advancing at rate k over the full-speed duration D (A6.5)
+        return min(1.0, max(0.0, a["p"] + (self.t - a["ts"]) * a["k"] / a["D"]))
+
     def _door_pos(self):
         a = self.door["anim"]
         if not a:
             return self.door["pos"]
-        u = ease(min(1.0, max(0.0, (self.t - a["t0"]) / (a["t1"] - a["t0"]))))
-        return a["from"] + (a["to"] - a["from"]) * u
+        return a["from"] + (a["to"] - a["from"]) * ease(self._anim_u(a))
 
     def _move(self, r, to, dur):
         if not dur > 0:
@@ -1078,7 +1271,7 @@ class CellSim:
     def _slide_door(self, r, frm, to, approach, t_key):
         k = self.T[t_key] / 4.0              # 0.5 s to the handle, 3 s of travel, 0.5 s to let go (nominal 4 s)
         yield from self._move(r, "handle", approach + 0.5 * k)
-        self.door["anim"] = {"from": frm, "to": to, "t0": self.t, "t1": self.t + 3.0 * k}
+        self.door["anim"] = {"from": frm, "to": to, "ts": self.t, "p": 0.0, "k": self._rate("R1", r), "D": 3.0 * k}
         yield from self._move(r, "handle", 3.0 * k)
         self.door["pos"], self.door["anim"] = to, None
         yield from self._wait(0.5 * k)
@@ -1296,18 +1489,23 @@ class CellSim:
                 # program restarts from the start with the same part
                 cycle = self.T["cncCycle"]
                 end, half = self.t + cycle, self.t + cycle / 2
-                yield ("c", lambda: self.inject["cnc_alarm"] and self.t < half - EPS, end)
-                if self.t >= end - EPS:
+                yield ("c", lambda: (self.inject["cnc_alarm"] and self.t < half - EPS) or self._estop_on(), end)
+                if self._estop_on():
+                    # the E-stop puts the CNC into feed hold at once: an alarm as in A6.3 (A6.5)
+                    self.log("fault", "E-stop → CNC feed hold: spindle stopped, CNC not ready (alarm), door stays locked")
+                elif self.t >= end - EPS:
                     break
-                yield ("t", half)
-                self.inject["cnc_alarm"] = False
-                st["cnc_alarms"] += 1
+                else:
+                    yield ("t", half)
+                    self.inject["cnc_alarm"] = False
+                    st["cnc_alarms"] += 1
+                    self.log("fault", "CNC ALARM in the cycle → spindle stopped, CNC not ready, door stays locked")
                 # the faces cut so far are cut again (in air): this time is lost, not machining
                 st["run_time"] -= self.t - c["run_start"]
                 st["lost"]["CNC alarm"] += self.t - c["run_start"]
                 c["state"] = "ALARM"
-                self.log("fault", "CNC ALARM in the cycle → spindle stopped, CNC not ready, door stays locked")
                 yield from self._wait(self.T["cncReset"])
+                yield from self._until(lambda: not self._estop_on())
                 self.log("operator", "Operator removed the cause and reset the CNC alarm → the program restarts with the same part")
                 c["state"], c["run_start"] = "RUN", self.t
             p = c["part"]

@@ -24,10 +24,13 @@
     nest: L.nest, nestOut: [L.nest[0] + 46, L.nest[1] - 44], nokDrop: L.nokDrop,
   };
   const VMAX = (L.convExit[0] - L.convEntry[0]) / T.beltTravel, ACC = VMAX / T.beltStart;
-  const SLOTS = Object.keys(M.SLOTS);                     // R1, CONV, R2, SUP
+  const SLOTS = Object.keys(M.SLOTS);                     // R1, CONV, R2, SUP, SAF
   const CPS = M.CHECKPOINTS.map((c) => Object.assign({}, c));
   const CP = {}; CPS.forEach((c) => { CP[c.id] = c; });
-  const LATCH = { 'HMI.verify': 'verify', 'HMI.reset': 'reset', 'HMI.release': 'release', 'HMI.tool': 'tool', 'VERIFY.fail': 'verifyFail' };
+  const LATCH = { 'HMI.verify': 'verify', 'HMI.reset': 'reset', 'HMI.release': 'release', 'HMI.tool': 'tool', 'HMI.safety': 'safety', 'VERIFY.fail': 'verifyFail' };
+  const ESTOP_MSG = 'E-stop: all motion stopped';
+  const ESTOP = { estop: true };                          // thrown into a waiting machine when the E-stop forces F (A6.5)
+  const PERSON_WALK = 3.0;                                // s to cross the warning field into the protective one
 
   let S, W, SUP, procs = [];
   let instant = false;                                    // tests: the technician finishes at once
@@ -42,7 +45,8 @@
       t: 0, speed: +$('#selSpeed').value || 10, running: true, setup: 2, step: false,
       autoOp: $('#chkAuto').checked, logAll: $('#chkAll').checked,
       inject: { under: 0, band: 0, master: false, gripMiss: false, cncAlarm: false, frames: { 'CAM-1': 0, 'CAM-2': 0 } }, faults: {}, camFault: null, askAt: null, verify: null,
-      stopReason: '', vars: {}, cp: {}, inputs: { verify: false, reset: false, release: false, tool: false, verifyFail: false, clearAt: -1 },
+      stopReason: '', vars: {}, cp: {}, inputs: { verify: false, reset: false, release: false, tool: false, safety: false, verifyFail: false, clearAt: -1 },
+      safety: { estop: false, field: { 1: 'none', 2: 'none' } },   // E-stop circuit, person in the fields of SC-01 / SC-02 (A6.5)
     };
     Object.keys(M.SIGNALS).forEach((k) => { const s = M.SIGNALS[k]; if (s.kind === 'var' && k !== 'mismatches') S.vars[k] = s.num ? 0 : false; });
     W = {
@@ -52,7 +56,7 @@
       r1: robot(L.r1, true), r2: robot(L.r2, false),
       gauge: { zeroed: false, due: false, valid: false, ok: false, dMaster: null, masterAt: null, hist: [] }, lastSlot: null, beacon: false,
       ok: 0, nok: 0, pe65: -9,
-      stats: { runTime: 0, firstStart: null, lastIdle: null, idleSum: 0, idleN: 0, cycles: 0, toolChanges: 0, offsetChecks: 0, mism: 0, stops: 0, jobs: 0, violations: 0 },
+      stats: { runTime: 0, firstStart: null, lastIdle: null, idleSum: 0, idleN: 0, cycles: 0, toolChanges: 0, offsetChecks: 0, estops: 0, protectiveStops: 0, mism: 0, stops: 0, jobs: 0, violations: 0 },
     };
     CPS.forEach((c) => { c.fault = false; c.broken = false; c.found = false; c.glitch = false; c.camWrong = false; c.stale = false; c.last = null; c.count = 0; });
     for (let i = 3; i < 12; i++) addPart('raw', { k: 'in', slot: i });
@@ -63,11 +67,9 @@
     procs = [];
     TRACE.length = 0;
     checkSignals();
-    spawn(runMachine('R1'));
+    MCH.R1.proc = spawn(runMachine('R1'));
     spawn(cncProc());
-    spawn(runMachine('CONV'));
-    spawn(runMachine('R2'));
-    spawn(runMachine('SUP'));
+    ['CONV', 'R2', 'SUP', 'SAF'].forEach((k) => { MCH[k].proc = spawn(runMachine(k)); });
     spawn(operatorProc());
     spawn(gaugeClock());
     spawn(toolProc());
@@ -87,7 +89,7 @@
   const undersized = (p) => !!p && p.dims.some((v) => v < RU.minSize);
 
   // ------------------------------------------------------------------ scheduler
-  function spawn(gen) { procs.push({ it: gen, wait: null, done: false }); }
+  function spawn(gen) { const p = { it: gen, wait: null, done: false }; procs.push(p); return p; }
   const ready = (w) => !w || (w.k === 't' ? S.t >= w.until - 1e-9 : (w.fn() || (w.until != null && S.t >= w.until - 1e-9)));
   // Run every process until nothing moves any more at this instant, so that a signal written by one
   // machine is seen by the others in the same scan.
@@ -137,10 +139,16 @@
     'TRUE.entryPart': () => truth['CP-2'](), 'TRUE.outPallet': () => W.palletOut.present,
     'TRUE.r2Nok': () => undersized(W.r2.hold.S), 'TRUE.nestPart': () => truth['CP-5'](),
     'TRUE.brokenFound': () => CPS.some((c) => c.found),
+    'ESTOP': () => S.safety.estop,
+    'SC-01.warn': () => S.safety.field[1] !== 'none', 'SC-01.prot': () => S.safety.field[1] === 'prot',
+    'SC-02.warn': () => S.safety.field[2] !== 'none', 'SC-02.prot': () => S.safety.field[2] === 'prot',
+    'R1.safeStop': () => S.safety.field[1] === 'prot' && W.r1.job != null && W.r1.zone === 'pallet',
+    'R2.safeStop': () => S.safety.field[2] === 'prot' && W.r2.job != null && W.r2.zone === 'pallet',
+    'TRUE.jobRuns': () => ['R1', 'R2'].some((s) => MCH[s].job && rate(s, robotOf(MCH[s].job)) > 0),
   };
   const INPUT = {
     'HMI.clear': (slot) => !!slot && S.inputs.clearAt >= MCH[slot].since,
-    'HMI.verify': () => S.inputs.verify, 'HMI.reset': () => S.inputs.reset, 'HMI.release': () => S.inputs.release, 'HMI.tool': () => S.inputs.tool,
+    'HMI.verify': () => S.inputs.verify, 'HMI.reset': () => S.inputs.reset, 'HMI.release': () => S.inputs.release, 'HMI.tool': () => S.inputs.tool, 'HMI.safety': () => S.inputs.safety,
     'VERIFY.pass': () => !!(S.verify && S.verify.done), 'VERIFY.fail': () => S.inputs.verifyFail,
   };
   function read(name, slot) {
@@ -169,7 +177,7 @@
     });
     Object.values(M.OUTPUTS).forEach((o) => add(o.def));
     M.RUNGS.forEach((r) => add(r.when));
-    M.PROPERTIES.forEach((p) => { add(p.never); add(p.require); });
+    M.PROPERTIES.forEach((p) => { add(p.never); (p.start || []).forEach((j) => add(M.requireOf(p, j))); });
     used.forEach((n) => { if (M.SIGNALS[n] && M.SIGNALS[n].kind === 'derived') return; try { read(n, 'R1'); } catch (e) { console.error(e.message); } });
   }
 
@@ -192,6 +200,8 @@
         S.stopReason = S.vars.CAM_FAULT ? (S.askAt ? `${S.askAt}: proximity and camera disagree, the operator checks` : `${S.camFault || 'a camera'} gave two invalid images (camera fault)`) : `${SUP.events.length} camera / proximity mismatches within 10 min (${windowSummary()})`;
       }
       if (s.hmi && s.hmi.proc === 'verify') startVerify();
+      if (slot === 'SAF' && id === 'S3') W.stats.protectiveStops++;
+      if (slot === 'SAF' && id === 'S4') estopAll();
       if (slot === 'SUP' && s.kind === 'ok' && stateOf(slot, x.prev) && stateOf(slot, x.prev).kind === 'check') {
         S.verify = null; S.stopReason = '';
         log('stop', 'Operator reset: mismatch counter cleared, line resumes');
@@ -230,11 +240,24 @@
       }
     }
   }
+  // Run make() (a waiting step of a machine); when the E-stop interrupts it, wait in F for the reset and
+  // the clear, then run it again: the machine continues where it stopped (A6.5).
+  function* resumable(slot, make) {
+    for (;;) {
+      try { return yield* make(); } catch (e) { if (e !== ESTOP) throw e; yield* estopWait(slot); }
+    }
+  }
+  function* estopWait(slot) {
+    const x = MCH[slot];
+    yield* until(() => ev(machineOf(slot).fault.exit, slot));
+    x.estop = false; S.faults[slot] = null;
+    setState(slot, x.estopSid, 'E-stop reset and fault cleared · the machine continues where it stopped');
+  }
   function* holdState(slot) {
     const m = machineOf(slot);
     setState(slot, 'H', S.vars.CAM_FAULT && !ev('lineStop') ? (S.askAt ? `${S.askAt} disagreement: line stop` : `${S.camFault || 'camera'} fault: line stop`) : 'LINE STOP from the cross-check supervisor');
     yield* runSteps(slot, m.hold.do || [], false);
-    yield* until(() => ev(m.hold.exit, slot));
+    yield* resumable(slot, () => until(() => ev(m.hold.exit, slot)));
   }
   function* faultState(slot, msg) {
     S.faults[slot] = msg;
@@ -257,18 +280,25 @@
         yield* runJob(slot, st.job);
         if (st.confirm && !ev(st.confirm, slot)) return { fault: `missing confirmation after "${M.JOBS[st.job].text}": ${missing(st.confirm, slot)}` };
       } else if (st.check) {
-        for (;;) {
-          if ((yield* check(st.check, st.quick, slot)) === 'camfault') return { hold: true, at: i };
-          if (!st.until || ev(st.until, slot)) break;
-          if (holdable && ev('HOLD.req', slot)) return { hold: true };
-          yield* wait(T.check);
-        }
+        const r = yield* resumable(slot, function* () {
+          for (;;) {
+            if ((yield* check(st.check, st.quick, slot)) === 'camfault') return { hold: true, at: i };
+            if (!st.until || ev(st.until, slot)) return null;
+            if (holdable && ev('HOLD.req', slot)) return { hold: true };
+            yield* wait(T.check);
+          }
+        });
+        if (r) return r;
         if (st.confirm && !ev(st.confirm, slot)) return { fault: `missing confirmation at ${st.check}: ${missing(st.confirm, slot)}` };
       } else if (st.await) {
-        while (!ev(st.await, slot)) {
-          if (holdable && ev('HOLD.req', slot)) return { hold: true };
-          yield { k: 'c', fn: () => ev(st.await, slot) || (holdable && ev('HOLD.req', slot)) };
-        }
+        const r = yield* resumable(slot, function* () {
+          while (!ev(st.await, slot)) {
+            if (holdable && ev('HOLD.req', slot)) return { hold: true };
+            yield { k: 'c', fn: () => ev(st.await, slot) || (holdable && ev('HOLD.req', slot)) };
+          }
+          return null;
+        });
+        if (r) return r;
       } else applySet(st, slot);
     }
     return null;
@@ -279,6 +309,10 @@
     const s = stateOf(slot, id), m = machineOf(slot), holdable = s.hold !== false && !!m.hold;
     const r = yield* runSteps(slot, s.do || [], holdable, from);
     if (r) return r;
+    return yield* resumable(slot, () => nextOf(slot, id, s, holdable));
+  }
+  // the first transition of state id whose guard holds, a timed fault or a hold
+  function* nextOf(slot, id, s, holdable) {
     const t0 = S.t, since = new Map();
     const status = () => s.next.map((tr) => ev(tr.when, slot)).join() + '|' + (holdable && s.wait ? ev('HOLD.req', slot) : '') + '|' + (s.faults || []).map((f) => (f.when ? ev(f.when, slot) : '')).join();
     for (;;) {
@@ -325,17 +359,103 @@
     return fired;
   }
   function* runJob(slot, name) {
-    const j = M.JOBS[name], r = j.robot === 'R1' ? W.r1 : j.robot === 'R2' ? W.r2 : null, t0 = S.t;
+    const j = M.JOBS[name], r = j.robot === 'R1' ? W.r1 : j.robot === 'R2' ? W.r2 : null;
     if (!JOB[name]) { console.error('no plant implementation for job ' + name); return; }
     MCH[slot].job = name;
     if (r) { r.zone = j.zone || 'free'; r.job = name; r.fing = r.fing === 'closed' ? 'open' : r.fing; }
     monitorStart(name);
-    yield* JOB[name](r);
+    const dt = yield* drive(JOB[name](r), slot, r);
     if (r) { r.zone = 'free'; r.job = null; }
     MCH[slot].job = null;
     W.stats.jobs++;
-    const dt = S.t - t0, want = M.jobTime(name);
+    // a job slowed or stopped by the safety functions (A6.5) takes this time of robot motion
+    const want = M.jobTime(name);
     if (Math.abs(dt - want) > 0.011) console.error(`job ${name}: ${dt.toFixed(3)} s in the simulation, ${want} s in the model`);
+  }
+
+  // ------------------------------------------------------------------ safety status (A6.5)
+  const robotOf = (job) => (M.JOBS[job].robot === 'R1' ? W.r1 : M.JOBS[job].robot === 'R2' ? W.r2 : null);
+  const estopOn = () => MCH.SAF.state === 'S4' || MCH.SAF.state === 'S5';
+  // speed of the jobs of a machine: 0 while the E-stop holds them or the robot is in a protective stop,
+  // 1 / reducedSpeed while a person is in the warning field of its loading side, else 1
+  function rate(slot, r) {
+    if (MCH[slot].estop || estopOn()) return 0;
+    if (!r) return 1;
+    const f = S.safety.field[r === W.r1 ? 1 : 2];
+    if (f === 'prot' && r.zone === 'pallet') return 0;
+    return f !== 'none' ? 1 / RU.reducedSpeed : 1;
+  }
+  // progress of a motion: p at time ts, advancing at rate k over the full-speed duration D
+  const animU = (a) => clamp(a.p + (S.t - a.ts) * a.k / a.D, 0, 1);
+  const anim = (from, to, dur, slot, r) => ({ from, to, ts: S.t, p: 0, k: rate(slot, r), D: dur });
+  // the rate of the jobs of a machine changed to k: its robot motion and the door slide follow it
+  function retime(slot, k) {
+    const as = [slot === 'R1' ? W.r1.anim : slot === 'R2' ? W.r2.anim : null, slot === 'R1' ? W.door.anim : null];
+    as.forEach((a) => { if (a) { a.p = animU(a); a.ts = S.t; a.k = k; } });
+  }
+  // run the plant side of a job; its time waits advance at the rate of the machine. Returns the time of
+  // robot motion it took (the sum of its waits at full speed).
+  function* drive(it, slot, r) {
+    let nominal = 0, k = null;
+    for (let v = it.next(); !v.done; v = it.next()) {
+      const w = v.value;
+      if (!w || w.k !== 't') { yield w; continue; }
+      let rem = w.until - S.t, first = true;
+      nominal += Math.max(rem, 0);
+      while (rem > 1e-9) {
+        const k2 = rate(slot, r);
+        if (k !== null && k2 !== k) retime(slot, k2);
+        k = k2;
+        if (k === 0) { yield* paused(slot, r); first = false; continue; }
+        const t0 = S.t, kk = k, u = first && k === 1 ? w.until : t0 + rem / k;
+        first = false;
+        yield { k: 'c', fn: () => rate(slot, r) !== kk, until: u };
+        rem = S.t >= u - 1e-9 ? 0 : rem - (S.t - t0) * kk;
+      }
+    }
+    return nominal;
+  }
+  function* paused(slot, r) {
+    // the job stays where the E-stop stopped it until the relay is reset and the fault cleared
+    if (MCH[slot].estop) { yield* estopWait(slot); return; }
+    yield* until(() => rate(slot, r) > 0);
+  }
+  // SAF entered S4: every machine with fault.force goes to F where it is. A running job stops (rate 0) and
+  // goes on after the reset; a waiting step is interrupted and run again after it.
+  function estopAll() {
+    W.stats.estops++;
+    SLOTS.forEach((slot) => {
+      const x = MCH[slot], m = machineOf(slot);
+      if (!m.fault || !m.fault.force || x.state === '' || x.state === 'F') return;
+      x.estop = true; x.estopSid = x.state; S.faults[slot] = ESTOP_MSG;
+      setState(slot, 'F', ESTOP_MSG);
+      log('fault', `${slot}: ${ESTOP_MSG}${x.job ? ` during "${M.JOBS[x.job].text}"` : ''} → FAULT; it continues where it stopped after the reset and the clear`);
+      if (!x.job && x.proc) {
+        const p = x.proc, res = p.it.throw(ESTOP);
+        if (res.done) p.done = true; else p.wait = res.value || null;
+      }
+    });
+  }
+  // an E-stop button pressed for `hold` s; the operator looks over the cell, resets the relay and clears the faults
+  function* estopProc(hold) {
+    S.safety.estop = true; log('fault', 'E-stop button pressed');
+    yield* wait(hold);
+    S.safety.estop = false; log('operator', 'E-stop button released');
+    yield* wait(T.safetyReset);
+    S.inputs.safety = true; log('operator', 'Operator resets the safety relay');
+    yield* until(() => !estopOn());
+    S.inputs.clearAt = S.t; log('operator', 'Operator clears the faults after the E-stop');
+  }
+  // a person walks into the loading zone of side 1 (input, SC-01) or 2 (output, SC-02)
+  function* personProc(side, prot) {
+    const f = S.safety.field;
+    f[side] = 'warn'; log('operator', `A person enters the loading zone of side ${side} (SC-0${side} warning field)`);
+    yield* wait(PERSON_WALK);
+    f[side] = 'prot';
+    yield* wait(prot);
+    f[side] = 'warn';
+    yield* wait(PERSON_WALK);
+    f[side] = 'none'; log('operator', `The person has left the loading zone of side ${side}`);
   }
 
   // ------------------------------------------------------------------ property monitors (same properties as the verifier)
@@ -346,7 +466,7 @@
     log('fault', msg);
     console.error(msg + ` (t = ${S.t.toFixed(2)} s)`);
   }
-  function monitorStart(job) { PROPS().forEach((p) => { if (p.start && p.start.includes(job) && !ev(p.require)) violated(p); }); }
+  function monitorStart(job) { PROPS().forEach((p) => { if (p.start && p.start.includes(job) && !ev(M.requireOf(p, job))) violated(p); }); }
   const seen = new Set();
   function monitorStable() {
     PROPS().forEach((p) => {
@@ -431,25 +551,25 @@
   // ------------------------------------------------------------------ motion helpers
   function toolPos(r) {
     if (!r.anim) return r.tool;
-    const a = r.anim, u = ease(clamp((S.t - a.t0) / (a.t1 - a.t0), 0, 1));
+    const a = r.anim, u = ease(animU(a));
     return [a.from[0] + (a.to[0] - a.from[0]) * u, a.from[1] + (a.to[1] - a.from[1]) * u];
   }
   function* moveTo(r, to, dur) {
     if (!(dur > 0)) { r.tool = to.slice(); r.anim = null; return; }
-    r.anim = { from: toolPos(r).slice(), to: to.slice(), t0: S.t, t1: S.t + dur };
+    const slot = r === W.r1 ? 'R1' : 'R2';
+    r.anim = anim(toolPos(r).slice(), to.slice(), dur, slot, r);
     yield* wait(dur);
     r.tool = to.slice(); r.anim = null;
   }
   function doorPos() {
     const d = W.door;
     if (!d.anim) return d.pos;
-    const a = d.anim, u = ease(clamp((S.t - a.t0) / (a.t1 - a.t0), 0, 1));
-    return a.from + (a.to - a.from) * u;
+    return d.anim.from + (d.anim.to - d.anim.from) * ease(animU(d.anim));
   }
   function* slideDoor(r, from, to, approach) {
     yield* moveTo(r, from ? L.handleOpen : L.handleClosed, approach + 0.5);
     r.fing = 'handle';
-    W.door.anim = { from, to, t0: S.t, t1: S.t + 3.0 };
+    W.door.anim = anim(from, to, 3.0, 'R1', r);
     yield* moveTo(r, to ? L.handleOpen : L.handleClosed, 3.0);
     W.door.pos = to; W.door.anim = null; r.fing = 'open';
     yield* wait(0.5);
@@ -593,13 +713,19 @@
         // next cycle): spindle stopped, door stays locked; after the reset the program restarts from
         // the start with the same part
         const cycle = T.cncCycle, end = S.t + cycle, half = S.t + cycle / 2;
-        yield { k: 'c', fn: () => S.inject.cncAlarm && S.t < half - 1e-9, until: end };
-        if (S.t >= end - 1e-9) break;
-        yield { k: 't', until: half };
-        S.inject.cncAlarm = false;
+        yield { k: 'c', fn: () => (S.inject.cncAlarm && S.t < half - 1e-9) || estopOn(), until: end };
+        if (estopOn()) {
+          // the E-stop puts the CNC into feed hold at once: an alarm as in A6.3 (A6.5)
+          log('fault', 'E-stop → CNC feed hold: spindle stopped, CNC not ready (alarm), door stays locked');
+        } else if (S.t >= end - 1e-9) break;
+        else {
+          yield { k: 't', until: half };
+          S.inject.cncAlarm = false;
+          log('fault', 'CNC ALARM in the cycle → spindle stopped, CNC not ready, door stays locked');
+        }
         W.cnc.state = 'ALARM';
-        log('fault', 'CNC ALARM in the cycle → spindle stopped, CNC not ready, door stays locked');
         yield* wait(T.cncReset);
+        yield* until(() => !estopOn());
         log('operator', 'Operator removed the cause and reset the CNC alarm → the program restarts with the same part');
         W.cnc.state = 'RUN'; W.cnc.runStart = S.t;
       }
@@ -820,6 +946,7 @@
     mk('CONV', 646, 318);
     mk('R2', L.r2.x + 6, L.r2.y - 50);
     mk('SUP', 700, 24);
+    mk('SAF', 700, 50);
     dyn.innerHTML = s;
     const dp = doorPos();
     const v = {
@@ -963,11 +1090,14 @@
     const fault = SLOTS.find((k) => S.faults[k]);
     const op = activeHmi('load') || activeHmi('swap') || activeHmi('cnc') || activeHmi('tool');
     let txt = 'Running', cls = 'ok';
-    if (ev('lineStop')) { txt = 'Line stopped · verify sensors'; cls = 'bad'; }
+    if (ev('ESTOP.active')) { txt = MCH.SAF.state === 'S4' ? 'Emergency stop' : 'E-stop released · reset required'; cls = 'bad'; }
+    else if (ev('lineStop')) { txt = 'Line stopped · verify sensors'; cls = 'bad'; }
     else if (fault) { txt = `Fault · ${M.SLOTS[fault].label}`; cls = 'bad'; }
     else if (S.vars.QH) { txt = 'Quality hold'; cls = 'warn'; }
     else if (SUP.events.length) { txt = `Sensor mismatch ${SUP.events.length} / ${RU.mismatchLimit}`; cls = 'warn'; }
     else if (op) { txt = op.hmi.title; cls = 'op'; }
+    else if (MCH.SAF.state === 'S3') { txt = 'Protective stop · person in a loading zone'; cls = 'warn'; }
+    else if (MCH.SAF.state === 'S2') { txt = 'Reduced speed · person near a loading zone'; cls = 'warn'; }
     else if (gaugeWarn()) { txt = 'Size warning · offset check'; cls = 'warn'; }
     else if (!S.running) { txt = 'Paused'; cls = ''; }
     st.textContent = txt; st.className = 'st-text ' + cls;
@@ -979,7 +1109,11 @@
   function renderBanner() {
     const fault = SLOTS.find((k) => S.faults[k]);
     let key = '', title = '', text = '', cls = '', acts = [], list = [];
-    if (ev('lineStop')) {
+    if (ev('ESTOP.active')) {
+      // the operator releases the button, resets the relay and clears the faults (estopProc)
+      const h = stateOf('SAF', MCH.SAF.state).hmi;
+      key = 'estop:' + MCH.SAF.state; title = h.title; text = h.text; cls = h.cls;
+    } else if (ev('lineStop')) {
       const h = stateOf('SUP', MCH.SUP.state).hmi;
       key = `stop:${MCH.SUP.state}:${S.verify ? S.verify.i + ':' + S.verify.done : ''}:${S.inputs.verify}:${ev('CELL.stopped')}:${fault || ''}`;
       title = h.title;
@@ -1101,6 +1235,9 @@
     $('#btnCncAlarm').addEventListener('click', () => { S.inject.cncAlarm = true; log('info', 'Test: the CNC will raise an alarm in the middle of its running (or next) cycle'); });
     $('#btnOffsetErr').addEventListener('click', () => { W.cnc.offsetErr = -1.85; log('info', 'Test: the tool offset is wrong by 1.85 mm: the next parts are 48.15 mm (still OK) until it is corrected'); });
     $('#btnToolLife').addEventListener('click', () => { S.vars.toolCount = RU.toolLife - 1; log('info', 'Test: the tool life counter is set to its last part'); });
+    $('#btnEstop').addEventListener('click', () => spawn(estopProc(30)));
+    $('#btnPerson1').addEventListener('click', () => spawn(personProc(1, 20)));
+    $('#btnPerson2').addEventListener('click', () => spawn(personProc(2, 20)));
     $('#btnUnder').addEventListener('click', () => { S.inject.under++; log('info', 'Test: the next part to finish will be undersized in one dimension'); });
     $('#btnBand').addEventListener('click', () => { S.inject.band++; log('info', 'Test: the next part to finish will be in the guard band (48.00–48.05 mm) in one dimension'); });
     $('#btnMaster').addEventListener('click', () => { S.inject.master = true; log('info', 'Test: the next master check will read outside ± 0.010 mm'); });
@@ -1144,7 +1281,7 @@
   // hooks for the headless tests: run without drawing, read the trace and the counters
   window.CellSim = {
     get S() { return S; }, get W() { return W; }, MCH, TRACE, logs, ev, CP,
-    newSim, advance: (sec) => { const run = S.running; S.running = true; advance(sec); S.running = run; },
+    newSim, spawn, estopProc, personProc, advance: (sec) => { const run = S.running; S.running = true; advance(sec); S.running = run; },
     set instantVerify(v) { instant = !!v; },
     press: (act) => { const b = document.createElement('button'); b.dataset.act = act; $('#bnActions').appendChild(b); b.click(); b.remove(); },
   };

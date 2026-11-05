@@ -35,6 +35,10 @@ SCENARIOS = {
                  (("R1", "B2", 8), "camwrong", "CP-3"), (("R1", "B2", 10), "camwrong", "CP-5"),
                  (("R1", "B2", 12), "camwrong", "CP-1"), (("R1", "B2", 14), "stale", "CP-4"),
                  (("R1", "B2", 16), "camwrong", "CP-2"), (("CONV", "C4", 17), "glitch", "CP-3")],
+    # A6.5: a person during the pick of Robot 1 and during the place of Robot 2 (protective stops), E-stops
+    # while Robot 1 opens the door and while it waits at the door (30 s, relay reset, faults cleared)
+    "safety": [(("R1", "B1", 3), "person", 1), (("R1", "B3", 4), "estop", None), (("R2", "E5", 5), "person", 2),
+               (("R1", "B2", 8), "estop", None)],
     # the recorded demo (engine/PLC_DEMO.md): one camera error early, so that a FAULT and its clearing
     # are seen within the first four minutes
     "demo": [(("R1", "B2", 2), "camwrong", "CP-4")],
@@ -63,7 +67,8 @@ class Driver:
                 if (slot, sid) == key and self.count[key] == n:
                     {"fault": sim.toggle_sensor_fault, "broken": lambda c: sim.toggle_sensor_fault(c, broken=True),
                      "cncalarm": lambda _: sim.inject_cnc_alarm(), "camwrong": sim.inject_camera_wrong,
-                     "stale": sim.inject_stale_image, "glitch": sim.inject_glitch}[kind](cp)
+                     "stale": sim.inject_stale_image, "glitch": sim.inject_glitch,
+                     "person": lambda side: sim.inject_person(side, 20), "estop": lambda _: sim.press_estop(30)}[kind](cp)
                     self.actions.append([round(sim.t, 3), kind, cp])
                     self.todo.remove(item)
         self.seen = len(sim.trace)

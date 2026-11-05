@@ -349,6 +349,7 @@ nominal value was found below its bound; the closest is `r2ToNok` (1.5 s against
 | `cncReset` | 300 | 120 – 900 | alarm |  | Estimate (A6.3): operator reads the alarm, removes the cause (broken tool, chips, coolant), resets at the CNC panel; 2–15 min |
 | `toolChange` | 180 | 120 – 360 | service |  | Estimate (A6.4): operator takes the worn end mill out of the holder, fits a preset one, enters its offset; 2–6 min |
 | `offsetCheck` | 120 | 80 – 240 | service |  | Estimate (A6.4): operator measures a part, corrects the wear offset at the CNC panel; 80 s–4 min |
+| `safetyReset` | 30 | 20 – 60 | service |  | Estimate (A6.5): operator releases the E-stop button, looks over the cell, presses RESET at the safety relay; 20 s–1 min |
 
 CNC idle per part with every time at its minimum / maximum at once: 17 / 27.5 s (`KPI.idle2Range`;
 nominal 20.5 s). These are extremes, not a distribution: all times at one end together is
@@ -360,7 +361,8 @@ unlikely.
 (second image after an invalid one) · `confirmTimeout` 1.0 s · `minSize` 48.0 mm (specified limit) · `nominal` 50.0 mm
 · gauge (A2.2, §5.14): `guardBand` 0.05 mm · `masterTol` 0.010 mm · `masterEvery` 4 h · `validRange` [45, 52] mm ·
 `masterDist` 80 mm · `consecutiveNokHold` 2 · `palletSlots` 12 · tool and size drift (A6.4): `toolLife` 400 parts ·
-`offsetDrift` 0.002 mm per part · `warnMean` 5 · `warnLimit` 48.20 mm. `CONST` exposes `limit`, `slots`, `nokHold`,
+`offsetDrift` 0.002 mm per part · `warnMean` 5 · `warnLimit` 48.20 mm · safety status (A6.5): `reducedSpeed` 2
+(robot times × 2 while a person is in the warning field of its loading side). `CONST` exposes `limit`, `slots`, `nokHold`,
 `toolLife` to guards.
 
 ### 5.3 Checkpoints `CHECKPOINTS`
@@ -392,7 +394,8 @@ priced list is only in the round-1 answer in `submission/`). Tags used across th
   closed, ZS-33 guard lock, ZS-34 vise open, ZS-35 clamped, PS-36 part seated (SMC ISA3 air gap).
 - Conveyor: PE-41, PE-42 (through-beams), ENC-43 (encoder on an idler roller), CAM-2.
 - Robot 2 / output: GR-51, PX-52, LT-53 blue beacon.
-- Cell: LT-01 stack light, SC-01/SC-02 area scanners, PLC-01.
+- Cell: LT-01 stack light, SC-01/SC-02 area scanners (warning and protective field, A6.5), ES-01/02/03
+  E-stop buttons on the safety relay (A6.5), PLC-01.
 - Gauge and sorting: LS-61/62/63 laser displacement sensors (Keyence IL-065), PX-64, PE-65 NOK
   drop, MST-60 master cube, YV-66 air blow-off of the nest (A2.2).
 
@@ -402,12 +405,12 @@ Every name has a `kind`:
 
 | kind | Meaning | Examples |
 |---|---|---|
-| `sensor` | Device signal. Simulator reads its plant; verifier an abstract plant | `ZS-31`, `ENC-43`, `CNC.done`, `R1.clearCnc`, `GAUGE.ok`, `outCount` |
+| `sensor` | Device signal. Simulator reads its plant; verifier an abstract plant | `ZS-31`, `ENC-43`, `CNC.done`, `R1.clearCnc`, `GAUGE.ok`, `outCount`; A6.5: `ESTOP`, `SC-01.warn`, `SC-01.prot`, `SC-02.warn`, `SC-02.prot`, `R1.safeStop`, `R2.safeStop` (protective stop reported by the robot controller) |
 | `check` | Fused result of the **last cross-check made by the machine that reads it** (on disagreement, the rule of the checkpoint, §5.3). A machine never reads another machine's check | `CP-1`…`CP-5`, `CAM-1.part` |
 | `var` | PLC variable written by steps | `partPlaced`, `pickAllowed`, `partPicked`, `QH`, `consecNok`, `toolCount` (A6.4), `mismatches`, `CAM_FAULT` |
-| `input` | Operator / technician button | `HMI.clear`, `HMI.verify`, `HMI.reset`, `HMI.release`, `HMI.tool` (A6.4), `VERIFY.pass`, `VERIFY.fail` |
-| `derived` | Defined by `def` (expression) | `BELT.free`, `PALLET.full`, `PALLET.empty`, `lineStop`, `FAULT.any`, `CELL.stopped`, `HOLD.req` |
-| `truth` | Physical truth, **only for properties** (lint forbids them in guards) | `TRUE.entryPart`, `TRUE.outPallet`, `TRUE.r2Nok` |
+| `input` | Operator / technician button | `HMI.clear`, `HMI.verify`, `HMI.reset`, `HMI.release`, `HMI.tool` (A6.4), `HMI.safety` (A6.5: relay reset), `VERIFY.pass`, `VERIFY.fail` |
+| `derived` | Defined by `def` (expression) | `BELT.free`, `PALLET.full`, `PALLET.empty`, `lineStop`, `FAULT.any`, `CELL.stopped`, `HOLD.req`, `ESTOP.active` (A6.5: `SAF=S4 \| SAF=S5`) |
+| `truth` | Physical truth, **only for properties** (lint forbids them in guards) | `TRUE.entryPart`, `TRUE.outPallet`, `TRUE.r2Nok`, `TRUE.jobRuns` (A6.5) |
 
 Other fields: `on` / `off` (diagram text for true / false; `{TAG}` = sensor, `[CP-n]` =
 checkpoint, `*bold*`), `ask` (question text when the signal decides a choice state), `tags`
@@ -470,13 +473,17 @@ Semantics shared by both simulators:
   the hold), while waiting (the state is entered again), or at once after a camera fault (the same
   check is repeated). `hold: false` on a state or transition = a LINE STOP does not interrupt it
   (a running transport finishes). Robots park in H; exit when `!HOLD.req`.
-- `SUP` is `urgent`: it reacts in the same scan as the check that caused it.
+- `SUP` is `urgent`: it reacts in the same scan as the check that caused it. `SAF` (A6.5) too.
+- `fault.force` (A6.5): while it holds (`ESTOP.active`), the machine enters F at once from every state
+  (also from H and from a running job). The fault exit is `HMI.clear & !ESTOP.active`. After an
+  E-stop the machine continues exactly where it stopped: a stopped job goes on, a waiting step is
+  taken up again (a FAULT for any other cause still repeats the state, A2.1).
 - `band` drives the CNC-idle KPI and the timing chart: every Robot 1 state with `band: 'idle'`
   counts toward CNC idle time.
 
-### 5.9 The four machines
+### 5.9 The five machines
 
-`SETUP_MACHINES = { 2: [R1S2, CONV, R2S2, SUP] }` (the key 2 keeps the names `R1S2`, `R2S2` and
+`SETUP_MACHINES = { 2: [R1S2, CONV, R2S2, SUP, SAF] }` (SAF since A6.5) (the key 2 keeps the names `R1S2`, `R2S2` and
 `cell_setup2_*` stable). The single-gripper machines `R1S1` and `R2S1` exist only in the branch
 `legacy-setup1-setup2`.
 
@@ -485,7 +492,7 @@ Semantics shared by both simulators:
 | State | Does | Leaves when |
 |---|---|---|
 | B0 START-UP CHECKS | home | `R1.home & CNC.ready & ZS-32` → B1 |
-| B1 PICK RAW PART (A) (run) | check CP-1, `R1.pickRawA` | `GR-21A` → B2; no pallet/part → W1 |
+| B1 PICK RAW PART (A) (run) | check CP-1, await `!SC-01.prot` (A6.5), `R1.pickRawA` | `GR-21A` → B2; no pallet/part → W1 |
 | B2 WAIT AT CNC DOOR (run, wait) | `R1.toDoorReady` | `!CNC.ready` → W2; `(CNC.done & !ZS-33) \| CNC.empty` → B3 |
 | B3 OPEN DOOR (B) (idle) | `R1.openDoor` | `ZS-31 & !ZS-32` → B4 |
 | B4 EXCHANGE PARTS (idle) | `R1.enterCnc`; `R1.unloadB` if `PS-36` (confirm `GR-21B & ZS-34 & !PS-36`); `R1.loadA` | `ZS-35 & PS-36 & !GR-21A & R1.clearCnc` → B5 |
@@ -516,7 +523,7 @@ run band), which is where the 16 s of CNC idle time are saved compared with the 
 E0 start-up (home, CP-4, CP-5 nest empty, `GAUGE.master` confirmed by `GAUGE.zeroed`, home) → E1 wait for
 part (first, if `GAUGE.due | !GAUGE.zeroed`: CP-5 and `GAUGE.master`; leaves to E2 only with
 `GAUGE.zeroed`) → E2 pick → E3 load gauge (blow-off, check CP-5) → E4 measure (`GAUGE.measure`, until `GAUGE.valid`) → Q_E4 `GAUGE.ok`:
-yes → E5 place OK part (consecNok = 0, re-pick, CP-4, place) → Q_E5 `PALLET.full` → E7 swap or E1;
+yes → E5 place OK part (consecNok = 0, re-pick, CP-4, await `!SC-02.prot` (A6.5), place) → Q_E5 `PALLET.full` → E7 swap or E1;
 no → E6 NOK chute (re-pick, drop, `inc consecNok`, `QH = true` when `consecNok >= 2`; leaves on
 `PE-65`). The rung `HMI.release & QH → QH=false, consecNok=0` releases the quality hold. The rung
 `HMI.tool & R1=W3 → toolCount=0` (A6.4) resets the tool life counter, only while Robot 1 waits for the change.
@@ -528,10 +535,21 @@ X1 NORMAL → X3 on `CAM_FAULT`, → X2 on `mismatches>0`. X2 MISMATCH WARNING �
 `CELL.stopped & HMI.verify`. X4 SENSOR VERIFICATION → X1 on `VERIFY.pass & HMI.reset` (clears
 `mismatches` and `CAM_FAULT`); `VERIFY.fail` stays in X4.
 
+**SAF — safety status (urgent, A6.5, fig. 15)**
+
+What the PLC sees of the safety relay, the scanners and the robot controllers; the stopping is
+hardwired. S1 RUN → S4 on `ESTOP`, → S3 on `R1.safeStop | R2.safeStop`, → S2 on `SC-01.warn |
+SC-02.warn`. S2 REDUCED SPEED (amber; the robot of that side at half speed) → S4, S3, or S1 when both
+warning fields are clear. S3 PROTECTIVE STOP (amber; the robot pauses, restarts by itself) → S4, or
+S2 / S1 when no robot is stopped. S4 EMERGENCY STOP (red; every machine with `fault.force` in F, CNC
+feed hold) → S5 on `!ESTOP`. S5 RESET REQUIRED → S4 on `ESTOP`, → S1 on `HMI.safety` (relay reset);
+the operator then clears the FAULTs.
+
 ### 5.10 Outputs `OUTPUTS` (Moore outputs)
 
 `BELT.motor = CONV=C3` · `LT-53 = R2=E7` (blue, pallet full) · `LT-01.red = lineStop |
-FAULT.any` · `LT-01.amber` = no red and (`mismatches>0 | QH | R1=W1`) · `LT-01.green` otherwise.
+FAULT.any | ESTOP.active` · `LT-01.amber` = no red and (`mismatches>0 | QH | R1=W1 | R1=W2 | R1=W3 |
+GAUGE.warn | SAF=S2 | SAF=S3`) · `LT-01.green` otherwise.
 
 ### 5.11 Properties `PROPERTIES`
 
@@ -552,6 +570,8 @@ FAULT.any` · `LT-01.amber` = no red and (`mismatches>0 | QH | R1=W1`) · `LT-01
 | P13 | never | `SUP=X1 & TRUE.brokenFound` (added in A6.2: the line never resumes with a sensor whose test failed). Checked by the simulators and the PLC run; holds trivially in the verifier, whose sensor faults are wrong values at single checks, not sensors that stay broken |
 | P14 | at start of `R1.enterCnc`, `CNC.start` | `CNC.ready` (added in A6.3: Robot 1 enters the CNC and CYCLE START is sent only without a CNC alarm) |
 | P15 | at start of `CNC.start` | `!TOOL.due` (added in A6.4: no CYCLE START while the tool change is due) |
+| P16 | never | `ESTOP.active & TRUE.jobRuns` (added in A6.5: no robot job runs during an E-stop or before the relay is reset) |
+| P17 | at start of `R1.pickRawA` / `R2.placePallet` | `!SC-01.prot` / `!SC-02.prot` (added in A6.5: no job in a loading zone is started while a person is in its protective field; `require` per job) |
 | L1 | AG EF (goal stays reachable) | `R1.job=CNC.start` |
 | L2 | AG EF | `R2.job=R2.placePallet` |
 | L3 | AG EF | `SUP=X1` |
@@ -627,7 +647,7 @@ Measured by the Python engine over a whole run (`CellSim.measures()`), reported 
 | Time not machining | Run time minus the time the CNC is in RUN. Machining share = RUN time / run time. The 85.4 % of the nominal cycle (120 / 140.5 s) is this share for a nominal exchange; it is **not** availability or OEE (no planned time, no quality or performance factor) |
 | Parts per hour | Parts that left the cell (placed on the output pallet or dropped as NOK) / run hours |
 | Good parts per hour | Parts placed on the output pallet / run hours |
-| Time lost by cause | Every instant in which the CNC is not machining is charged to **one** cause, the first that applies at that instant, so the causes add up to the time not machining: start-up (before the first CYCLE START) > fault (a machine in FAULT) > CNC alarm (A6.3: the CNC in alarm, plus the part of the cycle cut before the alarm, which is cut again) > line stop (`HOLD.req`: line stop or camera fault) > quality hold (`QH`) > tool change (A6.4: Robot 1 in W3) > material shortage (Robot 1 in W1, no raw part) > pallet change (Robot 2 in E7, output pallet full) > exchange (the normal part change) |
+| Time lost by cause | Every instant in which the CNC is not machining is charged to **one** cause, the first that applies at that instant, so the causes add up to the time not machining: start-up (before the first CYCLE START) > safety stop (A6.5: SAF in S3, S4 or S5, or a FAULT from the E-stop not yet cleared) > fault (a machine in FAULT) > CNC alarm (A6.3: the CNC in alarm, plus the part of the cycle cut before the alarm, which is cut again) > line stop (`HOLD.req`: line stop or camera fault) > quality hold (`QH`) > tool change (A6.4: Robot 1 in W3) > material shortage (Robot 1 in W1, no raw part) > pallet change (Robot 2 in E7, output pallet full) > exchange (the normal part change) |
 
 The causes are read from the states and signals of the model, not from the plant. A cause is
 charged while it holds, also when another machine could have hidden it (a FAULT of Robot 2 during a
@@ -1089,7 +1109,7 @@ violation; tables, plots and reading in `engine/studies/STUDIES.md`):
 What the author decides: the factors and their ranges, n and the 8-h shift, the definition of logic
 availability, the scenarios (a) and (b) of S3, and that the rates are chosen values.
 
-### 5.19 More realistic plant (A6.1 approved 2026-11-02; A6.2, A6.3, A6.4 done)
+### 5.19 More realistic plant (A6.1 approved 2026-11-02; A6.2, A6.3, A6.4, A6.5 done)
 
 The four items of §15 A6 close the limitations 4, 5 and 6 of §13 and the tool-wear warning placed in
 A6 by A2.2. Each item is one step (A6.2–A6.5) and goes through the whole chain: model, both
@@ -1294,6 +1314,62 @@ below **48.20 mm**; the five safety states with reduced speed × 2; the times pr
   10,764,730 / 59,410,388), 718 s; the other 4 runs the same states and transitions as before. The
   `.smv` files in `verification/` are the new ones.
 
+**A6.5 as built (2026-11-04).**
+
+- Model: machine **SAF** (`urgent`, fig. 15) with S1 RUN, S2 REDUCED SPEED, S3 PROTECTIVE STOP,
+  S4 EMERGENCY STOP, S5 RESET REQUIRED; sensors `ESTOP` (safety relay status, E-stop buttons
+  ES-01/02/03), `SC-01.warn` / `.prot`, `SC-02.warn` / `.prot` and `R1.safeStop` / `R2.safeStop`;
+  input `HMI.safety` (relay reset); derived `ESTOP.active` = S4 or S5. The FAULT of Robot 1, the
+  conveyor and Robot 2 has `force: 'ESTOP.active'` and the exit `HMI.clear & !ESTOP.active`.
+  Rule `reducedSpeed` 2, time `safetyReset` 30 s (kind `service`). Red light during S4/S5, amber
+  in S2/S3. Properties **P16** and **P17** (§5.11).
+- **Deviations from the approved text.** (1) **P17** reads "no job in a loading zone is *started*
+  while a person is in its protective field": the PLC waits for a free field before the pick (B1)
+  and the place (E5). Pausing a job already running is the safety function of the robot controller
+  (protective stop), which the model does not claim; the simulators and the verifier pause it in the
+  plant. A property "no robot *works* there" would only restate that plant behaviour. (2) The
+  protective stop reaches the PLC as a status signal of the robot controller (`R1.safeStop` /
+  `R2.safeStop`), not computed by the PLC from the job zones. (3) Reduced speed acts on the robot of
+  the side whose warning field is occupied (SC-01 → Robot 1, SC-02 → Robot 2), not on both.
+- **E-stop: the machines continue where they stopped.** The running job stops where it is (its time
+  is frozen, the door slide too) and the machine shows F with the cause "E-stop"; a machine that
+  waits is interrupted at once. After the relay reset and the clear, the job goes on and the
+  machine takes up the step it was in. A running CNC goes to feed hold = an alarm of A6.3 (reset
+  after `cncReset`, not before the relay reset), the belt stops (conveyor in F). **Finding:** the
+  first version entered the state again after the E-stop (as after any FAULT). A random 8 h run then
+  stopped Robot 1 for good: an E-stop after the raw part was in the vise, B4 repeated, gripper B took
+  the raw part out again and the vise stayed empty (FAULT "PS-36" after every clear). The recovery
+  rules of A2.1 hold for a FAULT after a job, not for a stop in the middle of a state; "the robots
+  repeat their step" is therefore read as the interrupted step.
+- **In the verifier** (classes `estop` and `person`, each run alone without other faults): `estop`:
+  the E-stop button changes at any time; every location of a machine with `fault.force` enters F
+  urgently and remembers it (`<slot>_ret`), F returns to it after the reset and the clear; the CNC
+  feed hold is urgent. `person`: one person (outside, in the warning or in the protective field of
+  side 1 or 2) moves at any time; a job in a loading zone cannot end while its robot is in a
+  protective stop. Both together in one run went past 100 million states (stopped); they act
+  independently on the logic (the E-stop wins over everything). Without the classes these commands
+  are not generated, so the other runs only gain the two new await steps.
+- Disturbances: `sim.press_estop(hold)` (button "E-stop", 30 s), `sim.inject_person(side, prot)`
+  (buttons "Person at the input side" / "output side", 20 s in the protective field), each with
+  3 s in the warning field before and after; the operator resets the relay after `safetyReset` and
+  clears the faults. Random runs: `run_random(..., safety=True)` and the browser `conform` with faults
+  add 1 person per hour and 0.2 E-stops per hour (own random streams, chosen rates).
+- KPI (Python): new cause **safety stop** after start-up (§5.15); `stats["estops"]`,
+  `stats["protective_stops"]`. Reduced speed costs exchange time and is not a cause of its own.
+- PLC: regenerated (SAF, the awaits, the new inputs). The E-stop FAULT (code 1) freezes the machine:
+  state, step, phase and the job handshake are kept (`eRes`, `eStp`, `ePh`) and the machine continues
+  there after the exit, like the simulators; the robot controller finishes the stopped move and
+  reports Done. The bridge pulses `HMI.safety`. New OpenPLC scenario `safety` in `plc_compare.py`
+  (a person during the pick and during the place, E-stops while Robot 1 opens the door and while the
+  belt transports): the reference run has 0 errors and 0 violations.
+- Tests: `test_engine` `test_safety_stops` (person during the pick: S3, pick paused, resumes; E-stop
+  while opening the door: all three machines in F, no restart before the relay reset, the move goes
+  on); `test_random_disturbances` with `safety=True`; parity scenario `safety` (persons
+  during the pick of Robot 1 and the place of Robot 2, E-stops while Robot 1 opens the door, loads the
+  vise and waits), browser and Python identical. Regression re-recorded (`regression/README.md`,
+  step A6.5); the nominal runs only gain the start of SAF (one state change).
+VERIF_A65
+
 **Done when** (A6 as a whole): the four items are in the model, both simulators (parity identical),
 the verifier (every property holds in every run, the new runs included), the PLC program (compiled
 by matiec, the OpenPLC comparison passes in its scenarios), the figures and the KPI causes; NuSMV
@@ -1377,6 +1453,10 @@ sim.state("R2"); sim.kpis(); sim.measures(); sim.trace; sim.logs; sim.stats; sim
   `sim.inject_offset_error()` (button "Offset error"): the parts come out 1.85 mm small (48.15 mm,
   still OK) until the offset is corrected; the size warning follows after 5 parts, the operator
   corrects the offset in `T.offsetCheck` (no stop); `sim.stats["offset_checks"]`.
+- `sim.press_estop(hold=60)` and `sim.inject_person(side, prot=20)` (A6.5, browser buttons "E-stop",
+  "Person at the input side", "Person at the output side"): see §5.19; `sim.stats["estops"]`,
+  `sim.stats["protective_stops"]`, loss cause "safety stop". `run_random(..., safety=True)` adds
+  them at `scenarios.PERSON_RATE` and `scenarios.ESTOP_RATE`.
 - `scenarios.run_random(setup, hours, faults, seed, random_times=False)` (about one disturbance every 14 min) and
   `scenarios.conformance(sim)` (every state change must be a model transition).
 - Tests (`test_engine.py`): export current; nominal idle = KPI every cycle; faulty CP-2 (dead
@@ -1548,7 +1628,7 @@ branch `legacy-setup1-setup2`.
 | `node test_sim.js s2` | Two undersized parts → NOK chute and quality hold |
 | `node test_sim.js mobile` | No horizontal scroll at 400 px |
 | `node test_sim.js conform` | 20 h of simulated operation (2 h nominal; 2 h, 8 h and 8 h with random faults; seeds 1–4): every state change is a model transition, every job takes its model time, no property violated, nominal idle = KPI |
-| `node test_sim.js engine` | Browser and Python traces identical (6 scenarios × 1 h: nominal; dead PE-41; broken PE-41 replaced in the verification (A6.2); two CNC alarms (A6.3); tool life end and offset error (A6.4); camera wrong / stale image / proximity glitch at all five checkpoints), same property violations |
+| `node test_sim.js engine` | Browser and Python traces identical (7 scenarios × 1 h: nominal; dead PE-41; broken PE-41 replaced in the verification (A6.2); two CNC alarms (A6.3); tool life end and offset error (A6.4); persons in the loading zones and E-stops (A6.5); camera wrong / stale image / proximity glitch at all five checkpoints), same property violations |
 | `npm test` | All the `test_sim.js` modes |
 | `npm run regress` | Setup 2 fingerprint identical to `regression/setup2_reference.json` (KPIs, state times, NuSMV models, figures, browser and Python traces, no page errors) |
 | `python -m unittest test_engine` (in `engine/`) | §7 |
@@ -1633,8 +1713,15 @@ Gotchas met before:
 5. **CNC alarm** (resolved in A6.3, §5.19): one class of alarm, at half of the cycle in the
    simulators (anywhere in the cycle in the verifier), reset by the operator after a chosen time;
    the restarted program cuts the finished faces again in air (no part is aborted).
-6. **Safety (E-stop, scanners SC-01/02, door interlock circuit)** is described as hardwired and not
-   modelled in the state machines; properties P1–P4 check the PLC logic only.
+6. **Safety (E-stop, scanners SC-01/02, door interlock circuit)** (status modelled in A6.5, §5.19):
+   the PLC follows the safety relay, the scanners and the robot controllers in the machine SAF and
+   recovers (P16, P17, L1–L3). The safety functions themselves (stopping, ISO 10218 / ISO 13849,
+   performance level) stay hardwired and are not claimed; the door interlock circuit is not modelled
+   (P1–P4 check the PLC logic only). Open: one person at a time in the verifier; the pallet changes
+   of the operator do not occupy the scanner fields (muted in the model); the CNC feed hold costs a
+   full `cncReset`; the E-stop and the person are verified in two separate runs; in the OpenPLC run
+   the stopped job may end between the relay reset and the clear (the plant follows SAF), in the
+   simulators only after the clear.
 7. **CI does not run NuSMV** nor the two large verification runs; they are run locally (§11).
 8. **Private claude.ai simulator page** may lag behind `simulation/index.html` if the simulator is
    rebuilt; the GitHub Pages one is the reference.
@@ -1743,7 +1830,7 @@ green. Effort figures are indicative only.
 | A3 PLC demonstration | In progress: A3.1 execution semantics approved (2026-10-30); A3.2 generator done (2026-10-31); A3.3 OpenPLC and bridge done, A3.4 comparison passed in 3 scenarios × 1 h (2026-10-31); recorded demo prepared (`engine/PLC_DEMO.md`), not recorded yet. Merged into `main` 2026-10-31 | `a3-plc` → `main` | |
 | A4 Timed verification (UPPAAL) | Done: A4.1 timed model approved (2026-10-31); A4.2 generator and UPPAAL models done, checked by simulation (2026-10-31); A4.3 bounds with `verifyta` in CI (2026-11-01): idle 17.00–27.45 s, period 131.00–153.45 s, raw pick to output pallet up to 335.70 s; A4.4 Python engine with random step times inside the bounds (19.50–25.38 s in 3 × 24 h) (2026-11-01). Merged into `main` 2026-11-01 | `a4-uppaal` → `main` | |
 | A5 Studies with the Python engine | Done: A5.1 study design approved (2026-11-01, §5.18); A5.2 engine options, harness, S1 and S4; A5.3 S2, S3, workflow `studies`, `engine/studies/STUDIES.md` (2026-11-01): 1 620 runs of 8 h, no model error or violation. Merged into `main` 2026-11-01 | `a5-studies` → `main` | 2026-11-01 |
-| A6 More realistic plant | In progress: A6.1 design approved (2026-11-02, §5.19); A6.2 `VERIFY.fail` and broken sensor done (2026-11-02); A6.3 CNC alarm done (2026-11-03); A6.4 offset drift, tool change and early warning done (2026-11-04); next A6.5 safety status | `a6-plant` | |
+| A6 More realistic plant | In progress: A6.1 design approved (2026-11-02, §5.19); A6.2 `VERIFY.fail` and broken sensor done (2026-11-02); A6.3 CNC alarm done (2026-11-03); A6.4 offset drift, tool change and early warning done (2026-11-04); A6.5 safety status done (2026-11-04); next: end of A6 (NuSMV re-run with `slots: 'any'` and a longer timeout, timed re-run) | `a6-plant` | |
 | B Element framework (types, three levels of detail) | Not started | | |
 | C Factory and scheduling | Not started | | |
 
@@ -2117,3 +2204,4 @@ Newest last. Every change to the plan or to a design rule is written here first 
 | 2026-11-03 | **A6.3 done**, choices made by Claude within the approved design: the alarm of the simulators falls at half of the cycle (deterministic, for the parity test), anywhere in the cycle in the verifier; the reset is done by the operator at the CNC panel after `T.cncReset` without a button at the cell HMI; new kind of time `alarm` (−60 % / +200 %) so that the approved 2–15 min fits; W2 returns to B2 (the door-ready move is repeated) instead of a guard of its own to B3; the cut part of the aborted cycle is charged to the loss cause "CNC alarm"; 0.5 alarms per hour of machining in the random runs, own random stream. **Design correction:** B6 also leaves on `!CNC.ready`, because the verifier found that an alarm right after CYCLE START led to a second CYCLE START after the B6 timeout (P2 and P14 violated) | W2 back to B2 keeps one place where the door is opened; charging the cut part to the alarm keeps the machining share a measure of useful machining; the B6 change is the smallest one that removes the second CYCLE START |
 | 2026-11-02 | **A6.2 done**, choices made by Claude within the approved design: no new state (the X4 loop exists) and P13 as a `never` property over a truth signal `TRUE.brokenFound`, trivially true in the verifier (its sensor faults are single wrong values, not broken sensors) and checked by the simulators and the PLC run; new kind of time `service` (−33 % / +100 %) for manual work; the replacement takes simulated time also with the instant verification of the tests; a reset pressed during the replacement stays latched; broken sensors drawn from their own random stream in the random runs; parity and PLC scenario `cp2broken`. Regression re-recorded: only the NuSMV models (P13) and the Python 8 h random run (3 of its 6 sensor faults now broken) differ | A property over a transition would need a new kind of property in every checker; with the instant verification a broken sensor would otherwise cost no time; the own stream keeps the other disturbances of the random runs where they were |
 | 2026-11-04 | **A6.4 done**, choices made by Claude within the approved design: the tool change between two cycles in a new Robot 1 state W3 (before the door is opened), confirmed by the operator on the HMI (`HMI.tool`, accepted only in W3); the counter counts CYCLE STARTs and is retained; the size warning is computed by the gauge station (`GAUGE.warn`), not by the PLC as the design said; the offset check stops nothing and costs no time in the KPI; a tool change and an offset correction both reset the drift; test injections "Tool life end" and "Offset error" (−1.85 mm). **Finding:** with N = 400 and 0.002 mm per part the warning never fires in normal operation (at most 0.8 mm of drift). The tool change is not in an OpenPLC scenario | The PLC does not read sizes and `GAUGE.ok` is already decided by the gauge station; changing the tool before the door opens keeps the exchange unchanged; preset of the counter from the bridge would need a test path into the PLC that the real cell would not have |
+| 2026-11-04 | **A6.5 done**, choices made by Claude within the approved design: machine SAF with the five approved states and reduced speed × 2; P17 as a start property of the PLC (no job in a loading zone is started while a person is in its protective field; the PLC waits before the pick and the place), the protective stop as a status signal of the robot controller (`R1.safeStop` / `R2.safeStop`), reduced speed only for the robot of the occupied side; the E-stop forces F through a new `fault.force` of the model; after the reset and the clear every machine continues where it stopped (the first version repeated the state and a random run found that this empties the vise, see §5.19); CNC feed hold = alarm of A6.3 (full `cncReset`); new time `safetyReset` 30 s; verification runs `estop` and `person`, each without other faults (both together exceeded 100 million states); chosen rates for the random runs (1 person and 0.2 E-stops per hour); the PLC keeps state, step and job handshake through the E-stop FAULT; OpenPLC scenario `safety` | The PLC cannot stop a robot, so a property about a running job would only restate the plant; a status bit of the robot controller is what a real PLC reads; continuing the interrupted step is what a robot program does after a stop and needs no recovery rule; one person at a time keeps the run `person` small | §5.9, §5.11, §5.19, §13 item 6 |

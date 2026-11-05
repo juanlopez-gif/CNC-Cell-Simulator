@@ -113,7 +113,7 @@ function conformance(trace, setup) {
     if (mode === 'engine') {
       // the Python engine (engine/) must give the same state changes at the same instants
       await page.click('#btnRun');
-      for (const [setup, scenario] of [[2, 'nominal'], [2, 'cp2fault'], [2, 'cp2broken'], [2, 'cncalarm'], [2, 'toolwear'], [2, 'camwrong']]) {
+      for (const [setup, scenario] of [[2, 'nominal'], [2, 'cp2fault'], [2, 'cp2broken'], [2, 'cncalarm'], [2, 'toolwear'], [2, 'safety'], [2, 'camwrong']]) {
         const errsBefore = errors.length;
         const js = await page.evaluate((setup, scenario) => {
           const C = window.CellSim;
@@ -128,6 +128,9 @@ function conformance(trace, setup) {
             if (scenario === 'cncalarm' && (t === 300 || t === 1500)) document.querySelector('#btnCncAlarm').click();   // A6.3
             if (scenario === 'toolwear' && t === 300) document.querySelector('#btnToolLife').click();     // A6.4
             if (scenario === 'toolwear' && t === 1200) document.querySelector('#btnOffsetErr').click();   // A6.4
+            // safety (A6.5): the same table as SAFETY in engine/trace.py
+            const SAFETY = { 310: 'Person1', 430: 'Estop', 530: 'Person2', 640: 'Estop', 1500: 'Person1', 2250: 'Estop' };
+            if (scenario === 'safety' && SAFETY[t]) document.querySelector('#btn' + SAFETY[t]).click();
             if (scenario === 'camwrong' && CAMWRONG[t]) document.querySelector(`#cpTable tr[data-cp="${CAMWRONG[t][1]}"] button[data-inj="${CAMWRONG[t][0]}"]`).click();
             C.advance(10);
             if (scenario !== 'nominal' && Object.keys(C.S.faults).some((k) => C.S.faults[k])) C.press('clear');
@@ -171,6 +174,8 @@ function conformance(trace, setup) {
           const rndB = () => { b = (b + 0x6D2B79F5) >>> 0; let t = b; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
           let a2 = (run.seed * 69069 + 13) >>> 0;                       // own stream for the CNC alarms (A6.3)
           const rndA = () => { a2 = (a2 + 0x6D2B79F5) >>> 0; let t = a2; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+          let s2 = (run.seed * 22695477 + 1) >>> 0;                     // own stream for the safety disturbances (A6.5)
+          const rndS = () => { s2 = (s2 + 0x6D2B79F5) >>> 0; let t = s2; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
           C.instantVerify = true;
           C.newSim(run.setup);
           C.S.running = false;
@@ -200,6 +205,9 @@ function conformance(trace, setup) {
             }
             // CNC alarms: 0.5 per hour of machining (A6.3)
             if (run.faults && C.W.cnc.state === 'RUN' && !S.inject.cncAlarm && rndA() < 0.5 * 10 / 3600) { document.querySelector('#btnCncAlarm').click(); inj('CNC alarm'); }
+            // persons in the loading zones (1 per hour) and E-stops (0.2 per hour), own stream (A6.5)
+            if (run.faults && rndS() < 1.0 * 10 / 3600) { const side = rndS() < 0.5 ? 1 : 2; C.spawn(C.personProc(side, 5 + rndS() * 35)); inj('person at side ' + side); }
+            if (run.faults && rndS() < 0.2 * 10 / 3600) { C.spawn(C.estopProc(10 + rndS() * 50)); inj('E-stop'); }
             // the operator is sometimes away: the input pallet runs empty (Robot 1 waits in W1)
             if (run.faults && rnd() < 0.003) { S.autoOp = !S.autoOp; inj(S.autoOp ? 'operator back' : 'operator away'); }
             // operator and technician
@@ -219,6 +227,10 @@ function conformance(trace, setup) {
         console.log('  transitions not in the model:', c.errs.length ? '\n  ' + c.errs.slice(0, 20).join('\n  ') : 'none');
         console.log('  property violations:', res.stats.violations);
         console.log('  states never visited:', JSON.stringify(c.unvisited));
+        // the longest stays in one state (a machine that hangs shows here)
+        const last = {}, stays = [];
+        res.trace.forEach((e) => { if (last[e.slot]) stays.push([e.slot, last[e.slot].to, last[e.slot].t, e.t - last[e.slot].t]); last[e.slot] = e; });
+        console.log('  longest stays:', stays.filter((x) => x[0] !== 'SUP' && x[0] !== 'SAF').sort((x, y) => y[3] - x[3]).slice(0, 4).map((x) => `${x[0]} ${x[1]} ${Math.round(x[3])} s at ${Math.round(x[2])} s`).join(' · '));
         if (!run.faults) {
           const okIdle = res.avgIdle != null && Math.abs(res.avgIdle - kpi) < 0.005;
           console.log(`  mean CNC idle ${res.avgIdle == null ? '-' : res.avgIdle.toFixed(3)} s, model KPI ${kpi} s → ${okIdle ? 'equal' : 'DIFFERENT'}`);
