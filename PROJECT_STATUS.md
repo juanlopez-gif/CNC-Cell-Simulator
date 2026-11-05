@@ -1362,6 +1362,12 @@ below **48.20 mm**; the five safety states with reduced speed × 2; the times pr
   reports Done. The bridge pulses `HMI.safety`. New OpenPLC scenario `safety` in `plc_compare.py`
   (a person during the pick and during the place, E-stops while Robot 1 opens the door and while the
   belt transports): the reference run has 0 errors and 0 violations.
+  First OpenPLC run (2026-11-05, 1 h): `nominal` passed; `safety` stopped after the first E-stop:
+  Robot 2, which waited in E1 without a job, never finished its next job. Plant bug of the bridge,
+  not of the PLC program: with the machines in the PLC the plant marks every machine as stopped by
+  the E-stop and only a machine with a running job cleared the mark. Fix in `sim.py`: in PLC mode
+  the mark ends when the PLC takes the machine out of F (`ext_state`), the stopped job goes on then;
+  test `test_estop_with_the_plc`. OpenPLC run of `safety` repeated after the fix: see below.
 - Tests: `test_engine` `test_safety_stops` (person during the pick: S3, pick paused, resumes; E-stop
   while opening the door: all three machines in F, no restart before the relay reset, the move goes
   on); `test_random_disturbances` with `safety=True`; parity scenario `safety` (persons

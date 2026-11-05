@@ -235,6 +235,31 @@ class EngineTest(unittest.TestCase):
         self.assertGreater(sim.stats["cycles"], 12)
         self.assertClean(sim)
 
+    def test_estop_with_the_plc(self):
+        # A6.5, found by the OpenPLC run of scenario safety: with the machines in the PLC (plc_bridge), a
+        # machine that waits without a job during the E-stop must run its next job once the PLC has taken
+        # it out of F; a job stopped by the E-stop goes on when the PLC leaves F.
+        sim = CellSim(seed=1, external=True, auto_operator=True, instant_verify=True)
+        for slot, sid in (("SAF", "S1"), ("R1", "B2"), ("CONV", "C1"), ("R2", "E1")):
+            sim.ext_state(slot, sid)
+        sim.ext_state("R1", "B3")
+        sim.ext_job("R1", "R1.openDoor")
+        sim.advance(1)
+        sim.ext_state("SAF", "S4")
+        for slot in ("R1", "CONV", "R2"):
+            sim.ext_state(slot, "F", "PLC fault code 1")
+        sim.advance(60)
+        self.assertIsNone(sim.ext["done"]["R1"], "the stopped job waits for the PLC")
+        sim.ext_state("SAF", "S1")
+        for slot, sid in (("R1", "B3"), ("CONV", "C1"), ("R2", "E1")):
+            sim.ext_state(slot, sid)
+        sim.advance(10)
+        self.assertIsNotNone(sim.ext["done"]["R1"])
+        sim.ext_state("R2", "E2")
+        sim.ext_job("R2", "R2.pickConv")
+        sim.advance(30)
+        self.assertIsNotNone(sim.ext["done"]["R2"], "Robot 2 waited without a job during the E-stop")
+
     def test_quality_hold_after_two_nok_parts(self):
         sim = CellSim(seed=1)
         sim.advance(600)

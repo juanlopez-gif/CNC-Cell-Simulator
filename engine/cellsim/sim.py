@@ -359,6 +359,8 @@ class CellSim:
     def ext_state(self, slot, sid, fault=None):
         """Mirror the state of a PLC machine (and its fault, None = none)."""
         self.faults[slot] = fault
+        if sid and sid != "F":
+            self.mch[slot]["estop"] = False   # also for a machine without a running job (A6.5)
         if sid:
             self._set_state(slot, sid, "PLC")
 
@@ -986,6 +988,10 @@ class CellSim:
 
     def _estop_wait(self, slot):
         x = self.mch[slot]
+        if self.external:
+            # the PLC takes the machine out of F itself (eRes); ext_state ends the wait
+            yield from self._until(lambda: not x["estop"])
+            return
         exit_expr = self._machine(slot)["fault"]["exit"]
         yield from self._until(lambda: self.ev(exit_expr, slot))
         x["estop"] = False
