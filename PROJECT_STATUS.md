@@ -1378,7 +1378,11 @@ below **48.20 mm**; the five safety states with reduced speed × 2; the times pr
   reached a new maximum at that change (first run: 0.049 s, nominal runs below the earlier lags).
   Fix in `plc_compare.handshakes`: an exit with `for` counts as one handshake (bound 0.20 s); the
   same run then passes (largest increment 0.335 s, R2 E7 → E1, bound 0.35 s). OpenPLC runs of
-  `nominal` and `safety` repeated with the new criterion: see below.
+  `nominal` and `safety` repeated with the new criterion (2026-11-05, 1 h each, run 41979996686):
+  **both pass**. `nominal`: 441 state changes in the order of the model, largest increment 0.301 s
+  (R2 E7 → E1, bound 0.35 s), lag 19.8 s at 1 h. `safety`: 418 state changes, every disturbance
+  applied, 0 errors, 0 violations, largest increment 0.301 s, closest to its bound C3 → C4 (0.024 s
+  of 0.05 s), lag 18.3 s at 1 h.
 - Tests: `test_engine` `test_safety_stops` (person during the pick: S3, pick paused, resumes; E-stop
   while opening the door: all three machines in F, no restart before the relay reset, the move goes
   on); `test_random_disturbances` with `safety=True`; parity scenario `safety` (persons
@@ -1857,7 +1861,7 @@ green. Effort figures are indicative only.
 | A3 PLC demonstration | In progress: A3.1 execution semantics approved (2026-10-30); A3.2 generator done (2026-10-31); A3.3 OpenPLC and bridge done, A3.4 comparison passed in 3 scenarios × 1 h (2026-10-31); recorded demo prepared (`engine/PLC_DEMO.md`), not recorded yet. Merged into `main` 2026-10-31 | `a3-plc` → `main` | |
 | A4 Timed verification (UPPAAL) | Done: A4.1 timed model approved (2026-10-31); A4.2 generator and UPPAAL models done, checked by simulation (2026-10-31); A4.3 bounds with `verifyta` in CI (2026-11-01): idle 17.00–27.45 s, period 131.00–153.45 s, raw pick to output pallet up to 335.70 s; A4.4 Python engine with random step times inside the bounds (19.50–25.38 s in 3 × 24 h) (2026-11-01). Merged into `main` 2026-11-01 | `a4-uppaal` → `main` | |
 | A5 Studies with the Python engine | Done: A5.1 study design approved (2026-11-01, §5.18); A5.2 engine options, harness, S1 and S4; A5.3 S2, S3, workflow `studies`, `engine/studies/STUDIES.md` (2026-11-01): 1 620 runs of 8 h, no model error or violation. Merged into `main` 2026-11-01 | `a5-studies` → `main` | 2026-11-01 |
-| A6 More realistic plant | In progress: A6.1 design approved (2026-11-02, §5.19); A6.2 `VERIFY.fail` and broken sensor done (2026-11-02); A6.3 CNC alarm done (2026-11-03); A6.4 offset drift, tool change and early warning done (2026-11-04); A6.5 safety status done (2026-11-04); next: end of A6 (NuSMV re-run with `slots: 'any'` and a longer timeout, timed re-run) | `a6-plant` | |
+| A6 More realistic plant | In progress: A6.1 design approved (2026-11-02, §5.19); A6.2 `VERIFY.fail` and broken sensor done (2026-11-02); A6.3 CNC alarm done (2026-11-03); A6.4 offset drift, tool change and early warning done (2026-11-04); A6.5 safety status done (2026-11-04; OpenPLC `nominal` and `safety` passed 2026-11-05); next: end of A6 (NuSMV re-run with `slots: 'any'` and a longer timeout, timed re-run) | `a6-plant` | |
 | B Element framework (types, three levels of detail) | Not started | | |
 | C Factory and scheduling | Not started | | |
 
