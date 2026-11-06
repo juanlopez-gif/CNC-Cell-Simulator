@@ -12,7 +12,8 @@ hit a different check in each run.
 Criterion (§5.16 point 11): for every machine the PLC makes the same sequence of state changes as the
 model; the lag of a change (PLC instant minus model instant, both from the first change of the run)
 may exceed the largest lag of all earlier changes by at most the bound of that change, and is never
-negative beyond one bridge cycle. The bound of a change grows with the handshakes of the state left.
+negative beyond one bridge cycle. The bound of a change grows with the handshakes of the state left
+(jobs, checks and debounced answers of the plant).
 """
 import argparse
 import json
@@ -27,10 +28,18 @@ from .scenarios import conformance
 SCENARIOS = {
     "nominal": [],
     "cp2fault": [(("R1", "B2", 4), "fault", "CP-2")],
+    # A6.2: a broken PE-41; its test fails in the verification and the technician replaces it
+    "cp2broken": [(("R1", "B2", 4), "broken", "CP-2")],
+    # A6.3: two CNC alarms (at half of the running cycle); Robot 1 waits in W2 until the reset
+    "cncalarm": [(("R1", "B2", 2), "cncalarm", None), (("R1", "B2", 10), "cncalarm", None)],
     "camwrong": [(("R1", "B2", 4), "camwrong", "CP-4"), (("R1", "B2", 6), "stale", "CP-2"),
                  (("R1", "B2", 8), "camwrong", "CP-3"), (("R1", "B2", 10), "camwrong", "CP-5"),
                  (("R1", "B2", 12), "camwrong", "CP-1"), (("R1", "B2", 14), "stale", "CP-4"),
                  (("R1", "B2", 16), "camwrong", "CP-2"), (("CONV", "C4", 17), "glitch", "CP-3")],
+    # A6.5: a person during the pick of Robot 1 and during the place of Robot 2 (protective stops), E-stops
+    # while Robot 1 opens the door and while it waits at the door (30 s, relay reset, faults cleared)
+    "safety": [(("R1", "B1", 3), "person", 1), (("R1", "B3", 4), "estop", None), (("R2", "E5", 5), "person", 2),
+               (("R1", "B2", 8), "estop", None)],
     # the recorded demo (engine/PLC_DEMO.md): one camera error early, so that a FAULT and its clearing
     # are seen within the first four minutes
     "demo": [(("R1", "B2", 2), "camwrong", "CP-4")],
@@ -57,8 +66,10 @@ class Driver:
             for item in list(self.todo):
                 (slot, sid, n), kind, cp = item
                 if (slot, sid) == key and self.count[key] == n:
-                    {"fault": sim.toggle_sensor_fault, "camwrong": sim.inject_camera_wrong,
-                     "stale": sim.inject_stale_image, "glitch": sim.inject_glitch}[kind](cp)
+                    {"fault": sim.toggle_sensor_fault, "broken": lambda c: sim.toggle_sensor_fault(c, broken=True),
+                     "cncalarm": lambda _: sim.inject_cnc_alarm(), "camwrong": sim.inject_camera_wrong,
+                     "stale": sim.inject_stale_image, "glitch": sim.inject_glitch,
+                     "person": lambda side: sim.inject_person(side, 20), "estop": lambda _: sim.press_estop(30)}[kind](cp)
                     self.actions.append([round(sim.t, 3), kind, cp])
                     self.todo.remove(item)
         self.seen = len(sim.trace)
@@ -100,12 +111,14 @@ def result(sim, drv, scenario, seed):
 
 
 def handshakes(M, slot, sid):
-    """Jobs and checks of a state (upper bound of the handshakes before it is left)."""
+    """Jobs, checks and debounced plant answers (a `next` with `for`, e.g. C4: motor off, the belt stops,
+    !ENC-43 for zeroSpeed) of a state: upper bound of the handshakes before it is left."""
     if sid in ("", "H", "F"):
         return 1
     mk = next(k for k in M.SETUP_MACHINES["2"] if M.MACHINES[k]["slot"] == slot)
     s = M.MACHINES[mk]["states"].get(sid) or {}
-    return sum(1 for st in s.get("do", []) if "job" in st or "check" in st)
+    return (sum(1 for st in s.get("do", []) if "job" in st or "check" in st)
+            + sum(1 for n in s.get("next", []) if "for" in n))
 
 
 def compare(ref, plc, M):

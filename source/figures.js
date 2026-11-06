@@ -13,4 +13,5 @@ module.exports = [
   ['fig12_states_robot1_setup2', () => D.smRobot1S2({})],
   ['fig13_states_robot2_setup2', () => D.smRobot2S2({})],
   ['fig14_dual_gripper_exchange', () => D.exchangeStrip({})],
+  ['fig15_safety_states', () => D.smSafety({})],
 ];

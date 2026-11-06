@@ -37,16 +37,18 @@ properties the design must keep. The other parts are generated from it or run it
 - `node test_sim.js conform`: 20 h of simulated operation with random faults; every state change is
   a transition of the model, every job takes its model time, no property is violated, and without
   faults the CNC idle time equals the KPI.
-- `node verify.js`: every reachable state of the abstract model, nominal and with sensor or process
-  faults (up to 14.7 million states). All 13 properties hold and there is no deadlock. NuSMV 2.7.1,
-  an independent symbolic model checker, agrees with the search on every property and on the number
-  of reachable states. Both read the same generated model, so this is additional evidence that the
+- `node verify.js`: every reachable state of the abstract model in 7 runs: nominal, sensor faults,
+  process faults (with CNC alarms and tool changes), a wrong camera, all sensor faults together, the
+  E-stop and a person in the scanner fields (up to 84.3 million states). All 20 properties hold and
+  there is no deadlock. NuSMV 2.7.1, an independent symbolic model checker, agrees with the search on
+  every property and on the number of reachable states in all 7 runs. Both read the same generated model, so this is additional evidence that the
   search and the export are consistent, not a check of the abstraction.
 - Every push runs these checks on GitHub (badge above), plus a regression check against a recorded
   reference of Setup 2 (`regression/`).
 
-Limits: the abstract model assumes the camera is never wrong and uses a 2-slot output pallet; sensor
-and process faults are not combined; the times are planning estimates. The design has not been
+Limits: the abstract model has no step times and an output pallet of any capacity abstracted to
+empty / partly filled / full; process faults, sensor faults and the safety events are verified in
+separate runs; the times are planning estimates. The design has not been
 validated on a real cell. `PROJECT_STATUS.md` (§1.1 and §13) lists what each check does and does not
 show.
 
@@ -150,9 +152,10 @@ npm run verify     # exhaustive verification -> out/verification/ (copy to ../ve
 cd ../engine && python -m unittest -v test_engine
 ```
 
-With `NUSMV=<path to NuSMV>` (or NuSMV on the PATH), `verify.js` also checks the three `.smv` files
+With `NUSMV=<path to NuSMV>` (or NuSMV on the PATH), `verify.js` also checks the seven `.smv` files
 with NuSMV and compares the verdicts; `NUSMV_ONLY=1` runs only that part again. NuSMV 2.7.1 is free
-(LGPL) from https://nusmv.fbk.eu. The NuSMV checks take about an hour on a laptop with
-`NUSMV_JOBS=8`, most of it for the run with sensor faults, which also needs about 2 GB of memory.
+(LGPL) from https://nusmv.fbk.eu. The search takes about 2.5 h and the NuSMV checks about 26 h on a
+laptop with `NUSMV_JOBS=8` (most of it for the run with all sensor faults; set `NUSMV_TIMEOUT` to at
+least 48 h, in seconds).
 The same full verification runs on GitHub without a local computer: Actions tab → **full
 verification** → Run workflow (or `gh workflow run full-verification.yml`).

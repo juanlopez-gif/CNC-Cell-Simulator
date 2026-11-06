@@ -41,7 +41,12 @@
   "r2ToNok": 1.5,
   "r2Drop": 0.5,
   "blowOff": 0.5,
-  "r2Master": 6
+  "r2Master": 6,
+  "sensorReplace": 900,
+  "cncReset": 300,
+  "toolChange": 180,
+  "offsetCheck": 120,
+  "safetyReset": 30
  },
  "TKIND": {
   "robot": {
@@ -85,6 +90,20 @@
     1.05
    ],
    "text": "CNC program cycle"
+  },
+  "service": {
+   "f": [
+    0.6666666666666666,
+    2
+   ],
+   "text": "manual work of the technician or the operator (A6): often longer than planned"
+  },
+  "alarm": {
+   "f": [
+    0.4,
+    3
+   ],
+   "text": "operator answers a machine alarm: find the cause, fix it, reset (A6): very variable"
   }
  },
  "TSRC": {
@@ -276,6 +295,26 @@
   "r2Master": {
    "kind": "robot",
    "src": "Estimate (A2.2): master cube from its stand to the nest and back, 3 readings"
+  },
+  "cncReset": {
+   "kind": "alarm",
+   "src": "Estimate (A6.3): operator reads the alarm, removes the cause (broken tool, chips, coolant), resets at the CNC panel; 2–15 min"
+  },
+  "toolChange": {
+   "kind": "service",
+   "src": "Estimate (A6.4): operator takes the worn end mill out of the holder, fits a preset one, enters its offset; 2–6 min"
+  },
+  "offsetCheck": {
+   "kind": "service",
+   "src": "Estimate (A6.4): operator measures a part, corrects the wear offset at the CNC panel; 80 s–4 min"
+  },
+  "safetyReset": {
+   "kind": "service",
+   "src": "Estimate (A6.5): operator releases the E-stop button, looks over the cell, presses RESET at the safety relay; 20 s–1 min"
+  },
+  "sensorReplace": {
+   "kind": "service",
+   "src": "Estimate (A6.2): spare photoelectric sensor from the cabinet, unplug the M12 connector, mount, align with the alignment LED, re-test"
   }
  },
  "TRANGE": {
@@ -442,6 +481,26 @@
   "r2Master": [
    5.4,
    7.8
+  ],
+  "sensorReplace": [
+   600,
+   1800
+  ],
+  "cncReset": [
+   120,
+   900
+  ],
+  "toolChange": [
+   120,
+   360
+  ],
+  "offsetCheck": [
+   80,
+   240
+  ],
+  "safetyReset": [
+   20,
+   60
   ]
  },
  "RULES": {
@@ -462,7 +521,12 @@
   ],
   "masterDist": 80,
   "consecutiveNokHold": 2,
-  "palletSlots": 12
+  "palletSlots": 12,
+  "toolLife": 400,
+  "offsetDrift": 0.002,
+  "warnMean": 5,
+  "warnLimit": 48.2,
+  "reducedSpeed": 2
  },
  "CHECKPOINTS": [
   {
@@ -527,6 +591,10 @@
   "SUP": {
    "label": "Cross-check",
    "ref": "Supervisor"
+  },
+  "SAF": {
+   "label": "Safety status",
+   "ref": "Safety"
   }
  },
  "SIGNALS": {
@@ -556,6 +624,14 @@
   "HMI.release": {
    "kind": "input",
    "on": "tool and offsets checked"
+  },
+  "HMI.tool": {
+   "kind": "input",
+   "on": "operator: \"tool changed\""
+  },
+  "HMI.safety": {
+   "kind": "input",
+   "on": "operator resets the safety relay"
   },
   "VERIFY.pass": {
    "kind": "input",
@@ -595,9 +671,66 @@
    "on": "R2 clear of the laser paths",
    "off": "R2 in the gauge"
   },
+  "R1.safeStop": {
+   "kind": "sensor",
+   "on": "Robot 1 in a protective stop",
+   "off": "Robot 1 not stopped",
+   "tags": [
+    "SC-01"
+   ]
+  },
+  "R2.safeStop": {
+   "kind": "sensor",
+   "on": "Robot 2 in a protective stop",
+   "off": "Robot 2 not stopped",
+   "tags": [
+    "SC-02"
+   ]
+  },
+  "ESTOP": {
+   "kind": "sensor",
+   "on": "E-stop pressed",
+   "off": "E-stop released",
+   "tags": [
+    "ES-01"
+   ]
+  },
+  "SC-01.warn": {
+   "kind": "sensor",
+   "on": "{SC-01} warning field occupied",
+   "off": "{SC-01} warning field clear",
+   "tags": [
+    "SC-01"
+   ]
+  },
+  "SC-01.prot": {
+   "kind": "sensor",
+   "on": "{SC-01} protective field occupied",
+   "off": "{SC-01} protective field clear",
+   "tags": [
+    "SC-01"
+   ]
+  },
+  "SC-02.warn": {
+   "kind": "sensor",
+   "on": "{SC-02} warning field occupied",
+   "off": "{SC-02} warning field clear",
+   "tags": [
+    "SC-02"
+   ]
+  },
+  "SC-02.prot": {
+   "kind": "sensor",
+   "on": "{SC-02} protective field occupied",
+   "off": "{SC-02} protective field clear",
+   "tags": [
+    "SC-02"
+   ]
+  },
   "CNC.ready": {
    "kind": "sensor",
-   "on": "CNC ready"
+   "on": "CNC ready",
+   "off": "CNC alarm (not ready)"
   },
   "CNC.run": {
    "kind": "sensor",
@@ -790,6 +923,16 @@
     "LS-63"
    ]
   },
+  "GAUGE.warn": {
+   "kind": "sensor",
+   "on": "size warning: mean of the last 5 sizes < 48.20 mm",
+   "off": "sizes in date",
+   "tags": [
+    "LS-61",
+    "LS-62",
+    "LS-63"
+   ]
+  },
   "PE-65": {
    "kind": "sensor",
    "on": "{PE-65} part dropped"
@@ -817,6 +960,18 @@
    "on": "quality hold",
    "off": "no quality hold",
    "logOn": "QUALITY HOLD: 2 NOK parts in a row → the CNC finishes its part and does not start a new cycle until the tool and offsets are checked"
+  },
+  "toolCount": {
+   "kind": "var",
+   "num": true,
+   "max": 400,
+   "text": "CYCLE STARTs with this tool"
+  },
+  "TOOL.due": {
+   "kind": "derived",
+   "def": "toolCount>=toolLife",
+   "on": "tool change due (400 parts)",
+   "off": "tool in its life"
   },
   "mismatches": {
    "kind": "var",
@@ -855,6 +1010,12 @@
    "def": "lineStop | CAM_FAULT",
    "on": "LINE STOP or camera fault"
   },
+  "ESTOP.active": {
+   "kind": "derived",
+   "def": "SAF=S4 | SAF=S5",
+   "on": "E-stop or safety relay not reset",
+   "off": "safety relay reset"
+  },
   "R1.job": {
    "kind": "sensor",
    "on": "job of the Robot 1 machine"
@@ -878,12 +1039,21 @@
   "TRUE.nestPart": {
    "kind": "truth",
    "on": "a part is in the gauge nest"
+  },
+  "TRUE.brokenFound": {
+   "kind": "truth",
+   "on": "a sensor test failed and the sensor is not replaced yet"
+  },
+  "TRUE.jobRuns": {
+   "kind": "truth",
+   "on": "a job of Robot 1 or Robot 2 is running (the robot moves)"
   }
  },
  "CONST": {
   "limit": 3,
   "slots": 12,
-  "nokHold": 2
+  "nokHold": 2,
+  "toolLife": 400
  },
  "RUNGS": [
   {
@@ -893,6 +1063,13 @@
     "consecNok": 0
    },
    "text": "tool and offsets checked → quality hold released"
+  },
+  {
+   "when": "HMI.tool & R1=W3",
+   "set": {
+    "toolCount": 0
+   },
+   "text": "tool changed → tool life counter reset"
   }
  ],
  "PROPERTIES": [
@@ -982,6 +1159,45 @@
    "require": "GAUGE.zeroed"
   },
   {
+   "id": "P14",
+   "text": "Robot 1 enters the CNC and CYCLE START is sent only with the CNC ready (no alarm)",
+   "start": [
+    "R1.enterCnc",
+    "CNC.start"
+   ],
+   "require": "CNC.ready"
+  },
+  {
+   "id": "P15",
+   "text": "No CYCLE START while the tool change is due",
+   "start": [
+    "CNC.start"
+   ],
+   "require": "!TOOL.due"
+  },
+  {
+   "id": "P13",
+   "text": "The line never resumes with a sensor whose test failed",
+   "never": "SUP=X1 & TRUE.brokenFound"
+  },
+  {
+   "id": "P16",
+   "text": "No robot job runs during an E-stop or before the safety relay is reset",
+   "never": "ESTOP.active & TRUE.jobRuns"
+  },
+  {
+   "id": "P17",
+   "text": "No robot job in a loading zone is started while a person is in its protective field",
+   "start": [
+    "R1.pickRawA",
+    "R2.placePallet"
+   ],
+   "require": {
+    "R1.pickRawA": "!SC-01.prot",
+    "R2.placePallet": "!SC-02.prot"
+   }
+  },
+  {
    "id": "L1",
    "text": "A new CNC cycle can always be started again",
    "eventually": "R1.job=CNC.start"
@@ -1007,15 +1223,15 @@
    "text": "blue beacon: output pallet ready for pickup"
   },
   "LT-01.red": {
-   "def": "lineStop | FAULT.any",
+   "def": "lineStop | FAULT.any | ESTOP.active",
    "text": "stack light red"
   },
   "LT-01.amber": {
-   "def": "!lineStop & !FAULT.any & (mismatches>0 | QH | R1=W1)",
+   "def": "!lineStop & !FAULT.any & !ESTOP.active & (mismatches>0 | QH | R1=W1 | R1=W2 | R1=W3 | GAUGE.warn | SAF=S2 | SAF=S3)",
    "text": "stack light amber"
   },
   "LT-01.green": {
-   "def": "!lineStop & !FAULT.any & !(mismatches>0 | QH | R1=W1)",
+   "def": "!lineStop & !FAULT.any & !ESTOP.active & !(mismatches>0 | QH | R1=W1 | R1=W2 | R1=W3 | GAUGE.warn | SAF=S2 | SAF=S3)",
    "text": "stack light green"
   }
  },
@@ -1320,15 +1536,16 @@
    },
    "fault": {
     "desc": [
-     "From any state: timeout or a",
-     "missing confirmation · red light"
+     "From any state: timeout, a missing",
+     "confirmation or E-stop · red light"
     ],
-    "exit": "HMI.clear"
+    "exit": "HMI.clear & !ESTOP.active",
+    "force": "ESTOP.active"
    },
    "note": [
-    "*F FAULT* and *H HOLD* can be entered from any state. FAULT = a confirmation is missing or a timeout",
-    "expired (the alarm names the sensor, no automatic robot retries). HOLD = LINE STOP from the cross-check",
-    "supervisor: the robot finishes the running step, parks, and continues from there after the reset."
+    "*F FAULT* and *H HOLD* can be entered from any state. FAULT = a confirmation is missing, a timeout",
+    "expired (the alarm names the sensor, no automatic robot retries) or an E-stop. HOLD = LINE STOP from the",
+    "cross-check supervisor: the robot finishes the running step, parks, and continues from there after the reset."
    ],
    "view": {
     "main": [
@@ -1343,7 +1560,9 @@
      "B7"
     ],
     "side": {
-     "W1": "B1"
+     "W1": "B1",
+     "W2": "B2",
+     "W3": "B2"
     }
    },
    "states": {
@@ -1372,11 +1591,16 @@
      "short": "pick A",
      "desc": [
       "[CP-1] pallet present ({PX-11} + {CAM-1}) ·",
-      "{CAM-1} pick pose · gripper A picks"
+      "{CAM-1} pick pose · {SC-01} protective",
+      "field clear · gripper A picks"
      ],
      "do": [
       {
        "check": "CP-1"
+      },
+      {
+       "await": "!SC-01.prot",
+       "when": "CP-1 & CAM-1.part"
       },
       {
        "job": "R1.pickRawA",
@@ -1409,6 +1633,14 @@
       }
      ],
      "next": [
+      {
+       "to": "W2",
+       "when": "!CNC.ready"
+      },
+      {
+       "to": "W3",
+       "when": "TOOL.due & (CNC.done | CNC.empty)"
+      },
       {
        "to": "B3",
        "when": "(CNC.done & !ZS-33) | CNC.empty"
@@ -1492,20 +1724,23 @@
      "short": "start",
      "desc": [
       "Send CYCLE START (not during a quality",
-      "hold) · CNC idle time ends"
+      "hold or a due tool change) · tool count + 1"
      ],
      "do": [
       {
-       "await": "!QH"
+       "await": "!QH & !TOOL.due"
       },
       {
        "job": "CNC.start"
+      },
+      {
+       "inc": "toolCount"
       }
      ],
      "next": [
       {
        "to": "Q_B6",
-       "when": "CNC.run | CNC.done"
+       "when": "CNC.run | CNC.done | !CNC.ready"
       }
      ]
     },
@@ -1585,6 +1820,50 @@
        "when": "HMI.loaded"
       }
      ]
+    },
+    "W2": {
+     "name": "WAIT FOR CNC",
+     "kind": "op",
+     "wait": true,
+     "desc": [
+      "CNC alarm: HMI \"Reset at the CNC panel\"",
+      "amber light · robot waits at the door"
+     ],
+     "log": "CNC alarm → HMI: \"Reset the alarm at the CNC panel\" · amber light · Robot 1 waits at the door",
+     "hmi": {
+      "cls": "op",
+      "title": "CNC alarm",
+      "text": "The CNC stopped its cycle with an alarm (tool, spindle load, coolant). Find the cause and reset it at the CNC panel; the program then restarts with the same part.",
+      "act": "cnc"
+     },
+     "next": [
+      {
+       "to": "B2",
+       "when": "CNC.ready"
+      }
+     ]
+    },
+    "W3": {
+     "name": "TOOL CHANGE",
+     "kind": "op",
+     "wait": true,
+     "desc": [
+      "Tool life reached: HMI \"Change the tool\"",
+      "amber light · robot waits at the door"
+     ],
+     "log": "Tool life reached → HMI: \"Change the tool\" · amber light · Robot 1 waits at the door",
+     "hmi": {
+      "cls": "op",
+      "title": "Tool change due",
+      "text": "The tool has machined 400 parts. Change it at the CNC and confirm \"tool changed\"; the counter starts again and the next cycle is started.",
+      "act": "tool"
+     },
+     "next": [
+      {
+       "to": "B2",
+       "when": "!TOOL.due"
+      }
+     ]
     }
    }
   },
@@ -1619,11 +1898,12 @@
    },
    "fault": {
     "desc": [
-     "Missing confirmation or a",
-     "transport timer expired (belt /",
-     "drive fault, jam, lost part)"
+     "Missing confirmation, a transport",
+     "timer expired (belt / drive fault,",
+     "jam, lost part) or E-stop"
     ],
-    "exit": "HMI.clear"
+    "exit": "HMI.clear & !ESTOP.active",
+    "force": "ESTOP.active"
    },
    "note": [
     "*Stop logic:* stopping uses *OR* ({PE-42} or {CAM-2}) because stopping is the safe direction;",
@@ -1801,10 +2081,11 @@
    },
    "fault": {
     "desc": [
-     "From any state: timeout or a",
-     "missing confirmation · red light"
+     "From any state: timeout, a missing",
+     "confirmation or E-stop · red light"
     ],
-    "exit": "HMI.clear"
+    "exit": "HMI.clear & !ESTOP.active",
+    "force": "ESTOP.active"
    },
    "note": [
     "*Quality hold:* 2 consecutive NOK parts → the CNC finishes the current part and starts no new cycle until the tool",
@@ -1978,6 +2259,7 @@
      "short": "sort",
      "desc": [
       "Re-pick from nest · [CP-4] pallet present ·",
+      "{SC-02} protective field clear ·",
       "{CAM-2} next free slot · place · release"
      ],
      "do": [
@@ -1992,6 +2274,9 @@
       {
        "check": "CP-4",
        "confirm": "CP-4"
+      },
+      {
+       "await": "!SC-02.prot"
       },
       {
        "job": "R2.placePallet"
@@ -2214,6 +2499,167 @@
      ]
     }
    }
+  },
+  "SAF": {
+   "slot": "SAF",
+   "setup": 0,
+   "urgent": true,
+   "title": "State diagram: safety status (E-stop and laser scanners)",
+   "sub": "The safety relay, the scanners and the robot controllers stop the motion; the PLC follows their status and recovers.",
+   "initial": {
+    "to": "S1"
+   },
+   "note": [
+    "*Not a safety function:* the stop is done by",
+    "the relay, the scanners and the robot",
+    "controllers; this machine reads their status."
+   ],
+   "view": {
+    "place": {
+     "S1": [
+      40,
+      210
+     ],
+     "S2": [
+      425,
+      0
+     ],
+     "S3": [
+      425,
+      420
+     ],
+     "S4": [
+      810,
+      210
+     ],
+     "S5": [
+      425,
+      640
+     ]
+    }
+   },
+   "states": {
+    "S1": {
+     "name": "RUN",
+     "kind": "ok",
+     "wait": true,
+     "desc": [
+      "No person in a field",
+      "full robot speed"
+     ],
+     "next": [
+      {
+       "to": "S4",
+       "when": "ESTOP"
+      },
+      {
+       "to": "S3",
+       "when": "R1.safeStop | R2.safeStop"
+      },
+      {
+       "to": "S2",
+       "when": "SC-01.warn | SC-02.warn"
+      }
+     ]
+    },
+    "S2": {
+     "name": "REDUCED SPEED",
+     "kind": "warn",
+     "wait": true,
+     "desc": [
+      "A person in a warning field:",
+      "that robot at half speed · amber"
+     ],
+     "log": "Person in a warning field (SC-01 / SC-02) → robot of that side at reduced speed · amber light",
+     "next": [
+      {
+       "to": "S4",
+       "when": "ESTOP"
+      },
+      {
+       "to": "S3",
+       "when": "R1.safeStop | R2.safeStop"
+      },
+      {
+       "to": "S1",
+       "when": "!SC-01.warn & !SC-02.warn"
+      }
+     ]
+    },
+    "S3": {
+     "name": "PROTECTIVE STOP",
+     "kind": "warn",
+     "wait": true,
+     "desc": [
+      "A person in the protective field",
+      "where a robot works: it pauses,",
+      "resumes when the field is clear"
+     ],
+     "log": "Person in the protective field where a robot works → protective stop of that robot (automatic restart when the field is clear)",
+     "next": [
+      {
+       "to": "S4",
+       "when": "ESTOP"
+      },
+      {
+       "to": "S2",
+       "when": "!R1.safeStop & !R2.safeStop & (SC-01.warn | SC-02.warn)"
+      },
+      {
+       "to": "S1",
+       "when": "!R1.safeStop & !R2.safeStop & !SC-01.warn & !SC-02.warn"
+      }
+     ]
+    },
+    "S4": {
+     "name": "EMERGENCY STOP",
+     "kind": "stop",
+     "wait": true,
+     "desc": [
+      "All motion stopped · robots and",
+      "conveyor in FAULT · CNC feed hold"
+     ],
+     "log": "E-STOP: all motion stopped · robots and conveyor to FAULT · CNC feed hold (alarm)",
+     "hmi": {
+      "cls": "bad",
+      "title": "Emergency stop",
+      "text": "An E-stop button is pressed. Remove the cause, release the button, then reset the safety relay and clear the faults.",
+      "act": "safety"
+     },
+     "next": [
+      {
+       "to": "S5",
+       "when": "!ESTOP"
+      }
+     ]
+    },
+    "S5": {
+     "name": "RESET REQUIRED",
+     "kind": "check",
+     "wait": true,
+     "desc": [
+      "E-stop released: operator resets",
+      "the relay, then clears the FAULTs"
+     ],
+     "hmi": {
+      "cls": "bad",
+      "title": "E-stop released · reset required",
+      "text": "Look over the cell, reset the safety relay, then clear the faults. The robots finish the interrupted move and repeat their step.",
+      "act": "safety"
+     },
+     "next": [
+      {
+       "to": "S4",
+       "when": "ESTOP"
+      },
+      {
+       "to": "S1",
+       "when": "HMI.safety",
+       "text": "relay reset:"
+      }
+     ]
+    }
+   }
   }
  },
  "SETUP_MACHINES": {
@@ -2221,7 +2667,8 @@
    "R1S2",
    "CONV",
    "R2S2",
-   "SUP"
+   "SUP",
+   "SAF"
   ]
  },
  "KPI": {

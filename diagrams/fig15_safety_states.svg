@@ -1,0 +1,120 @@
+<svg xmlns="http://www.w3.org/2000/svg" class="dg-root" viewBox="0 0 1100 946" width="1100" height="946" font-family="'Barlow', 'Segoe UI', Arial, sans-serif" role="img" aria-label="State diagram: safety status (E-stop and laser scanners)"><style>
+.dg-root{font-family:'Barlow','Segoe UI',Arial,sans-serif}
+.dg-bg{fill:var(--dg-bg,#ffffff)}
+.dg-title{font-family:'Barlow Semi Condensed','Barlow','Segoe UI',sans-serif;font-weight:700;font-size:20px;fill:var(--dg-ink,#14202b)}
+.dg-sub{font-size:13px;fill:var(--dg-muted,#56636f)}
+.dg-st-rect{fill:var(--dg-st,#f2f5f8);stroke:var(--dg-line,#2f3e4d);stroke-width:1.5}
+.dg-st-title{font-family:'Barlow Semi Condensed','Barlow','Segoe UI',sans-serif;font-weight:700;font-size:14.5px;fill:var(--dg-ink,#14202b);letter-spacing:.04em}
+.dg-st-do{font-size:12.5px;fill:var(--dg-soft,#3a4754)}
+.dg-st-chip{fill:var(--dg-line,#2f3e4d)}
+.dg-st-chiptext{font-family:'IBM Plex Mono',Consolas,monospace;font-weight:600;font-size:11px;fill:var(--dg-chipink,#ffffff)}
+.dg-tr{fill:none;stroke:var(--dg-arrow,#56636f);stroke-width:1.5}
+.dg-head{fill:var(--dg-arrow,#56636f)}
+.dg-dash{stroke-dasharray:5 4}
+.dg-trk-fault .dg-tr{stroke:var(--dg-red,#c62828)} .dg-trk-fault .dg-head{fill:var(--dg-red,#c62828)}
+.dg-trk-hold .dg-tr{stroke:var(--dg-amber,#b7791f)} .dg-trk-hold .dg-head{fill:var(--dg-amber,#b7791f)}
+.dg-trk-ok .dg-tr{stroke:var(--dg-green,#1e7d45)} .dg-trk-ok .dg-head{fill:var(--dg-green,#1e7d45)}
+.dg-guard{font-size:12.5px;fill:var(--dg-ink2,#1f2a35)}
+.dg-halo{paint-order:stroke;stroke:var(--dg-bg,#ffffff);stroke-width:5px;stroke-linejoin:round}
+.dg-tag{font-family:'IBM Plex Mono',Consolas,monospace;font-size:11.5px;font-weight:500;fill:var(--dg-blue,#0b5aa6)}
+.dg-cp{font-weight:700;fill:var(--dg-cp,#7b3fb5)}
+.dg-b{font-weight:700}
+.dg-small{font-size:11.5px}
+.dg-init{fill:var(--dg-line,#2f3e4d)}
+.dg-k-wait .dg-st-rect{stroke-dasharray:5 3}
+.dg-k-fault .dg-st-rect{fill:var(--dg-red-t,#fdeceb);stroke:var(--dg-red,#c62828)} .dg-k-fault .dg-st-chip{fill:var(--dg-red,#c62828)}
+.dg-k-hold .dg-st-rect{fill:var(--dg-amber-t,#fff4de);stroke:var(--dg-amber,#b7791f)} .dg-k-hold .dg-st-chip{fill:var(--dg-amber,#b7791f)}
+.dg-k-ok .dg-st-rect{fill:var(--dg-green-t,#e7f5ec);stroke:var(--dg-green,#1e7d45)} .dg-k-ok .dg-st-chip{fill:var(--dg-green,#1e7d45)}
+.dg-k-warn .dg-st-rect{fill:var(--dg-amber-t,#fff4de);stroke:var(--dg-amber,#b7791f)} .dg-k-warn .dg-st-chip{fill:var(--dg-amber,#b7791f)}
+.dg-k-stop .dg-st-rect{fill:var(--dg-red-t,#fdeceb);stroke:var(--dg-red,#c62828)} .dg-k-stop .dg-st-chip{fill:var(--dg-red,#c62828)}
+.dg-k-op .dg-st-rect{fill:var(--dg-blue-t,#e6effa);stroke:var(--dg-blue,#0b5aa6)} .dg-k-op .dg-st-chip{fill:var(--dg-blue,#0b5aa6)}
+.dg-k-check .dg-st-rect{fill:var(--dg-cp-t,#f3ecfa);stroke:var(--dg-cp,#7b3fb5)} .dg-k-check .dg-st-chip{fill:var(--dg-cp,#7b3fb5)}
+.dg-band{stroke:none}
+.dg-band-idle{fill:var(--dg-amber-b,#fff5e0)} .dg-band-run{fill:var(--dg-blue-b,#e9f1fb)}
+.dg-band-stop{fill:var(--dg-green-b,#eaf6ee)} .dg-band-move{fill:var(--dg-gray-b,#eef1f4)}
+.dg-band-label{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:11.5px;letter-spacing:.08em;fill:var(--dg-muted,#56636f)}
+.dg-band-label.idle{fill:var(--dg-amber-d,#9a6212)} .dg-band-label.run{fill:var(--dg-blue,#0b5aa6)} .dg-band-label.stop{fill:var(--dg-green,#1e7d45)}
+.dg-note-rect{fill:var(--dg-note,#f6f7f9);stroke:var(--dg-rule,#c4ccd4);stroke-width:1}
+.dg-note{font-size:12.5px;fill:var(--dg-soft,#3a4754)}
+.dg-choice{fill:var(--dg-st,#f2f5f8);stroke:var(--dg-line,#2f3e4d);stroke-width:1.5}
+.dg-choice-t{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:13.5px;fill:var(--dg-ink,#14202b)}
+.dg-node{fill:var(--dg-st,#f2f5f8);stroke:var(--dg-line,#2f3e4d);stroke-width:1.4}
+.dg-node.ok{fill:var(--dg-green-t,#e7f5ec);stroke:var(--dg-green,#1e7d45)}
+.dg-node.warn{fill:var(--dg-amber-t,#fff4de);stroke:var(--dg-amber,#b7791f)}
+.dg-node.stop{fill:var(--dg-red-t,#fdeceb);stroke:var(--dg-red,#c62828)}
+.dg-node.check{fill:var(--dg-cp-t,#f3ecfa);stroke:var(--dg-cp,#7b3fb5)}
+.dg-node.op{fill:var(--dg-blue-t,#e6effa);stroke:var(--dg-blue,#0b5aa6)}
+.dg-node-t{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:14px;fill:var(--dg-ink,#14202b)}
+.dg-node-s{font-size:12.5px;fill:var(--dg-soft,#3a4754)}
+.dg-owner{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:10.5px;letter-spacing:.08em;fill:#ffffff}
+.dg-owner-r{fill:#2f3e4d}
+.dg-owner-r.op,.dg-owner-r.light{fill:#0b5aa6} .dg-owner-r.cnc{fill:#a0521d} .dg-owner-r.conv{fill:#2f6f5e} .dg-owner-r.r2{fill:#806000}
+.dg-owner-r.cam{fill:#7b3fb5} .dg-owner-r.gauge{fill:#a33a3a} .dg-owner-r.ok{fill:#1e7d45} .dg-owner-r.nok{fill:#c62828}
+.dg-conn{fill:var(--dg-bg,#ffffff);stroke:var(--dg-line,#2f3e4d);stroke-width:1.5}
+.dg-conn-t{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:13px;fill:var(--dg-ink,#14202b)}
+.dg-num{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:14px;fill:var(--dg-muted,#56636f)}
+.dg-active .dg-st-rect,.dg-active .dg-node,.dg-active .dg-choice{stroke:var(--dg-active,#0a66e8);stroke-width:3.2;fill:var(--dg-active-t,#dde9fc)}
+.dg-active .dg-st-chip{fill:var(--dg-active,#0a66e8)}
+.dg-flash .dg-tr{stroke:var(--dg-active,#0a66e8);stroke-width:3} .dg-flash .dg-head{fill:var(--dg-active,#0a66e8)}
+/* layout drawing */
+.ly-fence{fill:none;stroke:var(--dg-rule,#aab4be);stroke-width:1.3;stroke-dasharray:2 5}
+.ly-aisle{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:11px;letter-spacing:.14em;fill:var(--dg-muted,#56636f)}
+.ly-mach{fill:var(--ly-mach,#dfe5ea);stroke:var(--dg-line,#2f3e4d);stroke-width:1.6}
+.ly-mach-in{fill:var(--ly-mach-in,#eef2f5);stroke:var(--ly-rule2,#9aa6b1);stroke-width:1}
+.ly-pallet{fill:var(--ly-pallet,#e9dcc6);stroke:var(--ly-pallet-s,#8a6d3b);stroke-width:1.5}
+.ly-slot{fill:none;stroke:var(--ly-slot,#b39a6e);stroke-width:.9;stroke-dasharray:2 2}
+.ly-part{fill:var(--ly-raw,#a9b2ba);stroke:var(--ly-raw-s,#56626c);stroke-width:1.1}
+.ly-part.fin{fill:var(--ly-fin,#dfe8f0);stroke:var(--ly-fin-s,#43698c)}
+.ly-part.nok{stroke:var(--dg-red,#c62828);stroke-width:2.2}
+.ly-pocket{fill:none;stroke:var(--ly-fin-s,#43698c);stroke-width:.9}
+.ly-belt{fill:var(--ly-belt,#39414a)}
+.ly-frame{fill:var(--ly-frame,#8d98a3)}
+.ly-roller{stroke:var(--ly-roller,#5b646d);stroke-width:1.1}
+.ly-stop{fill:var(--dg-red,#c62828)}
+.ly-robot{fill:var(--ly-robot,#2c4a66);stroke:var(--ly-robot-s,#15283a);stroke-width:1.5}
+.ly-robot-t{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:11.5px;fill:#ffffff;letter-spacing:.04em}
+.ly-link{stroke:var(--ly-link,#5f7d99);stroke-width:13;stroke-linecap:round;fill:none}
+.ly-link2{stroke:var(--ly-link2,#7f9ab3);stroke-width:10;stroke-linecap:round;fill:none}
+.ly-joint{fill:var(--ly-joint,#243a52)}
+.ly-finger{stroke:var(--ly-joint,#243a52);stroke-width:3.2;stroke-linecap:round}
+.ly-door{fill:var(--ly-door,#6f8193);stroke:var(--dg-line,#2f3e4d);stroke-width:1}
+.ly-track{stroke:var(--ly-rule2,#9aa6b1);stroke-width:1.1;stroke-dasharray:3 3}
+.ly-handle{fill:var(--dg-line,#2f3e4d)}
+.ly-label{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:14px;fill:var(--dg-ink,#14202b);letter-spacing:.05em}
+.ly-sub{font-size:11.5px;fill:var(--dg-soft,#3a4754)}
+.ly-tag{font-family:'IBM Plex Mono',Consolas,monospace;font-size:11px;font-weight:600;fill:var(--dg-blue,#0b5aa6)}
+.ly-tag.cam{fill:var(--dg-cp,#7b3fb5)} .ly-tag.saf{fill:var(--ly-safety,#946c00)}
+.ly-sens{fill:var(--dg-bg,#ffffff);stroke:var(--dg-blue,#0b5aa6);stroke-width:1.6}
+.ly-sens.safety{stroke:var(--ly-safety,#c79400)}
+.ly-led{fill:var(--ly-led-off,#c3cad1)}
+.ly-led.on{fill:var(--ly-led-on,#1ea453)}
+.ly-led.bad{fill:var(--dg-red,#d32f2f)}
+.ly-beam{stroke:var(--ly-beam,#d33b3b);stroke-width:1.1;stroke-dasharray:2 3;opacity:.8}
+.ly-fov{fill:var(--ly-fov,rgba(123,63,181,.045));stroke:var(--dg-cp,#7b3fb5);stroke-width:1.3;stroke-dasharray:7 4}
+.ly-roi{fill:none;stroke:var(--dg-cp,#7b3fb5);stroke-width:1.1;stroke-dasharray:2 2}
+.ly-roi-t{font-family:'IBM Plex Mono',Consolas,monospace;font-size:10px;font-weight:600;fill:var(--dg-cp,#7b3fb5)}
+.ly-roi-t.on-belt{fill:#d9c5f5}
+.ly-cam{fill:var(--dg-cp,#7b3fb5)}
+.ly-nok{fill:var(--ly-nok,#fbe3e1);stroke:var(--dg-red,#c62828);stroke-width:1.6}
+.ly-nok-h{stroke:var(--dg-red,#c62828);stroke-width:.9;opacity:.35}
+.ly-gauge{fill:var(--ly-gauge,#e9eef3);stroke:var(--dg-line,#2f3e4d);stroke-width:1.5}
+.ly-datum{fill:var(--dg-line,#2f3e4d)}
+.ly-laser{fill:var(--dg-red,#c62828)}
+.ly-cab{fill:var(--ly-mach,#dfe5ea);stroke:var(--dg-line,#2f3e4d);stroke-width:1.3}
+.ly-lamp-r{fill:#d32f2f} .ly-lamp-a{fill:#f2a900} .ly-lamp-g{fill:#1e9e52} .ly-lamp-b{fill:#1565c0}
+.ly-lamp-off{opacity:.2}
+.ly-scan{fill:var(--ly-scan,rgba(199,148,0,.09));stroke:var(--ly-safety,#c79400);stroke-width:1.1;stroke-dasharray:3 3}
+.ly-flow{fill:none;stroke:#ffffff;stroke-width:1.8;opacity:.75}
+.ly-note{font-size:11.5px;font-style:italic;fill:var(--dg-muted,#56636f)}
+.ly-legend{font-size:12px;fill:var(--dg-soft,#3a4754)}
+/* timing chart */
+.gt-grid{stroke:var(--dg-rule,#d5dbe1);stroke-width:1}
+.gt-axis{font-size:11.5px;fill:var(--dg-muted,#56636f)}
+.gt-row{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:13.5px;fill:var(--dg-ink,#14202b)}
+.gt-bar-t{font-size:11.5px;fill:#ffffff;font-weight:600}
+.gt-bar-t.dark{fill:var(--dg-ink,#14202b)}
+.gt-mach{fill:#3f73b5} .gt-idle{fill:#e3a21a} .gt-door{fill:#2f3e4d} .gt-move{fill:#7d8b98} .gt-wait{fill:var(--dg-gray-b,#eef1f4);stroke:var(--dg-rule,#c4ccd4)} .gt-belt{fill:#2f6f5e} .gt-gauge{fill:#a33a3a}
+.gt-kpi{font-family:'Barlow Semi Condensed','Barlow',sans-serif;font-weight:700;font-size:15px;fill:var(--dg-ink,#14202b)}
+.gt-break{fill:var(--dg-bg,#ffffff);stroke:var(--dg-muted,#56636f);stroke-width:1.2}
+.pill-t{font-family:'IBM Plex Mono',Consolas,monospace;font-size:10.5px;font-weight:600}
+</style><rect class="dg-bg" x="0" y="0" width="1100" height="946"/><text class="dg-title" x="20" y="36">State diagram: safety status (E-stop and laser scanners)</text><text class="dg-sub" x="20" y="58">The safety relay, the scanners and the robot controllers stop the motion; the PLC follows their status and recovers.</text><g class="dg-trg"><path class="dg-tr" d="M20 308 L20 334.5 Q20 342 27.5 342 L35 342"/><polygon class="dg-head" points="40,342 30.5,337.5 30.5,346.5"/></g><g class="dg-trg dg-trk-fault" data-tr="S1&gt;S4"><path class="dg-tr" d="M290 357 L805 357"/><polygon class="dg-head" points="810,357 800.5,352.5 800.5,361.5"/></g><g class="dg-trg" data-tr="S1&gt;S3"><path class="dg-tr" d="M125 392 L125 551.5 Q125 560.5 134 560.5 L420 560.5"/><polygon class="dg-head" points="425,560.5 415.5,556 415.5,565"/></g><g class="dg-trg" data-tr="S1&gt;S2"><path class="dg-tr" d="M125 322 L125 142 Q125 133 134 133 L420 133"/><polygon class="dg-head" points="425,133 415.5,128.5 415.5,137.5"/></g><g class="dg-trg dg-trk-fault" data-tr="S2&gt;S4"><path class="dg-tr" d="M675 147 L926 147 Q935 147 935 156 L935 317"/><polygon class="dg-head" points="935,322 939.5,312.5 930.5,312.5"/></g><g class="dg-trg" data-tr="S2&gt;S3"><path class="dg-tr" d="M505 182 L505 527"/><polygon class="dg-head" points="505,532 509.5,522.5 500.5,522.5"/></g><g class="dg-trg dg-trk-ok" data-tr="S2&gt;S1"><path class="dg-tr" d="M425 161 L214 161 Q205 161 205 170 L205 317"/><polygon class="dg-head" points="205,322 209.5,312.5 200.5,312.5"/></g><g class="dg-trg dg-trk-fault" data-tr="S3&gt;S4"><path class="dg-tr" d="M675 574.5 L926 574.5 Q935 574.5 935 565.5 L935 397"/><polygon class="dg-head" points="935,392 930.5,401.5 939.5,401.5"/></g><g class="dg-trg" data-tr="S3&gt;S2"><path class="dg-tr" d="M595 532 L595 187"/><polygon class="dg-head" points="595,182 590.5,191.5 599.5,191.5"/></g><g class="dg-trg dg-trk-ok" data-tr="S3&gt;S1"><path class="dg-tr" d="M425 588.5 L214 588.5 Q205 588.5 205 579.5 L205 397"/><polygon class="dg-head" points="205,392 200.5,401.5 209.5,401.5"/></g><g class="dg-trg" data-tr="S4&gt;S5"><path class="dg-tr" d="M895 392 L895 764 Q895 773 886 773 L680 773"/><polygon class="dg-head" points="675,773 684.5,777.5 684.5,768.5"/></g><g class="dg-trg dg-trk-fault" data-tr="S5&gt;S4"><path class="dg-tr" d="M675 801 L966 801 Q975 801 975 792 L975 397"/><polygon class="dg-head" points="975,392 970.5,401.5 979.5,401.5"/></g><g class="dg-trg dg-trk-ok" data-tr="S5&gt;S1"><path class="dg-tr" d="M425 787 L174 787 Q165 787 165 778 L165 397"/><polygon class="dg-head" points="165,392 160.5,401.5 169.5,401.5"/></g><g class="dg-state dg-k-ok" data-state="S1"><rect class="dg-st-rect" x="40" y="322" width="250" height="70" rx="9"/><rect class="dg-st-chip" x="50" y="331" width="27.2" height="19" rx="4"/><text class="dg-st-chiptext" x="63.6" y="344.5" text-anchor="middle">S1</text><text class="dg-st-title" x="85.2" y="345.5">RUN</text><text class="dg-st-do" x="52" y="367">No person in a field</text><text class="dg-st-do" x="52" y="382">full robot speed</text></g><g class="dg-state dg-k-warn" data-state="S2"><rect class="dg-st-rect" x="425" y="112" width="250" height="70" rx="9"/><rect class="dg-st-chip" x="435" y="121" width="27.2" height="19" rx="4"/><text class="dg-st-chiptext" x="448.6" y="134.5" text-anchor="middle">S2</text><text class="dg-st-title" x="470.2" y="135.5">REDUCED SPEED</text><text class="dg-st-do" x="437" y="157">A person in a warning field:</text><text class="dg-st-do" x="437" y="172">that robot at half speed · amber</text></g><g class="dg-state dg-k-warn" data-state="S3"><rect class="dg-st-rect" x="425" y="532" width="250" height="85" rx="9"/><rect class="dg-st-chip" x="435" y="541" width="27.2" height="19" rx="4"/><text class="dg-st-chiptext" x="448.6" y="554.5" text-anchor="middle">S3</text><text class="dg-st-title" x="470.2" y="555.5">PROTECTIVE STOP</text><text class="dg-st-do" x="437" y="577">A person in the protective field</text><text class="dg-st-do" x="437" y="592">where a robot works: it pauses,</text><text class="dg-st-do" x="437" y="607">resumes when the field is clear</text></g><g class="dg-state dg-k-stop" data-state="S4"><rect class="dg-st-rect" x="810" y="322" width="250" height="70" rx="9"/><rect class="dg-st-chip" x="820" y="331" width="27.2" height="19" rx="4"/><text class="dg-st-chiptext" x="833.6" y="344.5" text-anchor="middle">S4</text><text class="dg-st-title" x="855.2" y="345.5">EMERGENCY STOP</text><text class="dg-st-do" x="822" y="367">All motion stopped · robots and</text><text class="dg-st-do" x="822" y="382">conveyor in FAULT · CNC feed hold</text></g><g class="dg-state dg-k-check" data-state="S5"><rect class="dg-st-rect" x="425" y="752" width="250" height="70" rx="9"/><rect class="dg-st-chip" x="435" y="761" width="27.2" height="19" rx="4"/><text class="dg-st-chiptext" x="448.6" y="774.5" text-anchor="middle">S5</text><text class="dg-st-title" x="470.2" y="775.5">RESET REQUIRED</text><text class="dg-st-do" x="437" y="797">E-stop released: operator resets</text><text class="dg-st-do" x="437" y="812">the relay, then clears the FAULTs</text></g><circle class="dg-init" cx="20" cy="300" r="7.5"/><rect class="dg-note-rect" x="810" y="862" width="250" height="66" rx="6"/><text class="dg-note" x="822" y="885"><tspan class="dg-b">Not a safety function:</tspan> the stop is done by</text><text class="dg-note" x="822" y="901">the relay, the scanners and the robot</text><text class="dg-note" x="822" y="917">controllers; this machine reads their status.</text><text class="dg-guard dg-halo" x="550" y="351" text-anchor="middle"><tspan x="550">E-stop pressed</tspan></text><text class="dg-guard dg-halo" x="275" y="509.5" text-anchor="middle"><tspan x="275">Robot 1 in a protective</tspan><tspan x="275" dy="15">stop</tspan><tspan x="275" dy="15">or Robot 2 in a protective</tspan><tspan x="275" dy="15">stop</tspan></text><text class="dg-guard dg-halo" x="275" y="82" text-anchor="middle"><tspan x="275"><tspan class="dg-tag">SC-01</tspan> warning field</tspan><tspan x="275" dy="15">occupied</tspan><tspan x="275" dy="15">or <tspan class="dg-tag">SC-02</tspan> warning field</tspan><tspan x="275" dy="15">occupied</tspan></text><text class="dg-guard dg-halo" x="805" y="167.5" text-anchor="middle"><tspan x="805">E-stop pressed</tspan></text><text class="dg-guard dg-halo" x="497" y="269" text-anchor="end"><tspan x="497">Robot 1 in a</tspan><tspan x="497" dy="15">protective stop</tspan><tspan x="497" dy="15">or Robot 2 in a</tspan><tspan x="497" dy="15">protective stop</tspan></text><text class="dg-guard dg-halo" x="315" y="181.5" text-anchor="middle"><tspan x="315"><tspan class="dg-tag">SC-01</tspan> warning field clear</tspan><tspan x="315" dy="15"><tspan class="dg-tag">SC-02</tspan> warning field clear</tspan></text><text class="dg-guard dg-halo" x="805" y="595" text-anchor="middle"><tspan x="805">E-stop pressed</tspan></text><text class="dg-guard dg-halo" x="603" y="401.5" text-anchor="start"><tspan x="603">Robot 1 not stopped</tspan><tspan x="603" dy="15">Robot 2 not stopped</tspan><tspan x="603" dy="15"><tspan class="dg-tag">SC-01</tspan> warning field</tspan><tspan x="603" dy="15">occupied or <tspan class="dg-tag">SC-02</tspan></tspan><tspan x="603" dy="15">warning field occupied</tspan></text><text class="dg-guard dg-halo" x="315" y="609" text-anchor="middle"><tspan x="315">Robot 1 not stopped</tspan><tspan x="315" dy="15">Robot 2 not stopped</tspan><tspan x="315" dy="15"><tspan class="dg-tag">SC-01</tspan> warning field clear</tspan><tspan x="315" dy="15"><tspan class="dg-tag">SC-02</tspan> warning field clear</tspan></text><text class="dg-guard dg-halo" x="785" y="767" text-anchor="middle"><tspan x="785">E-stop released</tspan></text><text class="dg-guard dg-halo" x="825" y="821.5" text-anchor="middle"><tspan x="825">E-stop pressed</tspan></text><text class="dg-guard dg-halo" x="295" y="807.5" text-anchor="middle"><tspan x="295">relay reset: operator</tspan><tspan x="295" dy="15">resets the safety relay</tspan></text></svg>

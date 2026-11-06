@@ -196,22 +196,22 @@
    "name": "ZS-32"
   },
   {
-   "st": "GR_21A_in",
+   "st": "SC_01_prot",
    "addr": "%IX103.4",
+   "k": "sensor",
+   "name": "SC-01.prot"
+  },
+  {
+   "st": "GR_21A_in",
+   "addr": "%IX103.5",
    "k": "sensor",
    "name": "GR-21A"
   },
   {
    "st": "CNC_done",
-   "addr": "%IX103.5",
-   "k": "sensor",
-   "name": "CNC.done"
-  },
-  {
-   "st": "ZS_33_in",
    "addr": "%IX103.6",
    "k": "sensor",
-   "name": "ZS-33"
+   "name": "CNC.done"
   },
   {
    "st": "CNC_empty",
@@ -220,194 +220,254 @@
    "name": "CNC.empty"
   },
   {
-   "st": "ZS_31_in",
+   "st": "ZS_33_in",
    "addr": "%IX104.0",
+   "k": "sensor",
+   "name": "ZS-33"
+  },
+  {
+   "st": "ZS_31_in",
+   "addr": "%IX104.1",
    "k": "sensor",
    "name": "ZS-31"
   },
   {
    "st": "PS_36_in",
-   "addr": "%IX104.1",
+   "addr": "%IX104.2",
    "k": "sensor",
    "name": "PS-36"
   },
   {
    "st": "GR_21B_in",
-   "addr": "%IX104.2",
+   "addr": "%IX104.3",
    "k": "sensor",
    "name": "GR-21B"
   },
   {
    "st": "ZS_34_in",
-   "addr": "%IX104.3",
+   "addr": "%IX104.4",
    "k": "sensor",
    "name": "ZS-34"
   },
   {
    "st": "ZS_35_in",
-   "addr": "%IX104.4",
+   "addr": "%IX104.5",
    "k": "sensor",
    "name": "ZS-35"
   },
   {
    "st": "R1_clearCnc",
-   "addr": "%IX104.5",
+   "addr": "%IX104.6",
    "k": "sensor",
    "name": "R1.clearCnc"
   },
   {
    "st": "CNC_run",
-   "addr": "%IX104.6",
+   "addr": "%IX104.7",
    "k": "sensor",
    "name": "CNC.run"
   },
   {
    "st": "ENC_43_in",
-   "addr": "%IX104.7",
+   "addr": "%IX105.0",
    "k": "sensor",
    "name": "ENC-43"
   },
   {
    "st": "R1_clearConv",
-   "addr": "%IX105.0",
+   "addr": "%IX105.1",
    "k": "sensor",
    "name": "R1.clearConv"
   },
   {
    "st": "HMI_loaded",
-   "addr": "%IX105.1",
+   "addr": "%IX105.2",
    "k": "sensor",
    "name": "HMI.loaded"
   },
   {
    "st": "R2_clearConv",
-   "addr": "%IX105.2",
+   "addr": "%IX105.3",
    "k": "sensor",
    "name": "R2.clearConv"
   },
   {
    "st": "PE_42_in",
-   "addr": "%IX105.3",
+   "addr": "%IX105.4",
    "k": "sensor",
    "name": "PE-42"
   },
   {
    "st": "ROI_C",
-   "addr": "%IX105.4",
+   "addr": "%IX105.5",
    "k": "sensor",
    "name": "ROI-C"
   },
   {
    "st": "R2_home",
-   "addr": "%IX105.5",
+   "addr": "%IX105.6",
    "k": "sensor",
    "name": "R2.home"
   },
   {
    "st": "GAUGE_zeroed",
-   "addr": "%IX105.6",
+   "addr": "%IX105.7",
    "k": "sensor",
    "name": "GAUGE.zeroed"
   },
   {
    "st": "GR_51_in",
-   "addr": "%IX105.7",
+   "addr": "%IX106.0",
    "k": "sensor",
    "name": "GR-51"
   },
   {
    "st": "R2_clearGauge",
-   "addr": "%IX106.0",
+   "addr": "%IX106.1",
    "k": "sensor",
    "name": "R2.clearGauge"
   },
   {
    "st": "GAUGE_valid",
-   "addr": "%IX106.1",
+   "addr": "%IX106.2",
    "k": "sensor",
    "name": "GAUGE.valid"
   },
   {
    "st": "GAUGE_ok",
-   "addr": "%IX106.2",
+   "addr": "%IX106.3",
    "k": "sensor",
    "name": "GAUGE.ok"
   },
   {
+   "st": "SC_02_prot",
+   "addr": "%IX106.4",
+   "k": "sensor",
+   "name": "SC-02.prot"
+  },
+  {
    "st": "CAM_2_slot",
-   "addr": "%IX106.3",
+   "addr": "%IX106.5",
    "k": "sensor",
    "name": "CAM-2.slot"
   },
   {
    "st": "PE_65_in",
-   "addr": "%IX106.4",
+   "addr": "%IX106.6",
    "k": "sensor",
    "name": "PE-65"
   },
   {
+   "st": "ESTOP",
+   "addr": "%IX106.7",
+   "k": "sensor",
+   "name": "ESTOP"
+  },
+  {
+   "st": "R1_safeStop",
+   "addr": "%IX107.0",
+   "k": "sensor",
+   "name": "R1.safeStop"
+  },
+  {
+   "st": "R2_safeStop",
+   "addr": "%IX107.1",
+   "k": "sensor",
+   "name": "R2.safeStop"
+  },
+  {
+   "st": "SC_01_warn",
+   "addr": "%IX107.2",
+   "k": "sensor",
+   "name": "SC-01.warn"
+  },
+  {
+   "st": "SC_02_warn",
+   "addr": "%IX107.3",
+   "k": "sensor",
+   "name": "SC-02.warn"
+  },
+  {
+   "st": "GAUGE_warn",
+   "addr": "%IX107.4",
+   "k": "sensor",
+   "name": "GAUGE.warn"
+  },
+  {
    "st": "PX_11_in",
-   "addr": "%IX106.5",
+   "addr": "%IX107.5",
    "k": "sensor",
    "name": "PX-11"
   },
   {
    "st": "PE_41_in",
-   "addr": "%IX106.6",
+   "addr": "%IX107.6",
    "k": "sensor",
    "name": "PE-41"
   },
   {
    "st": "PX_52_in",
-   "addr": "%IX106.7",
+   "addr": "%IX107.7",
    "k": "sensor",
    "name": "PX-52"
   },
   {
    "st": "PX_64_in",
-   "addr": "%IX107.0",
+   "addr": "%IX108.0",
    "k": "sensor",
    "name": "PX-64"
   },
   {
    "st": "HMI_clear",
-   "addr": "%IX107.1",
+   "addr": "%IX108.1",
    "k": "input",
    "name": "HMI.clear"
   },
   {
    "st": "HMI_verify",
-   "addr": "%IX107.2",
+   "addr": "%IX108.2",
    "k": "input",
    "name": "HMI.verify"
   },
   {
    "st": "VERIFY_pass",
-   "addr": "%IX107.3",
+   "addr": "%IX108.3",
    "k": "input",
    "name": "VERIFY.pass"
   },
   {
    "st": "HMI_reset",
-   "addr": "%IX107.4",
+   "addr": "%IX108.4",
    "k": "input",
    "name": "HMI.reset"
   },
   {
    "st": "VERIFY_fail",
-   "addr": "%IX107.5",
+   "addr": "%IX108.5",
    "k": "input",
    "name": "VERIFY.fail"
   },
   {
+   "st": "HMI_safety",
+   "addr": "%IX108.6",
+   "k": "input",
+   "name": "HMI.safety"
+  },
+  {
    "st": "HMI_release",
-   "addr": "%IX107.6",
+   "addr": "%IX108.7",
    "k": "input",
    "name": "HMI.release"
   },
   {
+   "st": "HMI_tool",
+   "addr": "%IX109.0",
+   "k": "input",
+   "name": "HMI.tool"
+  },
+  {
    "st": "HB",
-   "addr": "%IX107.7",
+   "addr": "%IX109.1",
    "k": "hb"
   }
  ],
@@ -586,223 +646,235 @@
    "slot": "SUP"
   },
   {
-   "st": "R1_JobNo",
+   "st": "SAF_state",
    "addr": "%QW107",
+   "k": "state",
+   "slot": "SAF"
+  },
+  {
+   "st": "R1_JobNo",
+   "addr": "%QW108",
    "k": "jobNo",
    "slot": "R1"
   },
   {
    "st": "R2_JobNo",
-   "addr": "%QW108",
+   "addr": "%QW109",
    "k": "jobNo",
    "slot": "R2"
   },
   {
    "st": "V_consecNok",
-   "addr": "%QW109",
+   "addr": "%QW110",
    "k": "var",
    "name": "consecNok"
   },
   {
+   "st": "V_toolCount",
+   "addr": "%QW111",
+   "k": "var",
+   "name": "toolCount"
+  },
+  {
    "st": "V_mismatches",
-   "addr": "%QW110",
+   "addr": "%QW112",
    "k": "var",
    "name": "mismatches"
   },
   {
    "st": "TR_N",
-   "addr": "%QW111",
+   "addr": "%QW113",
    "k": "traceN"
   },
   {
    "st": "TR_00",
-   "addr": "%QW112",
+   "addr": "%QW114",
    "k": "trace",
    "i": 0
   },
   {
    "st": "TR_01",
-   "addr": "%QW113",
+   "addr": "%QW115",
    "k": "trace",
    "i": 1
   },
   {
    "st": "TR_02",
-   "addr": "%QW114",
+   "addr": "%QW116",
    "k": "trace",
    "i": 2
   },
   {
    "st": "TR_03",
-   "addr": "%QW115",
+   "addr": "%QW117",
    "k": "trace",
    "i": 3
   },
   {
    "st": "TR_04",
-   "addr": "%QW116",
+   "addr": "%QW118",
    "k": "trace",
    "i": 4
   },
   {
    "st": "TR_05",
-   "addr": "%QW117",
+   "addr": "%QW119",
    "k": "trace",
    "i": 5
   },
   {
    "st": "TR_06",
-   "addr": "%QW118",
+   "addr": "%QW120",
    "k": "trace",
    "i": 6
   },
   {
    "st": "TR_07",
-   "addr": "%QW119",
+   "addr": "%QW121",
    "k": "trace",
    "i": 7
   },
   {
    "st": "TR_08",
-   "addr": "%QW120",
+   "addr": "%QW122",
    "k": "trace",
    "i": 8
   },
   {
    "st": "TR_09",
-   "addr": "%QW121",
+   "addr": "%QW123",
    "k": "trace",
    "i": 9
   },
   {
    "st": "TR_10",
-   "addr": "%QW122",
+   "addr": "%QW124",
    "k": "trace",
    "i": 10
   },
   {
    "st": "TR_11",
-   "addr": "%QW123",
+   "addr": "%QW125",
    "k": "trace",
    "i": 11
   },
   {
    "st": "TR_12",
-   "addr": "%QW124",
+   "addr": "%QW126",
    "k": "trace",
    "i": 12
   },
   {
    "st": "TR_13",
-   "addr": "%QW125",
+   "addr": "%QW127",
    "k": "trace",
    "i": 13
   },
   {
    "st": "TR_14",
-   "addr": "%QW126",
+   "addr": "%QW128",
    "k": "trace",
    "i": 14
   },
   {
    "st": "TR_15",
-   "addr": "%QW127",
+   "addr": "%QW129",
    "k": "trace",
    "i": 15
   },
   {
    "st": "TR_16",
-   "addr": "%QW128",
+   "addr": "%QW130",
    "k": "trace",
    "i": 16
   },
   {
    "st": "TR_17",
-   "addr": "%QW129",
+   "addr": "%QW131",
    "k": "trace",
    "i": 17
   },
   {
    "st": "TR_18",
-   "addr": "%QW130",
+   "addr": "%QW132",
    "k": "trace",
    "i": 18
   },
   {
    "st": "TR_19",
-   "addr": "%QW131",
+   "addr": "%QW133",
    "k": "trace",
    "i": 19
   },
   {
    "st": "TR_20",
-   "addr": "%QW132",
+   "addr": "%QW134",
    "k": "trace",
    "i": 20
   },
   {
    "st": "TR_21",
-   "addr": "%QW133",
+   "addr": "%QW135",
    "k": "trace",
    "i": 21
   },
   {
    "st": "TR_22",
-   "addr": "%QW134",
+   "addr": "%QW136",
    "k": "trace",
    "i": 22
   },
   {
    "st": "TR_23",
-   "addr": "%QW135",
+   "addr": "%QW137",
    "k": "trace",
    "i": 23
   },
   {
    "st": "TR_24",
-   "addr": "%QW136",
+   "addr": "%QW138",
    "k": "trace",
    "i": 24
   },
   {
    "st": "TR_25",
-   "addr": "%QW137",
+   "addr": "%QW139",
    "k": "trace",
    "i": 25
   },
   {
    "st": "TR_26",
-   "addr": "%QW138",
+   "addr": "%QW140",
    "k": "trace",
    "i": 26
   },
   {
    "st": "TR_27",
-   "addr": "%QW139",
+   "addr": "%QW141",
    "k": "trace",
    "i": 27
   },
   {
    "st": "TR_28",
-   "addr": "%QW140",
+   "addr": "%QW142",
    "k": "trace",
    "i": 28
   },
   {
    "st": "TR_29",
-   "addr": "%QW141",
+   "addr": "%QW143",
    "k": "trace",
    "i": 29
   },
   {
    "st": "TR_30",
-   "addr": "%QW142",
+   "addr": "%QW144",
    "k": "trace",
    "i": 30
   },
   {
    "st": "TR_31",
-   "addr": "%QW143",
+   "addr": "%QW145",
    "k": "trace",
    "i": 31
   }
@@ -844,6 +916,8 @@
    "8": "Q_B6",
    "9": "B7",
    "10": "W1",
+   "11": "W2",
+   "12": "W3",
    "98": "H",
    "99": "F"
   },
@@ -880,6 +954,16 @@
    "4": "X4",
    "98": "H",
    "99": "F"
+  },
+  "SAF": {
+   "0": "",
+   "1": "S1",
+   "2": "S2",
+   "3": "S3",
+   "4": "S4",
+   "5": "S5",
+   "98": "H",
+   "99": "F"
   }
  },
  "traceDepth": 32,
@@ -887,6 +971,7 @@
   "R1",
   "CONV",
   "R2",
-  "SUP"
+  "SUP",
+  "SAF"
  ]
 }

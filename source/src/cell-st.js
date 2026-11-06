@@ -252,6 +252,14 @@
     const freshAt = L.length - 1;
     out(0, 'moved := FALSE;');
     [...faultExitInputs].forEach((n) => out(0, `IF ${S} = ${F} AND E_${id(n)} THEN clr_${id(n)} := TRUE; END_IF;`));
+    // E-stop (A6.5): F at once from every state but the initial one. The machine is frozen where it is:
+    // state, step, phase and the outputs of the job handshake are kept, and after the exit it continues
+    // there (the robot controller finishes the stopped move and reports Done)
+    const force = m.fault && m.fault.force;
+    if (force) {
+      faults.push([1, 'E-stop: ' + force]);
+      out(0, `IF ${ex(force, mk)} AND ${S} <> ${F} AND ${S} <> 0 THEN eRes := ${S}; eStp := stp; ePh := ph; ${id(slot)}_fault := 1; ${[...faultExitInputs].map((n) => `clr_${id(n)} := FALSE;`).join(' ')} ${S} := ${F}; moved := TRUE; END_IF;`.replace(/ +/g, ' '));
+    }
     out(0, `CASE ${S} OF`);
     // initial pseudo-state
     out(1, `0: (* initial${m.initial.text ? ': ' + cm(X.plain(m.initial.text)) : ''} *)`);
@@ -274,7 +282,8 @@
       out(1, `${F}: (* F FAULT: ${cm(X.plain(m.fault.desc.join(' ')))}; the state is entered again *)`);
       // a FAULT during H (communication lost while parking) returns to H with its resume point
       const again = m.hold ? `IF fRes = ${H} THEN ${S} := ${H}; ELSIF ${HOLDREQ(mk)} THEN hRes := fRes; hStep := 0; ${S} := ${H}; ELSE ${S} := fRes; END_IF;` : `${S} := fRes;`;
-      out(2, `IF ${ex(m.fault.exit, mk)} THEN ${[...faultExitInputs].map((x) => `clr_${id(x)} := FALSE;`).join(' ')} ${id(slot)}_fault := 0; ${again} stp := 0; ph := 0; fresh := TRUE; moved := TRUE; END_IF;`);
+      const back = force ? `IF eRes <> 0 THEN ${S} := eRes; stp := eStp; ph := ePh; eRes := 0; ELSE ${again} stp := 0; ph := 0; END_IF;` : `${again} stp := 0; ph := 0;`;
+      out(2, `IF ${ex(m.fault.exit, mk)} THEN ${[...faultExitInputs].map((x) => `clr_${id(x)} := FALSE;`).join(' ')} ${id(slot)}_fault := 0; ${back} fresh := TRUE; moved := TRUE; END_IF;`);
     }
     out(0, 'END_CASE;');
     // choice states are passed in the same call
@@ -297,6 +306,7 @@
     D.push('    hRes : INT := 0;       (* state to resume after H *)');
     D.push('    hStep : INT := 0;      (* step to resume after H (a check repeated after a camera fault) *)');
     D.push('    fRes : INT := 0;       (* state to enter again after F *)');
+    if (m.fault && m.fault.force) D.push('    eRes : INT := 0;       (* state, step and phase where an E-stop stopped the machine (A6.5); 0 = none *)', '    eStp : INT := 0;', '    ePh : INT := 0;');
     D.push('    tries : INT := 0;      (* images taken by the running check *)');
     D.push('    proxL : BOOL;          (* proximity value latched with the camera trigger *)');
     D.push('    fresh : BOOL := TRUE;  (* a state was entered: reset the timers *)');

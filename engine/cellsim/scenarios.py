@@ -2,20 +2,33 @@
 
 run_random drives a cell like the conformance test of the browser simulator (source/test_sim.js):
 every 10 s of simulated time it may inject a disturbance (sensor glitch or fault, bad camera
-frame, camera failure, missed pick, undersized part, master check out of tolerance) or send the operator away, and an operator
-and a technician answer the HMI (clear a fault after 60 s, release a quality hold after 120 s,
-start the sensor verification and reset the line).
+frame, camera failure, missed pick, undersized part, master check out of tolerance, CNC alarm
+while it machines) or send the operator away, and an operator and a technician answer the HMI
+(clear a fault after 60 s, release a quality hold after 120 s, start the sensor verification and
+reset the line).
 """
 import random
 
 from .sim import CellSim
 
+BROKEN_SHARE = 0.3                 # share of the sensor faults that cleaning does not repair (A6.2)
+CNC_ALARM_RATE = 0.5               # CNC alarms per hour of machining (A6.3)
+PERSON_RATE = 1.0                  # persons entering a loading zone per hour (A6.5, chosen)
+ESTOP_RATE = 0.2                   # E-stops per hour (A6.5, chosen)
 
-def run_random(setup, hours, faults=True, seed=1, model=None, step=10.0, random_times=False):
+
+def run_random(setup, hours, faults=True, seed=1, model=None, step=10.0, random_times=False, used_tool=False, safety=False):
     """setup must be 2 (kept as a parameter for the callers); random_times: step times drawn in
-    their intervals (A4.4)."""
+    their intervals (A4.4); used_tool: the tool has 20–119 parts of life left at the start (A6.4, own
+    stream), so that a tool change falls inside the run; safety: persons in the loading zones and E-stops at
+    PERSON_RATE / ESTOP_RATE (A6.5, own stream)."""
     rnd = random.Random(seed)
+    brk = random.Random(f"broken-{seed}")                       # own stream: the other draws stay as before A6.2
+    alm = random.Random(f"alarm-{seed}")                        # own stream for the CNC alarms (A6.3)
+    saf = random.Random(f"safety-{seed}")                       # own stream for the safety disturbances (A6.5)
     sim = CellSim(setup=setup, seed=seed, model=model, instant_verify=True, random_times=random_times)
+    if used_tool:
+        sim.vars["toolCount"] = sim.RU["toolLife"] - random.Random(f"tool-{seed}").randrange(20, 120)
     injected, actions = {}, {"clear": 0, "verify": 0, "reset": 0, "release": 0}
 
     def inj(k):
@@ -32,7 +45,8 @@ def run_random(setup, hours, faults=True, seed=1, model=None, step=10.0, random_
             if k < 0.3:
                 sim.inject_glitch(cp); inj("glitch")
             elif k < 0.45:
-                sim.toggle_sensor_fault(cp); inj("sensor fault")
+                broken = not sim.cps[cp]["fault"] and brk.random() < BROKEN_SHARE
+                sim.toggle_sensor_fault(cp, broken=broken); inj("broken sensor" if broken else "sensor fault")
             elif k < 0.6:
                 sim.inject_bad_frame(); inj("bad frame")
             elif k < 0.7:
@@ -43,6 +57,13 @@ def run_random(setup, hours, faults=True, seed=1, model=None, step=10.0, random_
                 sim.inject_undersized(); inj("undersized part")
             else:
                 sim.inject_master_fault(); inj("master check out of tolerance")
+        if faults and sim.cnc["state"] == "RUN" and not sim.inject["cnc_alarm"] and alm.random() < CNC_ALARM_RATE * step / 3600:
+            sim.inject_cnc_alarm(); inj("CNC alarm")
+        if safety and saf.random() < PERSON_RATE * step / 3600:
+            side = 1 + int(saf.random() * 2)
+            sim.inject_person(side, 5 + saf.random() * 35); inj(f"person at side {side}")
+        if safety and saf.random() < ESTOP_RATE * step / 3600:
+            sim.press_estop(10 + saf.random() * 50); inj("E-stop")
         # the operator is sometimes away: the input pallet runs empty (Robot 1 waits in W1)
         if faults and rnd.random() < 0.003:
             sim.auto_operator = not sim.auto_operator

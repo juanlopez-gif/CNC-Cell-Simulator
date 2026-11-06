@@ -6,98 +6,112 @@ Time unit of the models: 0.01 s; the values below are given in s.
 
 ## Case 1: no master check of the gauge after start-up
 
-`verification/cell_setup2_timed.xml`, 42 queries, each run on its own with a limit of 5 min.
+`verification/cell_setup2_timed.xml`, 49 queries, each run on its own with a limit of 5 min.
 
 | # | Query | Meaning | Result | Time |
 |---|---|---|---|---|
 | 1 | `A_CNC.Idle --> A_CNC.Running` | the CNC always starts again: no deadlock, no timelock, no endless run without a CNC start | satisfied | 0.1 s |
 | 2 | `E<> (A_R1.B0_0 \|\| A_R1.B0_x)` | R1 B0 reachable | satisfied | 0.0 s |
-| 3 | `E<> (A_R1.B1_0 \|\| A_R1.B1_1 \|\| A_R1.B1_x)` | R1 B1 reachable | satisfied | 0.0 s |
-| 4 | `E<> (A_R1.B2_0 \|\| A_R1.B2_x)` | R1 B2 reachable | satisfied | 0.0 s |
-| 5 | `E<> (A_R1.B3_0 \|\| A_R1.B3_x)` | R1 B3 reachable | satisfied | 0.0 s |
+| 3 | `E<> (A_R1.B1_0 \|\| A_R1.B1_1 \|\| A_R1.B1_2 \|\| A_R1.B1_x)` | R1 B1 reachable | satisfied | 0.0 s |
+| 4 | `E<> (A_R1.B2_0 \|\| A_R1.B2_x)` | R1 B2 reachable | satisfied | 0.1 s |
+| 5 | `E<> (A_R1.B3_0 \|\| A_R1.B3_x)` | R1 B3 reachable | satisfied | 0.1 s |
 | 6 | `E<> (A_R1.B4_0 \|\| A_R1.B4_1 \|\| A_R1.B4_2 \|\| A_R1.B4_x)` | R1 B4 reachable | satisfied | 0.1 s |
 | 7 | `E<> (A_R1.B5_0 \|\| A_R1.B5_1 \|\| A_R1.B5_x)` | R1 B5 reachable | satisfied | 0.1 s |
 | 8 | `E<> (A_R1.B6_0 \|\| A_R1.B6_1 \|\| A_R1.B6_x)` | R1 B6 reachable | satisfied | 0.1 s |
 | 9 | `E<> (A_R1.B7_0 \|\| A_R1.B7_1 \|\| A_R1.B7_2 \|\| A_R1.B7_3 \|\| A_R1.B7_4 \|\| A_R1.B7_x)` | R1 B7 reachable | satisfied | 0.1 s |
 | 10 | `E<> (A_R1.W1_0 \|\| A_R1.W1_x)` | R1 W1 reachable | not satisfied (not reachable) | 0.1 s |
-| 11 | `E<> (A_R1.H_0 \|\| A_R1.H_x)` | R1 H reachable | not satisfied (not reachable) | 0.1 s |
-| 12 | `E<> (A_R1.F_x)` | R1 F reachable | not satisfied (not reachable) | 0.1 s |
-| 13 | `E<> (A_CONV.C1_x)` | CONV C1 reachable | satisfied | 0.0 s |
-| 14 | `E<> (A_CONV.C2_1 \|\| A_CONV.C2_2 \|\| A_CONV.C2_x)` | CONV C2 reachable | satisfied | 0.1 s |
-| 15 | `E<> (A_CONV.C3_x)` | CONV C3 reachable | satisfied | 0.1 s |
-| 16 | `E<> (A_CONV.C4_x)` | CONV C4 reachable | satisfied | 0.1 s |
-| 17 | `E<> (A_CONV.C5_1 \|\| A_CONV.C5_x)` | CONV C5 reachable | satisfied | 0.1 s |
-| 18 | `E<> (A_CONV.H_x)` | CONV H reachable | not satisfied (not reachable) | 0.1 s |
-| 19 | `E<> (A_CONV.F_x)` | CONV F reachable | not satisfied (not reachable) | 0.1 s |
-| 20 | `E<> (A_R2.E0_0 \|\| A_R2.E0_1 \|\| A_R2.E0_2 \|\| A_R2.E0_3 \|\| A_R2.E0_4 \|\| A_R2.E0_x)` | R2 E0 reachable | satisfied | 0.0 s |
-| 21 | `E<> (A_R2.E1_0 \|\| A_R2.E1_1 \|\| A_R2.E1_2 \|\| A_R2.E1_x)` | R2 E1 reachable | satisfied | 0.0 s |
-| 22 | `E<> (A_R2.E2_0 \|\| A_R2.E2_1 \|\| A_R2.E2_x)` | R2 E2 reachable | satisfied | 0.1 s |
-| 23 | `E<> (A_R2.E3_0 \|\| A_R2.E3_1 \|\| A_R2.E3_x)` | R2 E3 reachable | satisfied | 0.1 s |
-| 24 | `E<> (A_R2.E4_0 \|\| A_R2.E4_x)` | R2 E4 reachable | satisfied | 0.1 s |
-| 25 | `E<> (A_R2.E5_1 \|\| A_R2.E5_2 \|\| A_R2.E5_3 \|\| A_R2.E5_x)` | R2 E5 reachable | satisfied | 0.1 s |
-| 26 | `E<> (A_R2.E6_0 \|\| A_R2.E6_1 \|\| A_R2.E6_x)` | R2 E6 reachable | not satisfied (not reachable) | 0.1 s |
-| 27 | `E<> (A_R2.E7_0 \|\| A_R2.E7_1 \|\| A_R2.E7_2 \|\| A_R2.E7_x)` | R2 E7 reachable | satisfied | 0.1 s |
-| 28 | `E<> (A_R2.H_0 \|\| A_R2.H_x)` | R2 H reachable | not satisfied (not reachable) | 0.1 s |
-| 29 | `E<> (A_R2.F_x)` | R2 F reachable | not satisfied (not reachable) | 0.1 s |
-| 30 | `E<> (A_SUP.X1_x)` | SUP X1 reachable | satisfied | 0.0 s |
-| 31 | `E<> (A_SUP.X2_x)` | SUP X2 reachable | not satisfied (not reachable) | 0.1 s |
-| 32 | `E<> (A_SUP.X3_x)` | SUP X3 reachable | not satisfied (not reachable) | 0.1 s |
-| 33 | `E<> (A_SUP.X4_x)` | SUP X4 reachable | not satisfied (not reachable) | 0.1 s |
-| 34 | `E<> (A_R2.E1_1 && cyc >= 1)` | master check of the gauge after start-up reachable (case 2 only) | not satisfied (not reachable) | 0.1 s |
-| 35 | `sup{A_CNC.Started && cyc >= 1}: w` | B1 CNC idle per cycle, supremum (time units of 0.01 s) | satisfied; sup 2745 = 27.45 s | 0.1 s |
-| 36 | `inf{A_CNC.Started && cyc >= 1}: w` | B1 CNC idle per cycle, infimum | satisfied; inf 1700 = 17.00 s | 0.1 s |
-| 37 | `sup{A_CNC.Started && cyc >= 1}: p` | B2 period between two CNC starts, supremum | satisfied; sup 15345 = 153.45 s | 0.1 s |
-| 38 | `inf{A_CNC.Started && cyc >= 1}: p` | B2 period between two CNC starts, infimum | satisfied; inf 13100 = 131.00 s | 0.1 s |
-| 39 | `sup{trk == 2}: b` | B3 raw part picked (CP-1) to finished part on the output pallet, supremum | satisfied; sup 33570 = 335.70 s | 0.1 s |
-| 40 | `inf{trk == 2}: b` | B3 raw part picked (CP-1) to finished part on the output pallet, infimum | satisfied; inf 17095 = 170.95 s | 0.1 s |
-| 41 | `A[] (wip < 8 && ahd < 8)` | observer B3: its counters never reach their bound | satisfied | 0.1 s |
-| 42 | `A[] (A_R2.E5_3 imply wip > 0)` | observer B3: a part placed on the output pallet was counted when picked | satisfied | 0.1 s |
+| 11 | `E<> (A_R1.W2_x)` | R1 W2 reachable | not satisfied (not reachable) | 0.1 s |
+| 12 | `E<> (A_R1.W3_x)` | R1 W3 reachable | not satisfied (not reachable) | 0.1 s |
+| 13 | `E<> (A_R1.H_0 \|\| A_R1.H_x)` | R1 H reachable | not satisfied (not reachable) | 0.1 s |
+| 14 | `E<> (A_R1.F_x)` | R1 F reachable | not satisfied (not reachable) | 0.1 s |
+| 15 | `E<> (A_CONV.C1_x)` | CONV C1 reachable | satisfied | 0.0 s |
+| 16 | `E<> (A_CONV.C2_1 \|\| A_CONV.C2_2 \|\| A_CONV.C2_x)` | CONV C2 reachable | satisfied | 0.1 s |
+| 17 | `E<> (A_CONV.C3_x)` | CONV C3 reachable | satisfied | 0.1 s |
+| 18 | `E<> (A_CONV.C4_x)` | CONV C4 reachable | satisfied | 0.1 s |
+| 19 | `E<> (A_CONV.C5_1 \|\| A_CONV.C5_x)` | CONV C5 reachable | satisfied | 0.1 s |
+| 20 | `E<> (A_CONV.H_x)` | CONV H reachable | not satisfied (not reachable) | 0.1 s |
+| 21 | `E<> (A_CONV.F_x)` | CONV F reachable | not satisfied (not reachable) | 0.1 s |
+| 22 | `E<> (A_R2.E0_0 \|\| A_R2.E0_1 \|\| A_R2.E0_2 \|\| A_R2.E0_3 \|\| A_R2.E0_4 \|\| A_R2.E0_x)` | R2 E0 reachable | satisfied | 0.0 s |
+| 23 | `E<> (A_R2.E1_0 \|\| A_R2.E1_1 \|\| A_R2.E1_2 \|\| A_R2.E1_x)` | R2 E1 reachable | satisfied | 0.1 s |
+| 24 | `E<> (A_R2.E2_0 \|\| A_R2.E2_1 \|\| A_R2.E2_x)` | R2 E2 reachable | satisfied | 0.1 s |
+| 25 | `E<> (A_R2.E3_0 \|\| A_R2.E3_1 \|\| A_R2.E3_x)` | R2 E3 reachable | satisfied | 0.1 s |
+| 26 | `E<> (A_R2.E4_0 \|\| A_R2.E4_x)` | R2 E4 reachable | satisfied | 0.1 s |
+| 27 | `E<> (A_R2.E5_1 \|\| A_R2.E5_2 \|\| A_R2.E5_3 \|\| A_R2.E5_4 \|\| A_R2.E5_x)` | R2 E5 reachable | satisfied | 0.1 s |
+| 28 | `E<> (A_R2.E6_0 \|\| A_R2.E6_1 \|\| A_R2.E6_x)` | R2 E6 reachable | not satisfied (not reachable) | 0.1 s |
+| 29 | `E<> (A_R2.E7_0 \|\| A_R2.E7_1 \|\| A_R2.E7_2 \|\| A_R2.E7_x)` | R2 E7 reachable | satisfied | 0.1 s |
+| 30 | `E<> (A_R2.H_0 \|\| A_R2.H_x)` | R2 H reachable | not satisfied (not reachable) | 0.1 s |
+| 31 | `E<> (A_R2.F_x)` | R2 F reachable | not satisfied (not reachable) | 0.1 s |
+| 32 | `E<> (A_SUP.X1_x)` | SUP X1 reachable | satisfied | 0.0 s |
+| 33 | `E<> (A_SUP.X2_x)` | SUP X2 reachable | not satisfied (not reachable) | 0.1 s |
+| 34 | `E<> (A_SUP.X3_x)` | SUP X3 reachable | not satisfied (not reachable) | 0.1 s |
+| 35 | `E<> (A_SUP.X4_x)` | SUP X4 reachable | not satisfied (not reachable) | 0.1 s |
+| 36 | `E<> (A_SAF.S1_x)` | SAF S1 reachable | satisfied | 0.0 s |
+| 37 | `E<> (A_SAF.S2_x)` | SAF S2 reachable | not satisfied (not reachable) | 0.1 s |
+| 38 | `E<> (A_SAF.S3_x)` | SAF S3 reachable | not satisfied (not reachable) | 0.1 s |
+| 39 | `E<> (A_SAF.S4_x)` | SAF S4 reachable | not satisfied (not reachable) | 0.1 s |
+| 40 | `E<> (A_SAF.S5_x)` | SAF S5 reachable | not satisfied (not reachable) | 0.1 s |
+| 41 | `E<> (A_R2.E1_1 && cyc >= 1)` | master check of the gauge after start-up reachable (case 2 only) | not satisfied (not reachable) | 0.1 s |
+| 42 | `sup{A_CNC.Started && cyc >= 1}: w` | B1 CNC idle per cycle, supremum (time units of 0.01 s) | satisfied; sup 2745 = 27.45 s | 0.1 s |
+| 43 | `inf{A_CNC.Started && cyc >= 1}: w` | B1 CNC idle per cycle, infimum | satisfied; inf 1700 = 17.00 s | 0.1 s |
+| 44 | `sup{A_CNC.Started && cyc >= 1}: p` | B2 period between two CNC starts, supremum | satisfied; sup 15345 = 153.45 s | 0.1 s |
+| 45 | `inf{A_CNC.Started && cyc >= 1}: p` | B2 period between two CNC starts, infimum | satisfied; inf 13100 = 131.00 s | 0.1 s |
+| 46 | `sup{trk == 2}: b` | B3 raw part picked (CP-1) to finished part on the output pallet, supremum | satisfied; sup 33570 = 335.70 s | 0.1 s |
+| 47 | `inf{trk == 2}: b` | B3 raw part picked (CP-1) to finished part on the output pallet, infimum | satisfied; inf 17095 = 170.95 s | 0.1 s |
+| 48 | `A[] (wip < 8 && ahd < 8)` | observer B3: its counters never reach their bound | satisfied | 0.1 s |
+| 49 | `A[] (A_R2.E5_3 imply wip > 0)` | observer B3: a part placed on the output pallet was counted when picked | satisfied | 0.1 s |
 
 ## Case 2: the 4-h master check may fall due
 
-`verification/cell_setup2_timed_master.xml`, 42 queries, each run on its own with a limit of 5 min.
+`verification/cell_setup2_timed_master.xml`, 49 queries, each run on its own with a limit of 5 min.
 
 | # | Query | Meaning | Result | Time |
 |---|---|---|---|---|
-| 1 | `A_CNC.Idle --> A_CNC.Running` | the CNC always starts again: no deadlock, no timelock, no endless run without a CNC start | satisfied | 0.1 s |
+| 1 | `A_CNC.Idle --> A_CNC.Running` | the CNC always starts again: no deadlock, no timelock, no endless run without a CNC start | satisfied | 0.2 s |
 | 2 | `E<> (A_R1.B0_0 \|\| A_R1.B0_x)` | R1 B0 reachable | satisfied | 0.0 s |
-| 3 | `E<> (A_R1.B1_0 \|\| A_R1.B1_1 \|\| A_R1.B1_x)` | R1 B1 reachable | satisfied | 0.0 s |
+| 3 | `E<> (A_R1.B1_0 \|\| A_R1.B1_1 \|\| A_R1.B1_2 \|\| A_R1.B1_x)` | R1 B1 reachable | satisfied | 0.0 s |
 | 4 | `E<> (A_R1.B2_0 \|\| A_R1.B2_x)` | R1 B2 reachable | satisfied | 0.0 s |
-| 5 | `E<> (A_R1.B3_0 \|\| A_R1.B3_x)` | R1 B3 reachable | satisfied | 0.0 s |
+| 5 | `E<> (A_R1.B3_0 \|\| A_R1.B3_x)` | R1 B3 reachable | satisfied | 0.1 s |
 | 6 | `E<> (A_R1.B4_0 \|\| A_R1.B4_1 \|\| A_R1.B4_2 \|\| A_R1.B4_x)` | R1 B4 reachable | satisfied | 0.1 s |
 | 7 | `E<> (A_R1.B5_0 \|\| A_R1.B5_1 \|\| A_R1.B5_x)` | R1 B5 reachable | satisfied | 0.1 s |
 | 8 | `E<> (A_R1.B6_0 \|\| A_R1.B6_1 \|\| A_R1.B6_x)` | R1 B6 reachable | satisfied | 0.1 s |
 | 9 | `E<> (A_R1.B7_0 \|\| A_R1.B7_1 \|\| A_R1.B7_2 \|\| A_R1.B7_3 \|\| A_R1.B7_4 \|\| A_R1.B7_x)` | R1 B7 reachable | satisfied | 0.1 s |
 | 10 | `E<> (A_R1.W1_0 \|\| A_R1.W1_x)` | R1 W1 reachable | not satisfied (not reachable) | 0.1 s |
-| 11 | `E<> (A_R1.H_0 \|\| A_R1.H_x)` | R1 H reachable | not satisfied (not reachable) | 0.1 s |
-| 12 | `E<> (A_R1.F_x)` | R1 F reachable | not satisfied (not reachable) | 0.1 s |
-| 13 | `E<> (A_CONV.C1_x)` | CONV C1 reachable | satisfied | 0.0 s |
-| 14 | `E<> (A_CONV.C2_1 \|\| A_CONV.C2_2 \|\| A_CONV.C2_x)` | CONV C2 reachable | satisfied | 0.1 s |
-| 15 | `E<> (A_CONV.C3_x)` | CONV C3 reachable | satisfied | 0.1 s |
-| 16 | `E<> (A_CONV.C4_x)` | CONV C4 reachable | satisfied | 0.1 s |
-| 17 | `E<> (A_CONV.C5_1 \|\| A_CONV.C5_x)` | CONV C5 reachable | satisfied | 0.1 s |
-| 18 | `E<> (A_CONV.H_x)` | CONV H reachable | not satisfied (not reachable) | 0.1 s |
-| 19 | `E<> (A_CONV.F_x)` | CONV F reachable | not satisfied (not reachable) | 0.1 s |
-| 20 | `E<> (A_R2.E0_0 \|\| A_R2.E0_1 \|\| A_R2.E0_2 \|\| A_R2.E0_3 \|\| A_R2.E0_4 \|\| A_R2.E0_x)` | R2 E0 reachable | satisfied | 0.0 s |
-| 21 | `E<> (A_R2.E1_0 \|\| A_R2.E1_1 \|\| A_R2.E1_2 \|\| A_R2.E1_x)` | R2 E1 reachable | satisfied | 0.0 s |
-| 22 | `E<> (A_R2.E2_0 \|\| A_R2.E2_1 \|\| A_R2.E2_x)` | R2 E2 reachable | satisfied | 0.1 s |
-| 23 | `E<> (A_R2.E3_0 \|\| A_R2.E3_1 \|\| A_R2.E3_x)` | R2 E3 reachable | satisfied | 0.1 s |
-| 24 | `E<> (A_R2.E4_0 \|\| A_R2.E4_x)` | R2 E4 reachable | satisfied | 0.1 s |
-| 25 | `E<> (A_R2.E5_1 \|\| A_R2.E5_2 \|\| A_R2.E5_3 \|\| A_R2.E5_x)` | R2 E5 reachable | satisfied | 0.1 s |
-| 26 | `E<> (A_R2.E6_0 \|\| A_R2.E6_1 \|\| A_R2.E6_x)` | R2 E6 reachable | not satisfied (not reachable) | 0.1 s |
-| 27 | `E<> (A_R2.E7_0 \|\| A_R2.E7_1 \|\| A_R2.E7_2 \|\| A_R2.E7_x)` | R2 E7 reachable | satisfied | 0.1 s |
-| 28 | `E<> (A_R2.H_0 \|\| A_R2.H_x)` | R2 H reachable | not satisfied (not reachable) | 0.1 s |
-| 29 | `E<> (A_R2.F_x)` | R2 F reachable | not satisfied (not reachable) | 0.1 s |
-| 30 | `E<> (A_SUP.X1_x)` | SUP X1 reachable | satisfied | 0.0 s |
-| 31 | `E<> (A_SUP.X2_x)` | SUP X2 reachable | not satisfied (not reachable) | 0.1 s |
-| 32 | `E<> (A_SUP.X3_x)` | SUP X3 reachable | not satisfied (not reachable) | 0.1 s |
-| 33 | `E<> (A_SUP.X4_x)` | SUP X4 reachable | not satisfied (not reachable) | 0.1 s |
-| 34 | `E<> (A_R2.E1_1 && cyc >= 1)` | master check of the gauge after start-up reachable (case 2 only) | satisfied | 0.1 s |
-| 35 | `sup{A_CNC.Started && cyc >= 1}: w` | B1 CNC idle per cycle, supremum (time units of 0.01 s) | satisfied; sup 2745 = 27.45 s | 0.1 s |
-| 36 | `inf{A_CNC.Started && cyc >= 1}: w` | B1 CNC idle per cycle, infimum | satisfied; inf 1700 = 17.00 s | 0.1 s |
-| 37 | `sup{A_CNC.Started && cyc >= 1}: p` | B2 period between two CNC starts, supremum | satisfied; sup 15345 = 153.45 s | 0.1 s |
-| 38 | `inf{A_CNC.Started && cyc >= 1}: p` | B2 period between two CNC starts, infimum | satisfied; inf 13100 = 131.00 s | 0.1 s |
-| 39 | `sup{trk == 2}: b` | B3 raw part picked (CP-1) to finished part on the output pallet, supremum | satisfied; sup 33570 = 335.70 s | 0.2 s |
-| 40 | `inf{trk == 2}: b` | B3 raw part picked (CP-1) to finished part on the output pallet, infimum | satisfied; inf 17095 = 170.95 s | 0.2 s |
-| 41 | `A[] (wip < 8 && ahd < 8)` | observer B3: its counters never reach their bound | satisfied | 0.1 s |
-| 42 | `A[] (A_R2.E5_3 imply wip > 0)` | observer B3: a part placed on the output pallet was counted when picked | satisfied | 0.1 s |
+| 11 | `E<> (A_R1.W2_x)` | R1 W2 reachable | not satisfied (not reachable) | 0.1 s |
+| 12 | `E<> (A_R1.W3_x)` | R1 W3 reachable | not satisfied (not reachable) | 0.1 s |
+| 13 | `E<> (A_R1.H_0 \|\| A_R1.H_x)` | R1 H reachable | not satisfied (not reachable) | 0.1 s |
+| 14 | `E<> (A_R1.F_x)` | R1 F reachable | not satisfied (not reachable) | 0.1 s |
+| 15 | `E<> (A_CONV.C1_x)` | CONV C1 reachable | satisfied | 0.0 s |
+| 16 | `E<> (A_CONV.C2_1 \|\| A_CONV.C2_2 \|\| A_CONV.C2_x)` | CONV C2 reachable | satisfied | 0.1 s |
+| 17 | `E<> (A_CONV.C3_x)` | CONV C3 reachable | satisfied | 0.1 s |
+| 18 | `E<> (A_CONV.C4_x)` | CONV C4 reachable | satisfied | 0.1 s |
+| 19 | `E<> (A_CONV.C5_1 \|\| A_CONV.C5_x)` | CONV C5 reachable | satisfied | 0.1 s |
+| 20 | `E<> (A_CONV.H_x)` | CONV H reachable | not satisfied (not reachable) | 0.1 s |
+| 21 | `E<> (A_CONV.F_x)` | CONV F reachable | not satisfied (not reachable) | 0.1 s |
+| 22 | `E<> (A_R2.E0_0 \|\| A_R2.E0_1 \|\| A_R2.E0_2 \|\| A_R2.E0_3 \|\| A_R2.E0_4 \|\| A_R2.E0_x)` | R2 E0 reachable | satisfied | 0.0 s |
+| 23 | `E<> (A_R2.E1_0 \|\| A_R2.E1_1 \|\| A_R2.E1_2 \|\| A_R2.E1_x)` | R2 E1 reachable | satisfied | 0.1 s |
+| 24 | `E<> (A_R2.E2_0 \|\| A_R2.E2_1 \|\| A_R2.E2_x)` | R2 E2 reachable | satisfied | 0.1 s |
+| 25 | `E<> (A_R2.E3_0 \|\| A_R2.E3_1 \|\| A_R2.E3_x)` | R2 E3 reachable | satisfied | 0.1 s |
+| 26 | `E<> (A_R2.E4_0 \|\| A_R2.E4_x)` | R2 E4 reachable | satisfied | 0.1 s |
+| 27 | `E<> (A_R2.E5_1 \|\| A_R2.E5_2 \|\| A_R2.E5_3 \|\| A_R2.E5_4 \|\| A_R2.E5_x)` | R2 E5 reachable | satisfied | 0.1 s |
+| 28 | `E<> (A_R2.E6_0 \|\| A_R2.E6_1 \|\| A_R2.E6_x)` | R2 E6 reachable | not satisfied (not reachable) | 0.1 s |
+| 29 | `E<> (A_R2.E7_0 \|\| A_R2.E7_1 \|\| A_R2.E7_2 \|\| A_R2.E7_x)` | R2 E7 reachable | satisfied | 0.1 s |
+| 30 | `E<> (A_R2.H_0 \|\| A_R2.H_x)` | R2 H reachable | not satisfied (not reachable) | 0.1 s |
+| 31 | `E<> (A_R2.F_x)` | R2 F reachable | not satisfied (not reachable) | 0.1 s |
+| 32 | `E<> (A_SUP.X1_x)` | SUP X1 reachable | satisfied | 0.0 s |
+| 33 | `E<> (A_SUP.X2_x)` | SUP X2 reachable | not satisfied (not reachable) | 0.1 s |
+| 34 | `E<> (A_SUP.X3_x)` | SUP X3 reachable | not satisfied (not reachable) | 0.1 s |
+| 35 | `E<> (A_SUP.X4_x)` | SUP X4 reachable | not satisfied (not reachable) | 0.1 s |
+| 36 | `E<> (A_SAF.S1_x)` | SAF S1 reachable | satisfied | 0.0 s |
+| 37 | `E<> (A_SAF.S2_x)` | SAF S2 reachable | not satisfied (not reachable) | 0.1 s |
+| 38 | `E<> (A_SAF.S3_x)` | SAF S3 reachable | not satisfied (not reachable) | 0.1 s |
+| 39 | `E<> (A_SAF.S4_x)` | SAF S4 reachable | not satisfied (not reachable) | 0.1 s |
+| 40 | `E<> (A_SAF.S5_x)` | SAF S5 reachable | not satisfied (not reachable) | 0.1 s |
+| 41 | `E<> (A_R2.E1_1 && cyc >= 1)` | master check of the gauge after start-up reachable (case 2 only) | satisfied | 0.1 s |
+| 42 | `sup{A_CNC.Started && cyc >= 1}: w` | B1 CNC idle per cycle, supremum (time units of 0.01 s) | satisfied; sup 2745 = 27.45 s | 0.1 s |
+| 43 | `inf{A_CNC.Started && cyc >= 1}: w` | B1 CNC idle per cycle, infimum | satisfied; inf 1700 = 17.00 s | 0.1 s |
+| 44 | `sup{A_CNC.Started && cyc >= 1}: p` | B2 period between two CNC starts, supremum | satisfied; sup 15345 = 153.45 s | 0.1 s |
+| 45 | `inf{A_CNC.Started && cyc >= 1}: p` | B2 period between two CNC starts, infimum | satisfied; inf 13100 = 131.00 s | 0.1 s |
+| 46 | `sup{trk == 2}: b` | B3 raw part picked (CP-1) to finished part on the output pallet, supremum | satisfied; sup 33570 = 335.70 s | 0.2 s |
+| 47 | `inf{trk == 2}: b` | B3 raw part picked (CP-1) to finished part on the output pallet, infimum | satisfied; inf 17095 = 170.95 s | 0.2 s |
+| 48 | `A[] (wip < 8 && ahd < 8)` | observer B3: its counters never reach their bound | satisfied | 0.1 s |
+| 49 | `A[] (A_R2.E5_3 imply wip > 0)` | observer B3: a part placed on the output pallet was counted when picked | satisfied | 0.1 s |
