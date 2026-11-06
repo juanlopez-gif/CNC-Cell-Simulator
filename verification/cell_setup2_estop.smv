@@ -5,7 +5,7 @@
 -- is one of its automatic commands; otherwise the step leaves the state unchanged, like idle. Such
 -- steps add no states and change none of the specifications below (no TRANS constraints: with them
 -- NuSMV needs hours for the fair states of the largest model).
--- Abstractions: no step times; jobs complete at any time; output pallet capacity 2.
+-- Abstractions: no step times; jobs complete at any time; output pallet of any capacity >= 2 (empty / partly filled / full).
 MODULE main
 VAR
   R1 : {I_x, B0_0, B0_x, B1_0, B1_1, B1_2, B1_x, B2_0, B2_x, B3_0, B3_x, B4_0, B4_1, B4_2, B4_x, B5_0, B5_1, B5_x, B6_0, B6_1, B6_x, B7_0, B7_1, B7_2, B7_3, B7_4, B7_x, W1_0, W1_x, W2_x, W3_x, H_0, H_x, F_x}; -- location of the R1 machine (state_step)
@@ -51,7 +51,7 @@ VAR
   inPresent : boolean; -- input pallet in place
   inParts : boolean; -- raw parts left on the input pallet
   outPresent : boolean; -- output pallet in place
-  outCount : 0..2; -- parts on the output pallet (capacity 2 in the abstract model)
+  outCount : 0..2; -- output pallet: 0 empty, 1 partly filled, 2 full (any capacity >= 2)
   r1Home : boolean; -- Robot 1 at home
   r2Home : boolean; -- Robot 2 at home
   nest : {none, raw, ok, nok}; -- part in the gauge nest
@@ -1738,7 +1738,7 @@ ASSIGN
     TRUE : outPresent;
   esac;
   next(outCount) := case
-    cmd = c200 & g200 & !urgent : max(0, min(2, outCount + 1));
+    cmd = c200 & g200 & !urgent : case outCount = 0 : 1; outCount = 1 : {1, 2}; outCount = 2 : 2; esac;
     cmd = c477 & g477 & !urgent : 0;
     TRUE : outCount;
   esac;

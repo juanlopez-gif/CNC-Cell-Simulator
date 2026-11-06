@@ -135,3 +135,11 @@ of SAF (S1 at t = 0.05 s), and is otherwise the same. The differences are all in
 The parity test has a seventh scenario, `safety` (persons in the loading zones during the pick of
 Robot 1 and the place of Robot 2, E-stops while Robot 1 opens the door, loads the vise and waits):
 browser and Python identical.
+
+## End of A6: published models with `slots: 'any'`
+
+The published NuSMV models are now built with the output pallet of any capacity (`V.PUBLISHED`,
+used by `verify.js`, `build_all.js` and `regress.js`). Comparison with the reference of A6.5: 7
+differences, the hashes of the seven NuSMV models (same variables and commands; the place step of
+the count becomes a nested `case` with the step 1 → 1); everything else identical. The reference
+`setup2_reference.json` was updated in these 7 entries only.

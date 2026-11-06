@@ -30,7 +30,7 @@ reference behind it.
 | Python engine tests | `python -m unittest test_engine` | 7 tests OK (new in A2.2: gauge policy; in A2.4: KPI measures) |
 | Browser tests | `npm test` (basic, fault, quality hold, phone width, 20 h conformance, Python parity in 3 scenarios) | all pass, no page errors, no property violation |
 | Regression | `npm run regress` | identical to `regression/setup2_reference.json` (recorded at the end of A2.2, unchanged by A2.3 and A2.4; the A2.1 reference kept as `regression/setup2_a21.json`); differences all intended (`regression/README.md`) |
-| Exhaustive verification | `npm run verify` | 7 runs, 20 properties (P1–P17, L1–L3) hold, no deadlock (§9.3; re-run in A6.5 on 2026-11-05 with the safety status: new runs `estop` 11,954,888 and `person` 2,561,670 states). NuSMV 2.7.1 (A2.2 models, not yet re-run for A6) agrees on every specification it decided (48 per model) and on the reachable states of the 5 runs of then; in `sensor_camwrong` P11 and P12 got no NuSMV result within 12 h (run locally, 2026-10-30, §9.4) |
+| Exhaustive verification | `npm run verify` | 7 runs, 20 properties (P1–P17, L1–L3) hold, no deadlock (§9.3; re-run in A6.5 on 2026-11-05 with the safety status: new runs `estop` 11,954,888 and `person` 2,561,670 states). Models with the output pallet of any capacity (`slots: 'any'`, the same states as capacity 2). NuSMV 2.7.1 agrees on all 60 specifications of every run and on the reachable states of all 7 runs (run locally at the end of A6, 2026-11-05/06, §9.4) |
 | Pallet capacity and combined faults (A2.5) | `node --max-old-space-size=4000 verify_pallet.js` | output pallet of any capacity: same states as capacity 2 in all 5 runs, 15 properties hold; counter game L1–L3 holds in 3 runs; capacity 3 in 3 runs; combined run without undersized parts 79,680,713 states, all hold (`verification/pallet_capacity.md`) |
 | Environment of this check | — | local: Node.js 24, Python 3.11, Google Chrome |
 | KPIs | `M.KPI` | idle 20.5 s, cycle 140.5 s, 85.4 % of the cycle machining, 25.6 parts/h; baseline `M.BASELINE` 36.5 s |
@@ -87,7 +87,7 @@ formal verification are all generated from or interpret that file.
 | 20 properties hold and there is no deadlock | Exhaustive search of the abstract model, 7 runs (nominal, sensor faults, process faults, camera wrong, all sensor faults together, E-stop, person in the scanner fields; §9.3) | Untimed plant; one source wrong at a time (common mode not modelled); L1–L3 are AG EF: the goal can always still be reached, not that it will be reached |
 | The verdicts hold for an output pallet of any capacity (12 included) | Abstract count (empty / partly filled / full) with exactly the states of capacity 2 in all 5 runs; counter game for L1–L3 in 3 runs; capacity 3 compared in 3 runs (`verification/pallet_capacity.md`) | Rests on the logic reading the count only as `= 0`, `>= slots`, `< slots` (not checked by `lint()`). L1–L3 for any capacity not proved in `sensor` and `sensor_camwrong` (the game does not fit in memory) |
 | Sensor and process faults together | One run with every class of `all` except undersized parts: 79,680,713 states, 15 properties hold, no deadlock | `faults: 'all'` itself is about 1.4 × 10⁹ states (about 140 GB), out of reach; the rest is an argument (`pallet_capacity.md` §5) |
-| The search and the NuSMV export agree | Same verdicts on every specification NuSMV decided and same state counts in all 5 runs (48 specifications each; P11 and P12 of `sensor_camwrong` undecided after 12 h, §9.3) | Additional evidence of consistency. Both start from the same intermediate representation (`build()`), so an error made there would be shared |
+| The search and the NuSMV export agree | Same verdicts and same state counts in all 7 runs (60 specifications each, every one decided; end of A6, 2026-11-06, §9.3) | Additional evidence of consistency. Both start from the same intermediate representation (`build()`), so an error made there would be shared |
 | CNC idle 36.5 s → 20.5 s; 23.0 → 25.6 parts/h | Setup 2: sum of nominal step times of the states in the idle band, reproduced by the simulators without faults. Setup 1: fixed baseline numbers (`M.BASELINE`) computed before A1 | Planning estimates, not measurements. Nominal exchange only: excludes material shortage, pallet changes, holds and repairs. Idle time falls 43.8 %, output rises 11.4 %. The 85.4 % is the share of the nominal cycle spent machining, not availability or OEE. Measured over 8 h in the Python engine (§5.15): 25.5 parts/h nominal, 10.9–20.5 good parts/h in five runs with random disturbances, losses mostly from the absent operator. With every time at its minimum / maximum at once (§5.1.1): 17 – 27.5 s idle per part |
 | Removing Setup 1 (A1) did not change Setup 2 | `regression/`: identical KPIs, NuSMV models, browser and Python traces (deterministic and seeded random runs) | Covers the recorded scenarios and the three abstract models, not every possible run |
 | The cross-check rules of §5.3 keep the properties with one wrong source | Exhaustive search with proximity wrong, camera false positive / false negative / stale image at every checkpoint, PLC timeouts included (§9.3); timed study, `verification/camera_policy.md` | One source wrong at a time: both wrong the same way (common mode) is not modelled and no rule detects it. The original rule "the camera decides" was **not** safe: it failed P6 at CP-4, and FAULT recovery failed P5 and P11 (`camera_policy.md` §2–3) |
@@ -1595,12 +1595,16 @@ and git history, the A1 ones in `regression/setup2_a1.json`; the Setup 1 runs (5
 88,132 states) in the legacy branch. Never-reached states are listed per run (e.g. `R2: E6` without
 process faults, which is expected: no undersized parts).
 
-NuSMV 2.7.1 was run on these models locally on 2026-10-29/30: same verdict on every specification it
-decided and the same number of reachable states in all 5 runs. 48 specifications per model; in
-`sensor_camwrong` the invariant process stopped at its 12-h limit without a result for P11 and P12
-(the two job-start properties, written with `next()`), so for that run they rest on the explicit
-search alone (§9.4). Outputs in `verification/cell_setup2_<run>.nusmv.txt`; those of the A2.1 models
-are in git history (commit `7f59e55`).
+End of A6 (2026-11-05/06): the published models are built with the output pallet of any capacity
+(`slots: 'any'`, `V.PUBLISHED`, A2.5): every run has exactly the states of capacity 2 above, a few
+more transitions (the step 1 → 1 of the count), 20 properties hold, 0 deadlocks; search about
+2 h 15 min. NuSMV 2.7.1 on the 7 models: 60 specifications per model, every one decided, the same
+verdict as the search on all of them and the same number of reachable states in all 7 runs. P11 and
+P12 of `sensor_camwrong`, undecided at the 12-h limit on the A2.2 models (2026-10-29/30), are now
+decided (pass). NuSMV time per model (summed over its two processes) from 599 s (`none`) to 31.2 h
+(`sensor_camwrong`, its invariants alone 26.1 h; `sensor` 12.9 h), about 27 h of wall clock with 8
+parallel jobs and `NUSMV_TIMEOUT` 48 h. Outputs in `verification/cell_setup2_<run>.nusmv.txt`; those
+of the A2.2 and A2.1 models are in git history (commits `9b6d508`, `7f59e55`).
 
 ### 9.4 NuSMV export (`toSmv(ir)`) and cross-check
 
@@ -1621,7 +1625,9 @@ are in git history (commit `7f59e55`).
   models (2026-10-29/30): 48 specs per model, all decided ones agree, states equal in all 5 runs;
   NuSMV time per model from 228 s (`none`) to 21.5 h (`sensor_camwrong`, summed over its two
   processes), about 12 h of wall clock with 8 parallel jobs. The invariants of `sensor_camwrong` hit
-  the 12-h limit with P11 and P12 undecided; a run with a longer `NUSMV_TIMEOUT` would close them.
+  the 12-h limit with P11 and P12 undecided. A6 models (2026-11-05/06, `slots: 'any'`): 60 specs per
+  model, all decided, all agree, states equal in all 7 runs; NuSMV time per model from 599 s (`none`)
+  to 31.2 h (`sensor_camwrong`), about 27 h of wall clock with 8 parallel jobs (`NUSMV_TIMEOUT` 48 h).
 - Manual run of one file: `NuSMV -dynamic -dcx -r cell_setup2_none.smv`.
 
 What the agreement means: additional evidence that the explicit search and the NuSMV export are
@@ -1727,8 +1733,8 @@ Gotchas met before:
 
 1. **The documents in `submission/` describe round 1** (both setups, the first version of the
    machines). They are historical and marked as such.
-2. **The abstraction is not verified.** The verifier checks an untimed abstract plant with a
-   2-slot pallet. Timing properties (cycle time, idle time) come only from the simulators.
+2. **The abstraction is not verified.** The verifier checks an untimed abstract plant with an
+   output pallet of any capacity ≥ 2 abstracted to empty / partly filled / full (A2.5; since the end of A6). Timing properties (cycle time, idle time) come only from the simulators.
 3. **Simulated plant, not hardware.** Sensor behaviour, robot motions and the CNC interface are
    idealized; prices and part numbers come from vendor catalogues (September 2026), never tested.
 4. **`VERIFY.fail`** (resolved in A6.2, §5.19): a broken sensor fails its test and is replaced.
@@ -1861,7 +1867,7 @@ green. Effort figures are indicative only.
 | A3 PLC demonstration | In progress: A3.1 execution semantics approved (2026-10-30); A3.2 generator done (2026-10-31); A3.3 OpenPLC and bridge done, A3.4 comparison passed in 3 scenarios × 1 h (2026-10-31); recorded demo prepared (`engine/PLC_DEMO.md`), not recorded yet. Merged into `main` 2026-10-31 | `a3-plc` → `main` | |
 | A4 Timed verification (UPPAAL) | Done: A4.1 timed model approved (2026-10-31); A4.2 generator and UPPAAL models done, checked by simulation (2026-10-31); A4.3 bounds with `verifyta` in CI (2026-11-01): idle 17.00–27.45 s, period 131.00–153.45 s, raw pick to output pallet up to 335.70 s; A4.4 Python engine with random step times inside the bounds (19.50–25.38 s in 3 × 24 h) (2026-11-01). Merged into `main` 2026-11-01 | `a4-uppaal` → `main` | |
 | A5 Studies with the Python engine | Done: A5.1 study design approved (2026-11-01, §5.18); A5.2 engine options, harness, S1 and S4; A5.3 S2, S3, workflow `studies`, `engine/studies/STUDIES.md` (2026-11-01): 1 620 runs of 8 h, no model error or violation. Merged into `main` 2026-11-01 | `a5-studies` → `main` | 2026-11-01 |
-| A6 More realistic plant | In progress: A6.1 design approved (2026-11-02, §5.19); A6.2 `VERIFY.fail` and broken sensor done (2026-11-02); A6.3 CNC alarm done (2026-11-03); A6.4 offset drift, tool change and early warning done (2026-11-04); A6.5 safety status done (2026-11-04; OpenPLC `nominal` and `safety` passed 2026-11-05); next: end of A6 (NuSMV re-run with `slots: 'any'` and a longer timeout, timed re-run) | `a6-plant` | |
+| A6 More realistic plant | Done: A6.1 design approved (2026-11-02, §5.19); A6.2 `VERIFY.fail` and broken sensor done (2026-11-02); A6.3 CNC alarm done (2026-11-03); A6.4 offset drift, tool change and early warning done (2026-11-04); A6.5 safety status done (2026-11-04; OpenPLC `nominal` and `safety` passed 2026-11-05); end of A6: NuSMV re-run with `slots: 'any'`, all 60 specifications of the 7 runs agree (2026-11-06); timed verification re-run in A6.5 with the same bounds. **Done**, not merged into `main` yet | `a6-plant` | 2026-11-06 |
 | B Element framework (types, three levels of detail) | Not started | | |
 | C Factory and scheduling | Not started | | |
 
@@ -1977,6 +1983,7 @@ short recorded demo exists.
 Carried from A2.5 (§17, 2026-10-30): at the first change of the model that needs a new NuSMV
 cross-check (in A3 or later), switch `verify.js` to `slots: 'any'` (the published models then cover
 any pallet capacity) and run `sensor_camwrong` with a `NUSMV_TIMEOUT` above 12 h to close P11 and P12.
+Done at the end of A6 (2026-11-06, §9.3).
 
 **A4. Timed verification with UPPAAL** (3–4 sessions)
 
@@ -2237,3 +2244,4 @@ Newest last. Every change to the plan or to a design rule is written here first 
 | 2026-11-04 | **A6.4 done**, choices made by Claude within the approved design: the tool change between two cycles in a new Robot 1 state W3 (before the door is opened), confirmed by the operator on the HMI (`HMI.tool`, accepted only in W3); the counter counts CYCLE STARTs and is retained; the size warning is computed by the gauge station (`GAUGE.warn`), not by the PLC as the design said; the offset check stops nothing and costs no time in the KPI; a tool change and an offset correction both reset the drift; test injections "Tool life end" and "Offset error" (−1.85 mm). **Finding:** with N = 400 and 0.002 mm per part the warning never fires in normal operation (at most 0.8 mm of drift). The tool change is not in an OpenPLC scenario | The PLC does not read sizes and `GAUGE.ok` is already decided by the gauge station; changing the tool before the door opens keeps the exchange unchanged; preset of the counter from the bridge would need a test path into the PLC that the real cell would not have |
 | 2026-11-04 | **A6.5 done**, choices made by Claude within the approved design: machine SAF with the five approved states and reduced speed × 2; P17 as a start property of the PLC (no job in a loading zone is started while a person is in its protective field; the PLC waits before the pick and the place), the protective stop as a status signal of the robot controller (`R1.safeStop` / `R2.safeStop`), reduced speed only for the robot of the occupied side; the E-stop forces F through a new `fault.force` of the model; after the reset and the clear every machine continues where it stopped (the first version repeated the state and a random run found that this empties the vise, see §5.19); CNC feed hold = alarm of A6.3 (full `cncReset`); new time `safetyReset` 30 s; verification runs `estop` and `person`, each without other faults (both together exceeded 100 million states); chosen rates for the random runs (1 person and 0.2 E-stops per hour); the PLC keeps state, step and job handshake through the E-stop FAULT; OpenPLC scenario `safety` | The PLC cannot stop a robot, so a property about a running job would only restate the plant; a status bit of the robot controller is what a real PLC reads; continuing the interrupted step is what a robot program does after a stop and needs no recovery rule; one person at a time keeps the run `person` small | §5.9, §5.11, §5.19, §13 item 6 |
 | 2026-11-05 | **OpenPLC criterion: a debounced plant answer counts as a handshake** (`plc_compare.handshakes`, §5.16 point 11). Found by the OpenPLC run of `safety`: C4 → C5 0.077 s above the earlier lags with a bound of 0.05 s. Also fixed: the plant of the bridge kept the E-stop mark of a machine without a running job (`sim.py`, `test_estop_with_the_plc`) | C4 is left on `!ENC-43` for `zeroSpeed` after the PLC switched the motor off: output, plant, input and a PLC timer, the same round trip as a job. In every PLC run C4 takes 0.55–0.59 s, so the old bound held by chance; only C4 has an exit with `for`, so no other bound changes |
+| 2026-11-06 | **End of A6: NuSMV re-run with `slots: 'any'`**. The published models (`verification/*.smv`) now use the output pallet of any capacity; the options live in `V.PUBLISHED` (`cell-verify.js`), read by `verify.js`, `build_all.js` and `regress.js`. Search: 7 runs, 20 properties, 0 failed, 0 deadlocks, same states as capacity 2. NuSMV 2.7.1 with `NUSMV_TIMEOUT` 48 h: 60 specifications per run, all decided and agreeing, the same reachable states in all 7 runs; P11 and P12 of `sensor_camwrong` closed (pass) after 26.1 h. Regression reference updated in the 7 model hashes only. `README.md` brought up to date on the verification (it still described A2.2) | Carried from A2.5: the published models then hold for every pallet capacity (12 included) for safety and deadlock freedom; one place for the options so the three scripts cannot disagree again | §9.3, §9.4, §13 item 2, §15 |

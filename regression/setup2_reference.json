@@ -44,37 +44,37 @@
   "none": {
    "vars": 46,
    "commands": 326,
-   "sha256": "3cd77001fde6c7885b66cabdaa50ff3e08025cbc1495fc0da7004ece45a58077"
+   "sha256": "c50345a0050c2bd5599807511c6d242823c39054dd6d66e25ad4742b1b0fe1da"
   },
   "sensor": {
    "vars": 46,
    "commands": 377,
-   "sha256": "314babd80c360656d2a3d0ec5b97b610ded187e75a646a78d976c52b0d0610c0"
+   "sha256": "0aae3b99be21da81e34b53c5d0a4906b3ae72f172a299de5fb953d11410c846f"
   },
   "process": {
    "vars": 48,
    "commands": 355,
-   "sha256": "28405beb4a2374c730788e210c9e77925c56bca058c16ca5a74852e7e38c894d"
+   "sha256": "a32e89d3b4eae6a378d6c0f8d87954a5f66c8fb34bac6b4f83d8d1412ca634a5"
   },
   "camwrong": {
    "vars": 46,
    "commands": 398,
-   "sha256": "fd344364ad9ca57c69ae46fac1513db33db6d1b809591ca0ceb7ff47ca55769a"
+   "sha256": "5e89c1a9be1010e0e043941d742666f0b1ea528879a9420d6e60ec0288bb8cec"
   },
   "sensor_camwrong": {
    "vars": 46,
    "commands": 428,
-   "sha256": "6bb252fd85ebd9cfff7615a5f9f42b193af048e3233f5ee9b536f6b270a0d395"
+   "sha256": "282c133a66ad3176d6157786e5c042710336e1cb80744179c4a8aa2f47ab1900"
   },
   "estop": {
    "vars": 51,
    "commands": 483,
-   "sha256": "0e715f03020ecbef1fd99351bfe03c67b1743a19c311a4bfc4de41c41588ba75"
+   "sha256": "349622492aee06dc318c23b8a5ffc9a8c52c118c950f826416bfe772d32662dc"
   },
   "person": {
    "vars": 47,
    "commands": 340,
-   "sha256": "bf4ad100d20e57ccd6835870dedb5636dc253c732c97b8879e9e90831665333f"
+   "sha256": "7bcfc2ff3e25480aea5ac7c198578a447ee29522b527c77ff2585aaed13d07ed"
   }
  },
  "figures": {

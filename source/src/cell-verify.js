@@ -896,7 +896,10 @@
   //   estop = an E-stop at any time, person = one person at the loading sides, each without other faults (A6.5).
   const RUNS = { none: false, sensor: ['sensor', 'timeout'], process: 'process', camwrong: ['camwrong', 'timeout'], sensor_camwrong: ['sensor', 'camwrong', 'timeout'], estop: 'estop', person: 'person' };
 
-  const API = { build, check, expected, toSmv, RUNS };
+  // options of the published models (verification/*.smv, verify.js, build_all, regress): the output pallet of
+  // any capacity >= 2, abstracted to empty / partly filled / full (A2.5; used since the NuSMV re-run at the end of A6)
+  const PUBLISHED = { slots: 'any' };
+  const API = { build, check, expected, toSmv, RUNS, PUBLISHED };
   root.CellVerify = API;
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
 })(typeof window !== 'undefined' ? window : globalThis);

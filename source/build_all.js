@@ -38,7 +38,7 @@ expected.push([JSON_OUT, modelJson()]);
 expected.push([PLC_ST, ST.toSt()]);
 expected.push([PLC_IO, ST.ioMap()]);
 Object.keys(V.RUNS).forEach((f) => {
-  const ir = V.build(2, { faults: V.RUNS[f] });
+  const ir = V.build(2, Object.assign({ faults: V.RUNS[f] }, V.PUBLISHED));
   expected.push([path.join(ROOT, 'verification', `cell_setup2_${f}.smv`), V.toSmv(ir)]);
 });
 // the timed model for UPPAAL (A4), case 1 and case 2 of the master check (PROJECT_STATUS.md §5.17)

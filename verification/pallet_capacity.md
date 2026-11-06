@@ -33,8 +33,9 @@ a safety property or deadlock freedom that holds in the abstract model holds for
 Result: in all five runs of `verify.js` the abstract model has **exactly the same states as
 capacity 2** (297,136 / 68,790,749 / 8,855,602 / 17,046,483 / 79,819,587), only more transitions
 (the step 1 → 1). All 15 properties hold, 0 deadlocks. The step is new in `cell-verify.js`
-(update kind `step`, also exported to NuSMV as a nested `case`); the published `.smv` models use
-capacity 2 and are unchanged.
+(update kind `step`, also exported to NuSMV as a nested `case`); the published `.smv` models used
+capacity 2 until the end of A6; since then (2026-11-06) they use `slots: 'any'`, with the same
+states as capacity 2 in all 7 runs and NuSMV in agreement (`results.md`).
 
 ## 3. Liveness (L1–L3) for every capacity: the counter game
 
